@@ -1,6 +1,6 @@
 
-import React, { useState, useRef, useMemo } from 'react';
-import { BrandKit, GenerationResult, ProductDetails, ProductCategory } from '../types';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { BrandKit, GenerationResult, ProductDetails, ProductCategory, ProductAnalysis } from '../types';
 import { GeminiService } from '../services/geminiService';
 import ImageEditor from './ImageEditor';
 
@@ -31,8 +31,11 @@ interface CampaignSuiteProps {
 
 const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, initialCategory }) => {
   const [productImage, setProductImage] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
   const [campaignStory, setCampaignStory] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{label: string, prompt: string}[]>([]);
   const [results, setResults] = useState<GenerationResult[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -61,11 +64,44 @@ const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, i
     { label: "Abaya Editorial", prompt: "A sophisticated abaya campaign set against the Dubai skyline at twilight, capturing the flow of the garment in a desert breeze." }
   ];
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const result = ev.target?.result as string;
+      setProductImage(result);
+      setIsAnalyzing(true);
+      try {
+        const base64 = result.split(',')[1];
+        // Parallel call: Analyze product and fetch AI Narrative suggestions
+        const [prodAnalysis, suggestions] = await Promise.all([
+          GeminiService.analyzeProduct(base64, file.type, brandKit),
+          GeminiService.suggestCampaignStories(base64, brandKit)
+        ]);
+        setAnalysis(prodAnalysis);
+        setAiSuggestions(suggestions);
+      } catch (err) {
+        console.error("Neural insight failed", err);
+      } finally {
+        setIsAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleGenerate = async () => {
     if (!campaignStory || !productImage) return alert("Please upload a hero product and define your campaign story.");
     setGenerating(true);
     try {
-      const url = await GeminiService.generateCampaignAsset(campaignStory, productImage, brandKit, { category: 'fashion', type: 'Clothing', approxSize: '', placement: 'Full body', addLogo: false, logoPlacement: 'Chest' }, '16:9', '2K');
+      const url = await GeminiService.generateCampaignAsset(campaignStory, productImage, brandKit, { 
+        category: initialCategory || 'fashion', 
+        type: (analysis?.type as any) || 'Clothing', 
+        approxSize: 'Standard', 
+        placement: 'Full body', 
+        addLogo: false, 
+        logoPlacement: 'Chest' 
+      }, '16:9', '2K');
       const newResult: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: 'image', url, prompt: campaignStory, timestamp: Date.now() };
       setResults(prev => [newResult, ...prev]);
       addToHistory(newResult);
@@ -82,7 +118,7 @@ const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, i
         <ImageEditor 
           imageUrl={results.find(r => r.id === editingId)!.url} 
           brandKit={brandKit}
-          analysis={{ type: 'Campaign', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] }}
+          analysis={analysis || { type: 'Campaign', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] }}
           onSave={(url) => { setResults(results.map(r => r.id === editingId ? {...r, url} : r)); setEditingId(null); }} 
           onCancel={() => setEditingId(null)} 
         />
@@ -101,9 +137,15 @@ const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, i
           <div className="bg-white border border-black/[0.05] rounded-[48px] p-8 soft-shadow space-y-10">
              <div className="space-y-4">
                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Step 1: Hero Product</h4>
-               <div onClick={() => fileInputRef.current?.click()} className={`aspect-square rounded-[32px] border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${productImage ? 'border-transparent bg-[#F9F9F9]' : 'border-zinc-100 hover:border-[#D4AF37]/30'}`}>
+               <div onClick={() => fileInputRef.current?.click()} className={`aspect-square rounded-[32px] border-2 border-dashed flex items-center justify-center cursor-pointer transition-all relative overflow-hidden ${productImage ? 'border-transparent bg-[#F9F9F9]' : 'border-zinc-100 hover:border-[#D4AF37]/30'}`}>
+                  {isAnalyzing && (
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
+                      <div className="w-8 h-8 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[8px] font-bold text-[#D4AF37] uppercase tracking-widest">Neural Insight...</span>
+                    </div>
+                  )}
                   {productImage ? <img src={productImage} className="w-full h-full object-cover" alt="Hero Product" /> : <div className="text-center p-6 space-y-2 text-zinc-300 font-bold uppercase text-[9px] tracking-widest">Upload hero product</div>}
-                  <input type="file" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if(f){ const r = new FileReader(); r.onload=(ev)=>setProductImage(ev.target?.result as string); r.readAsDataURL(f); } }} className="hidden" accept="image/*" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                </div>
              </div>
              
@@ -154,7 +196,16 @@ const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, i
         <div className="lg:col-span-8 space-y-8 flex flex-col">
           <div className="bg-white border border-black/[0.05] rounded-[48px] p-10 soft-shadow flex flex-col flex-1 space-y-10">
              <div className="space-y-6 flex-1">
-                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Step 2: Campaign Story</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Step 2: Campaign Story</h4>
+                  {analysis && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Analysis Active: {analysis.type}</span>
+                    </div>
+                  )}
+                </div>
+
                 <textarea 
                   value={campaignStory} 
                   onChange={(e) => setCampaignStory(e.target.value)} 
@@ -162,12 +213,35 @@ const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, i
                   className="w-full bg-[#F9F9F9] border-none rounded-[40px] p-10 text-[#1A1A1A] text-2xl focus:outline-none min-h-[300px] font-serif italic resize-none" 
                 />
                 
-                <div className="flex flex-wrap gap-4">
-                   {storyPresets.map(p => (
-                      <button key={p.label} onClick={() => setCampaignStory(p.prompt)} className="px-6 py-3 bg-zinc-50 border border-black/[0.04] rounded-full text-[9px] font-bold text-zinc-500 uppercase tracking-widest hover:border-[#D4AF37] hover:text-[#D4AF37] transition-all">
-                        {p.label}
-                      </button>
-                   ))}
+                {/* Dynamic AI Suggestions */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full animate-pulse" />
+                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Neural Narrative Concepts</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {isAnalyzing ? (
+                      Array(3).fill(0).map((_, i) => (
+                        <div key={i} className="h-10 w-32 bg-zinc-50 rounded-full animate-pulse border border-black/[0.04]" />
+                      ))
+                    ) : aiSuggestions.length > 0 ? (
+                      aiSuggestions.map((s, idx) => (
+                        <button 
+                          key={idx} 
+                          onClick={() => setCampaignStory(s.prompt)} 
+                          className="px-6 py-3 bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-full text-[9px] font-bold text-[#D4AF37] uppercase tracking-widest hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all shadow-sm"
+                        >
+                          {s.label}
+                        </button>
+                      ))
+                    ) : (
+                      storyPresets.map(p => (
+                        <button key={p.label} onClick={() => setCampaignStory(p.prompt)} className="px-6 py-3 bg-zinc-50 border border-black/[0.04] rounded-full text-[9px] font-bold text-zinc-500 uppercase tracking-widest hover:border-[#D4AF37] hover:text-[#D4AF37] transition-all">
+                          {p.label}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
              </div>
 

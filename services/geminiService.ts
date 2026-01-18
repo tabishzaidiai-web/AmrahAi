@@ -103,6 +103,51 @@ export class GeminiService {
     }
   }
 
+  static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
+    const ai = this.getAi();
+    const prompt = `SYSTEM: LUXURY CAMPAIGN STRATEGIST.
+    Analyze the uploaded product image and the brand identity (Maison Name: ${brandKit.name}, Tone: ${brandKit.tone}).
+    Provide 4 distinct, high-end campaign narrative suggestions for luxury marketing.
+    
+    Guidelines:
+    1. Modesty: Respect Gulf and international modesty standards (long sleeves, graceful silhouettes, abayas if appropriate).
+    2. Luxury: Focus on rich textures, cinematic lighting (Golden Hour, Studio Noir, Dawn), and prestigious environments.
+    3. Narrative: Suggestions should vary from "Minimalist Architectural" to "Opulent Heritage".
+    
+    Output JSON format only: an array of objects with 'label' (3-5 words) and 'prompt' (detailed description for an image generator).`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { 
+        parts: [
+          { inlineData: { data: imageBase64, mimeType: 'image/png' } },
+          { text: prompt }
+        ] 
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              label: { type: Type.STRING },
+              prompt: { type: Type.STRING }
+            },
+            required: ["label", "prompt"]
+          }
+        }
+      }
+    });
+    
+    try {
+      return JSON.parse(response.text || '[]');
+    } catch (e) {
+      console.error("Failed to parse campaign suggestions", e);
+      return [];
+    }
+  }
+
   static async generateProductImage(
     baseImage: string, 
     analysis: ProductAnalysis, 
@@ -218,7 +263,11 @@ export class GeminiService {
         model: 'veo-3.1-fast-generate-preview',
         prompt: videoPrompt,
         image: { imageBytes: config.productImage, mimeType: 'image/png' },
-        config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
+        config: { 
+          numberOfVideos: 1, 
+          resolution: config.productDetails.videoResolution || '720p', 
+          aspectRatio: config.productDetails.videoAspectRatio || '16:9' 
+        }
       });
       while (!operation.done) {
         onStatus("Orchestrating physics...");
@@ -300,7 +349,11 @@ export class GeminiService {
       model: 'veo-3.1-fast-generate-preview',
       prompt: videoPrompt,
       image: { imageBytes: base64, mimeType: 'image/png' },
-      config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
+      config: { 
+        numberOfVideos: 1, 
+        resolution: productDetails.videoResolution || '720p', 
+        aspectRatio: productDetails.videoAspectRatio || '16:9' 
+      }
     });
     while (!operation.done) {
       onStatus("Synthesizing motion...");

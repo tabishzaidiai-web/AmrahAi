@@ -26,13 +26,50 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     approxSize: 'Standard',
     placement: 'On table',
     addLogo: false,
-    logoPlacement: 'Top-right corner'
+    logoPlacement: 'Top-right corner',
+    videoResolution: '720p',
+    videoAspectRatio: '16:9'
   });
 
   const [layers, setLayers] = useState<GenerationResult[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeLayer = useMemo(() => layers.find(l => l.id === activeLayerId) || null, [layers, activeLayerId]);
+
+  // Neural Dynamic Suggestions based on Product Intelligence
+  const dynamicSuggestions = useMemo(() => {
+    const type = analysis?.type || productDetails.type || 'product';
+    const mat = analysis?.material || 'premium material';
+    const feature = (analysis?.features && analysis.features[0]) || 'exquisite craftsmanship';
+    
+    return [
+      {
+        id: 'dyn-minimal',
+        label: 'Minimalist Architecture',
+        prompt: `Professional photo of this ${mat} ${type} on a raw concrete pedestal with a minimalist architectural background, soft diffused daylight, sharp focus on ${feature}, clean e-commerce mood.`
+      },
+      {
+        id: 'dyn-arabian',
+        label: 'Opulent Arabian',
+        prompt: `Professional photo of this ${mat} ${type} on a dark silk surface with ornate gold surroundings, warm amber lighting from a hidden source, deep cinematic shadows, highlighting the ${feature}.`
+      },
+      {
+        id: 'dyn-macro',
+        label: 'Signature Macro',
+        prompt: `Professional macro photo of the ${type} showcasing the fine ${mat} textures and ${feature}, shallow depth of field, cool-toned side lighting, high-end gallery aesthetic.`
+      },
+      {
+        id: 'dyn-lifestyle',
+        label: 'Luxury Lifestyle',
+        prompt: `Professional photo of the ${type} in a sun-drenched marble boutique with blurred high-end decor, soft morning shadows, elegant high-fashion composition.`
+      },
+      {
+        id: 'dyn-banner',
+        label: 'Campaign Banner',
+        prompt: `Professional wide-shot of the ${type} on a mirror-finish surface, volumetric lighting rays, minimal futuristic background, optimized for hero banner placement.`
+      }
+    ];
+  }, [analysis, productDetails.type, brandKit.name]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,6 +176,45 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                    </div>
                  )}
               </div>
+
+              {/* Video Configuration Panel */}
+              {genType === 'video' && (
+                <div className="space-y-6 pt-6 border-t border-black/[0.04] animate-in fade-in slide-in-from-top-4">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Video Orchestration</span>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Resolution</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['720p', '1080p'].map((res) => (
+                          <button
+                            key={res}
+                            onClick={() => setProductDetails(prev => ({ ...prev, videoResolution: res as any }))}
+                            className={`py-2 rounded-xl text-[9px] font-bold uppercase transition-all border ${productDetails.videoResolution === res ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-zinc-50 border-black/[0.05] text-zinc-400'}`}
+                          >
+                            {res}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Aspect Ratio</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['16:9', '9:16'].map((ratio) => (
+                          <button
+                            key={ratio}
+                            onClick={() => setProductDetails(prev => ({ ...prev, videoAspectRatio: ratio as any }))}
+                            className={`py-2 rounded-xl text-[9px] font-bold uppercase transition-all border ${productDetails.videoAspectRatio === ratio ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'bg-zinc-50 border-black/[0.05] text-zinc-400'}`}
+                          >
+                            {ratio}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
            </div>
         </div>
 
@@ -147,7 +223,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
               <div className="space-y-6">
                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Step 2: Creative Directive</span>
                  
-                 {/* Prompt Gallery */}
+                 {/* Standard Prompt Templates */}
                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {promptGallery.map(tpl => (
                        <button 
@@ -167,9 +243,28 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                    placeholder="Describe the environment or select a template above..." 
                    className="w-full bg-[#F9F9F9] border-none rounded-[32px] p-8 text-[#1A1A1A] text-xl font-serif italic focus:outline-none min-h-[160px] resize-none shadow-inner" 
                  />
+
+                 {/* Neural Intelligence Suggestions - Dynamically generated */}
+                 <div className="space-y-3 pt-4 border-t border-black/[0.04]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full animate-pulse" />
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Neural Intelligence Suggestions</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {dynamicSuggestions.map(s => (
+                        <button 
+                          key={s.id}
+                          onClick={() => setPrompt(s.prompt)}
+                          className="px-4 py-2 bg-[#D4AF37]/5 border border-[#D4AF37]/10 hover:border-[#D4AF37] rounded-full text-[9px] font-bold text-[#D4AF37] uppercase tracking-widest transition-all"
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                 </div>
               </div>
 
-              <div className="pt-8 border-t border-black/[0.04] flex items-center justify-between gap-6">
+              <div className="pt-8 flex items-center justify-between gap-6">
                 <div className="flex bg-zinc-50 p-1 rounded-2xl">
                   <button onClick={() => setGenType('image')} className={`px-8 py-3 rounded-xl text-[9px] font-bold uppercase transition-all ${genType === 'image' ? 'bg-white text-[#1A1A1A] shadow-md' : 'text-zinc-400'}`}>Still</button>
                   <button onClick={() => setGenType('video')} className={`px-8 py-3 rounded-xl text-[9px] font-bold uppercase transition-all ${genType === 'video' ? 'bg-white text-[#1A1A1A] shadow-md' : 'text-zinc-400'}`}>Film</button>

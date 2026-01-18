@@ -1,5 +1,4 @@
 
-
 export interface ProductAnalysis {
   type: string;
   brand: string;
@@ -98,7 +97,6 @@ export type LogoPlacement =
   | 'Wrist/dial center' 
   | 'Bag front';
 
-/* Added missing types for product and camera configuration used in GeminiService */
 export type LuxuryStyle = 
   | 'Standard'
   | 'Signature Jewel Close-Up'
@@ -116,10 +114,12 @@ export interface ProductDetails {
   placement: ProductPlacement;
   addLogo: boolean;
   logoPlacement: LogoPlacement;
-  /* Added optional properties for enhanced generation control */
   luxuryStyle?: LuxuryStyle;
   cameraAngle?: CameraAngle;
   cameraMotion?: CameraMotion;
+  /* Added for Video Studio controls */
+  videoResolution?: '720p' | '1080p';
+  videoAspectRatio?: '16:9' | '9:16';
 }
 
 export interface PromptTemplate {
@@ -130,7 +130,6 @@ export interface PromptTemplate {
   supportsLogo: boolean;
 }
 
-/* Added configuration interfaces for photoshoot and personal models */
 export interface ShootConfig {
   model: ModelPersona | null;
   productImage: string; // base64 encoded

@@ -11,17 +11,6 @@ import CreateShoot from './components/CreateShoot';
 import PersonalModel from './components/PersonalModel';
 import { GenerationResult, BrandKit, ModelPersona, PersonalModelConfig, ProductCategory } from './types';
 
-// Fix: Added 'readonly' modifier to resolve "All declarations of 'aistudio' must have identical modifiers" error
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    readonly aistudio: AIStudio;
-  }
-}
-
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'app'>('landing');
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -54,10 +43,12 @@ const App: React.FC = () => {
     };
   });
 
-  // Fix: Mandatory API Key selection check for Gemini 3 Pro and Veo models
+  // Check API Key selection status for mandatory requirements of premium models
   useEffect(() => {
     const checkKeyStatus = async () => {
+      // @ts-ignore - aistudio is globally provided by the environment
       if (window.aistudio) {
+        // @ts-ignore - aistudio is globally provided by the environment
         const selected = await window.aistudio.hasSelectedApiKey();
         setIsKeySelected(selected);
       }
@@ -66,9 +57,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleOpenKeySelection = async () => {
+    // @ts-ignore - aistudio is globally provided by the environment
     if (window.aistudio) {
+      // @ts-ignore - aistudio is globally provided by the environment
       await window.aistudio.openSelectKey();
-      // Assume successful selection as per race condition guidance
+      // Proceed assuming success as per guidelines to handle potential race conditions
       setIsKeySelected(true);
     }
   };
@@ -104,7 +97,7 @@ const App: React.FC = () => {
     return <Dashboard onEnterApp={handleEnterApp} />;
   }
 
-  // Fix: Render the mandatory API Key selection view if no key is selected
+  // Mandatory view to ensure API key is selected before using premium models (Gemini 3 Pro / Veo)
   if (!isKeySelected) {
     return (
       <div className="min-h-screen bg-[#F9F9F9] flex flex-col items-center justify-center p-12 text-center space-y-8 animate-in fade-in duration-500">
