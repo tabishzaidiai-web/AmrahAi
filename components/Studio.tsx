@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, PromptLibraryItem } from '../types';
+import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, PromptLibraryItem, CameraAngle } from '../types';
 import { GeminiService } from '../services/geminiService';
 import ImageEditor from './ImageEditor';
 
@@ -26,6 +27,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     placement: 'On table',
     addLogo: false,
     logoPlacement: 'Top-right corner',
+    cameraAngle: 'Standard',
     videoResolution: '720p',
     videoAspectRatio: '16:9'
   });
@@ -38,112 +40,34 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
   const productTypes: ProductType[] = ['Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'];
   const productPlacements: ProductPlacement[] = ['On ear', 'On neck', 'On wrist', 'On finger', 'On chest', 'On shoulder', 'Full body', 'Handheld', 'On table'];
   const logoPlacements: LogoPlacement[] = ['Chest', 'Center front', 'Wrist/dial center', 'Bag front', 'Top-right corner', 'Background watermark'];
+  const cameraAngles: CameraAngle[] = ['Standard', 'Low Angle', 'High Angle', "Bird's Eye", 'Side', 'Close-up'];
 
   // Dynamically generate 10 high-fidelity prompt suggestions based on Product Analysis
   const dynamicSuggestions = useMemo(() => {
     const type = analysis?.type || productDetails.type || 'luxury piece';
     const mat = analysis?.material || 'premium material';
     const mainFeature = analysis?.features?.[0] || 'intricate craftsmanship';
-    const colorNotes = analysis?.colorPalette?.slice(0, 2).join(' and ') || 'neutral';
+    const brand = brandKit.name || 'Maison';
 
     return [
-      {
-        id: 's1',
-        label: 'Minimalist Monolith',
-        prompt: `A high-fidelity minimalist composition of the ${mat} ${type} on a slab of honed limestone. Natural soft-angled morning light, sharp focus on the ${mainFeature}. Light grey architectural background.`
-      },
-      {
-        id: 's2',
-        label: 'Opulent Arabian',
-        prompt: `An opulent editorial scene with the ${mat} ${type} resting on deep royal-blue silk. Intricate mashrabiya shadow patterns across the surface. Warm golden lighting highlighting the ${mainFeature}.`
-      },
-      {
-        id: 's3',
-        label: 'Desert Dawn',
-        prompt: `The ${mat} ${type} positioned elegantly on a smooth desert sand dune at the first light of dawn. A soft violet and amber sky background. Low-key lighting emphasizes the silhouette and ${mainFeature}.`
-      },
-      {
-        id: 's4',
-        label: 'Marina Modern',
-        prompt: `A bright lifestyle campaign shot of the ${type} on a white marble ledge overlooking a blurred Mediterranean marina. Crisp daylight, sparkling water bokeh, highlighting the ${mat} quality and ${mainFeature}.`
-      },
-      {
-        id: 's5',
-        label: 'Noir Excellence',
-        prompt: `Cinematic product portrait of the ${mat} ${type} emerging from a deep charcoal void. A single rim light traces the form, accentuating the ${mainFeature}. High contrast, ultra-luxury aesthetic.`
-      },
-      {
-        id: 's6',
-        label: 'Heritage Majlis',
-        prompt: `The ${type} presented in a refined modern majlis setting. Traditional carved wood textures meet minimalist glass tables. Warm, ambient light catching the ${mat} and the ${mainFeature}.`
-      },
-      {
-        id: 's7',
-        label: 'Architectural Atrium',
-        prompt: `A high-fashion setting with the ${type} in an open-air glass and steel atrium. Sharp geometric shadows and high-noon lighting create a bold, structural look around the ${mainFeature}.`
-      },
-      {
-        id: 's8',
-        label: 'Silk & Velvet',
-        prompt: `Intimate macro shot of the ${type} nestled in heavy folds of charcoal velvet and silk. Dramatic mood lighting catches the sheen of the ${mat} and the fine detail of the ${mainFeature}.`
-      },
-      {
-        id: 's9',
-        label: 'Nordic Glass',
-        prompt: `Pristine product shot of the ${type} on a reflective frosted glass surface. Cold northern light, minimalist environment, highlighting the ${mainFeature} with mathematical clarity.`
-      },
-      {
-        id: 's10',
-        label: 'Metropolis Suite',
-        prompt: `High-rise penthouse suite at night. The ${type} is positioned near a window with blurred city lights reflecting in its ${mat} surface. Sharp focus on the ${mainFeature} against a sprawling urban backdrop.`
-      }
+      { id: 's1', label: 'Minimalist Monolith', prompt: `A high-fidelity minimalist composition of the ${mat} ${type} on a slab of honed grey limestone. Natural morning light, focus on ${mainFeature}.` },
+      { id: 's2', label: 'Opulent Arabian', prompt: `An opulent editorial scene: the ${mat} ${type} on royal emerald velvet. Intricate mashrabiya shadows, warm golden lighting on the ${mainFeature}.` },
+      { id: 's3', label: 'Desert Dawn', prompt: `The ${mat} ${type} in the ${brand} style, nestled in fine desert sand dune at first light. Violet and amber sky background.` },
+      { id: 's4', label: 'Marina Modern', prompt: `Bright lifestyle campaign shot of the ${type} overlooking a blurred Mediterranean marina. Crisp daylight, sparkling water bokeh.` },
+      { id: 's5', label: 'Noir Excellence', prompt: `Cinematic product portrait of the ${mat} ${type} emerging from a deep charcoal void. A single rim light traces the ${mainFeature}.` },
+      { id: 's6', label: 'Heritage Majlis', prompt: `The ${type} in a refined modern majlis setting. Traditional carved wood textures meet minimalist glass tables. Warm ambient light.` },
+      { id: 's7', label: 'Architectural Atrium', prompt: `A high-fashion setting with the ${type} in an open-air glass and steel atrium. Sharp geometric shadows and high-noon lighting.` },
+      { id: 's8', label: 'Silk & Velvet', prompt: `Intimate macro shot of the ${type} nestled in heavy folds of charcoal velvet and silk. Dramatic mood lighting catches the sheen of ${mat}.` },
+      { id: 's9', label: 'Nordic Glass', prompt: `Pristine product shot of the ${type} on a reflective frosted glass surface. Cold northern light, minimalist environment.` },
+      { id: 's10', label: 'Metropolis Suite', prompt: `High-rise penthouse suite at night. The ${type} near a window with blurred city lights reflecting in its ${mat} surface.` }
     ];
-  }, [analysis, productDetails.type]);
+  }, [analysis, brandKit.name, productDetails.type]);
 
-  const promptLibrary: PromptLibraryItem[] = useMemo(() => {
-    const cat = analysis?.type || productDetails.type || 'luxury item';
-    const mat = analysis?.material || 'refined material';
-    const feat = (analysis?.features && analysis.features.length > 0) ? analysis.features[0] : 'fine detailing';
-    const brand = brandKit.name || 'the brand';
-
-    return [
-      {
-        id: 'lib-1',
-        category: 'Minimalist',
-        title: 'Zen Monolith',
-        description: 'Clean, architectural shot on stone.',
-        template: `A high-fidelity minimalist composition of the ${cat} resting on a monolith of honed grey limestone. Soft, directional morning light from high-left, sharp focus on the ${mat} and ${feat}. Seamless neutral background.`
-      },
-      {
-        id: 'lib-2',
-        category: 'Heritage',
-        title: 'Opulent Majlis',
-        description: 'Warm, rich Arabian interior setting.',
-        template: `A prestigious campaign shot of the ${cat} positioned in a modern luxury majlis. Warm ambient light, mashrabiya shadow patterns across the ${mat}, blurred heritage textures in the background. High-contrast and cinematic.`
-      },
-      {
-        id: 'lib-3',
-        category: 'Editorial',
-        title: 'Editorial Noir',
-        description: 'Dramatic lighting for high-end ads.',
-        template: `Dramatic studio product portrait of the ${brand} ${cat}. Single razor-sharp rim light tracing the form of the ${mat}, highlighting the ${feat} against a deep black void. Sophisticated and mysterious.`
-      },
-      {
-        id: 'lib-4',
-        category: 'Lifestyle',
-        title: 'Marina Chic',
-        description: 'Bright, outdoor coastal atmosphere.',
-        template: `Bright lifestyle campaign of the ${cat} on a marble table at a Dubai Marina penthouse. Sparkling water bokeh, crisp daylight reflecting off the ${mat}, high-fashion summer mood.`
-      },
-      {
-        id: 'lib-5',
-        category: 'Modernist',
-        title: 'Concrete Infinity',
-        description: 'Sharp lines and cool modern tones.',
-        template: `Modernist architectural setting with raw concrete. The ${cat} is framed within a geometric light well. Cool blue and grey tones, emphasizing the structural integrity and ${feat} of the piece.`
-      }
-    ];
-  }, [analysis, productDetails.type, brandKit.name]);
+  const useLibraryPrompt = (item: PromptLibraryItem | { prompt: string }) => {
+    setPrompt('prompt' in item ? (item as any).prompt : (item as any).template);
+    const textarea = document.getElementById('main-prompt-input');
+    if (textarea) textarea.focus();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -174,8 +98,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
       const base64 = sourceImage.split(',')[1];
       let finalPrompt = prompt;
       if (productDetails.addLogo) {
-        // Updated instruction logic for brand logo
-        finalPrompt += ` [BRAND LOGO PROTOCOL: Realistically apply the brand logo at the ${productDetails.logoPlacement.toLowerCase()} position. Preserve exact logo shape and colors. Maintain realistic scale and perspective without any distortion or stretching. Assume all rights for logo usage are owned by the user.]`;
+        finalPrompt += ` [BRAND LOGO PROTOCOL: Apply logo at ${productDetails.logoPlacement.toLowerCase()}.]`;
       }
       let url = genType === 'image' 
         ? await GeminiService.generateProductImage(base64, analysis!, finalPrompt, brandKit, productDetails)
@@ -190,12 +113,6 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
       alert(`Render failed: ${err.message}`);
       setState(AppState.READY);
     }
-  };
-
-  const useLibraryPrompt = (item: PromptLibraryItem | { prompt: string }) => {
-    setPrompt('prompt' in item ? (item as any).prompt : (item as any).template);
-    const textarea = document.getElementById('main-prompt-input');
-    if (textarea) textarea.focus();
   };
 
   return (
@@ -233,17 +150,29 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
               </div>
 
               <div className="space-y-4 pt-4 border-t border-gray-50">
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Type</label>
-                       <select value={productDetails.type} onChange={(e) => setProductDetails(prev => ({ ...prev, type: e.target.value as ProductType }))} className="w-full px-3 py-2 text-xs">
-                          {productTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                       </select>
+                 <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                         <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Type</label>
+                         <select value={productDetails.type} onChange={(e) => setProductDetails(prev => ({ ...prev, type: e.target.value as ProductType }))} className="w-full px-3 py-2 text-xs">
+                            {productTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                         </select>
+                      </div>
+                      <div className="space-y-1">
+                         <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Placement</label>
+                         <select value={productDetails.placement} onChange={(e) => setProductDetails(prev => ({ ...prev, placement: e.target.value as ProductPlacement }))} className="w-full px-3 py-2 text-xs">
+                            {productPlacements.map(p => <option key={p} value={p}>{p}</option>)}
+                         </select>
+                      </div>
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Placement</label>
-                       <select value={productDetails.placement} onChange={(e) => setProductDetails(prev => ({ ...prev, placement: e.target.value as ProductPlacement }))} className="w-full px-3 py-2 text-xs">
-                          {productPlacements.map(p => <option key={p} value={p}>{p}</option>)}
+                       <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Camera Angle</label>
+                       <select 
+                         value={productDetails.cameraAngle} 
+                         onChange={(e) => setProductDetails(prev => ({ ...prev, cameraAngle: e.target.value as CameraAngle }))} 
+                         className="w-full px-3 py-2 text-xs"
+                       >
+                          {cameraAngles.map(a => <option key={a} value={a}>{a}</option>)}
                        </select>
                     </div>
                  </div>
@@ -300,7 +229,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                     />
                  </div>
 
-                 {/* Neural suggestions integrated below prompt box */}
+                 {/* Neural suggestions integrated exactly below prompt box */}
                  <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
@@ -368,32 +297,52 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
           </button>
         </div>
 
-        {/* List of prompts scrolling bottom to top */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col-reverse gap-4">
-          {promptLibrary.map((item) => (
+          {[
+            {
+              id: 'lib-1',
+              category: 'Minimalist',
+              title: 'Zen Monolith',
+              description: 'Clean, architectural shot on stone.',
+              template: 'A high-fidelity minimalist composition of the product resting on a monolith of honed grey limestone. Soft, directional morning light from high-left, sharp focus. Seamless neutral background.'
+            },
+            {
+              id: 'lib-2',
+              category: 'Heritage',
+              title: 'Opulent Majlis',
+              description: 'Warm, rich Arabian interior setting.',
+              template: 'A prestigious campaign shot of the product positioned in a modern luxury majlis. Warm ambient light, mashrabiya shadow patterns, blurred heritage textures in the background. High-contrast and cinematic.'
+            },
+            {
+              id: 'lib-3',
+              category: 'Editorial',
+              title: 'Editorial Noir',
+              description: 'Dramatic lighting for high-end ads.',
+              template: 'Dramatic studio product portrait. Single razor-sharp rim light tracing the form of the product, highlighting the fine details against a deep black void. Sophisticated and mysterious.'
+            },
+            {
+              id: 'lib-4',
+              category: 'Lifestyle',
+              title: 'Marina Chic',
+              description: 'Bright, outdoor coastal atmosphere.',
+              template: 'Bright lifestyle campaign on a marble table at a Dubai Marina penthouse. Sparkling water bokeh, crisp daylight, high-fashion summer mood.'
+            }
+          ].map((item) => (
             <div 
               key={item.id} 
               className="group bg-gray-50 hover:bg-white border border-transparent hover:border-gold/30 rounded-xl p-4 transition-all cursor-pointer shadow-sm hover:shadow-md"
-              onClick={() => useLibraryPrompt(item)}
+              onClick={() => useLibraryPrompt({ prompt: item.template })}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[7px] font-bold text-gold uppercase tracking-[0.2em]">{item.category}</span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg className="w-3 h-3 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </span>
               </div>
               <h4 className="text-[10px] font-bold text-[#111] uppercase tracking-widest mb-1">{item.title}</h4>
               <p className="text-[8px] text-gray-500 font-medium leading-relaxed mb-3">{item.description}</p>
-              <button 
-                className="w-full py-2 border border-gray-100 rounded-lg text-[7px] font-bold text-gray-400 uppercase tracking-widest group-hover:bg-gold group-hover:text-white group-hover:border-gold transition-all"
-              >
+              <button className="w-full py-2 border border-gray-100 rounded-lg text-[7px] font-bold text-gray-400 uppercase tracking-widest group-hover:bg-gold group-hover:text-white group-hover:border-gold transition-all">
                 Use Template
               </button>
             </div>
           ))}
-          {/* Helper to show list starting from bottom visually */}
           <div className="flex-1" />
         </div>
       </div>

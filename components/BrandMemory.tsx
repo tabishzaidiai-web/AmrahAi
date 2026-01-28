@@ -72,7 +72,7 @@ const BrandMemory: React.FC<BrandMemoryProps> = ({ brandKit, setBrandKit }) => {
         <div className="lg:col-span-5">
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden soft-shadow flex flex-col h-full">
             <div className="flex-1 relative overflow-hidden">
-               <img src="https://images.unsplash.com/photo-1544006659-f0b21f04cb1d?auto=format&fit=crop&q=90&w=1200" className="w-full h-full object-cover" />
+               <img src="https://images.unsplash.com/photo-1549439602-43ebca2327af?auto=format&fit=crop&q=90&w=1200" className="w-full h-full object-cover" />
                <div className="absolute inset-0 bg-white/20" />
             </div>
             <div className="p-8 space-y-2">

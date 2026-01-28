@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 interface MediaAssetProps {
@@ -30,7 +29,7 @@ const MediaAsset: React.FC<MediaAssetProps> = ({
     setError(false);
   }, [src]);
 
-  const fallback = "https://images.unsplash.com/photo-1560343060-c147b7da1f11?auto=format&fit=crop&q=80&w=800"; // Elegant placeholder
+  const fallback = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=800"; // Elegant placeholder
 
   if (error) {
     return <img src={fallback} className={`${className} opacity-50 grayscale`} alt="Error fallback" />;

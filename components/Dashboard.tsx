@@ -23,38 +23,56 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
           </div>
         </div>
         <button 
-          onClick={() => onEnterApp('studio')} 
+          onClick={() => onEnterApp('editorial')} 
           className="px-10 py-3 bg-emerald-950 text-white font-bold rounded-full text-[10px] uppercase tracking-widest hover:bg-gold transition-all btn-luxury"
         >
           Launch Studio
         </button>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative pt-48 pb-32 px-8 overflow-hidden">
-        <div className="max-w-6xl mx-auto flex flex-col items-center text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <span className="text-[11px] font-bold text-gold uppercase tracking-[0.4em]">Visual Intelligence for Luxury</span>
-          <h1 className="text-6xl md:text-8xl font-serif text-emerald-950 leading-[1.1] font-medium max-w-4xl">
+      {/* Impactful Hero Section */}
+      <section className="relative h-screen min-h-[700px] flex items-center justify-center overflow-hidden">
+        {/* Background Image with Subtle Dark Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2000&auto=format&fit=crop" 
+            className="w-full h-full object-cover"
+            alt="Amrah Luxury Collection"
+          />
+          <div className="absolute inset-0 bg-emerald-950/50 backdrop-brightness-75" />
+        </div>
+
+        <div className="relative z-10 max-w-6xl mx-auto px-8 flex flex-col items-center text-center space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <span className="text-[11px] font-bold text-gold uppercase tracking-[0.5em] drop-shadow-sm">
+            Visual Intelligence for Luxury
+          </span>
+          <h1 className="text-5xl md:text-8xl font-serif text-white leading-[1.1] font-medium max-w-5xl drop-shadow-md">
             Product-intelligent AI shoots that never break your brand.
           </h1>
-          <p className="text-emerald-950/60 text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto">
+          <p className="text-white/90 text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto drop-shadow-sm">
             Upload your product once. AMRAH creates hyper-realistic images and videos that preserve every logo, color, and detail.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
             <button 
-              onClick={() => onEnterApp('studio')}
-              className="px-14 py-5 bg-emerald-950 text-white font-bold rounded-full text-[11px] uppercase tracking-[0.3em] hover:bg-gold transition-all btn-luxury shadow-xl shadow-emerald-950/10"
+              onClick={() => onEnterApp('editorial')}
+              className="px-14 py-5 bg-gold text-white font-bold rounded-full text-[11px] uppercase tracking-[0.3em] hover:bg-gold-hover transition-all btn-luxury shadow-2xl shadow-gold/20"
             >
-              Launch Studio
+              Start Free with 10 Credits
             </button>
-            <a href="#fidelity" className="text-[11px] font-bold text-emerald-950 uppercase tracking-widest hover:text-gold transition-all border-b border-black/10 pb-1">
-              View Fidelity Examples
+            <a 
+              href="#fidelity" 
+              className="px-14 py-5 bg-white/10 backdrop-blur-md text-white font-bold rounded-full text-[11px] uppercase tracking-[0.3em] hover:bg-white/20 transition-all border border-white/20"
+            >
+              See Examples
             </a>
           </div>
         </div>
-        
-        {/* Background Accent */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-50 rounded-full blur-[120px] -z-10 opacity-60" />
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40 animate-bounce">
+          <span className="text-[8px] font-bold uppercase tracking-widest">Scroll to Explore</span>
+          <div className="w-px h-8 bg-white/20" />
+        </div>
       </section>
 
       {/* How It Works */}
@@ -112,14 +130,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
           
           <div className="bg-emerald-50 rounded-[3rem] p-4 aspect-square flex items-center justify-center overflow-hidden">
              <div className="grid grid-cols-2 gap-4 w-full h-full">
-                <div className="relative group overflow-hidden rounded-[2rem] bg-white">
-                   <img src="https://images.unsplash.com/photo-1584305116359-ef81daaf4fd9?auto=format&fit=crop&q=80&w=600" className="w-full h-full object-cover" alt="Before" />
+                <div className="relative group overflow-hidden rounded-[2rem] bg-white border border-black/5 shadow-sm">
+                   <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover" alt="Before" />
                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <span className="text-[10px] font-bold text-white uppercase tracking-widest">Ground Truth</span>
                    </div>
                 </div>
-                <div className="relative group overflow-hidden rounded-[2rem] bg-white">
-                   <img src="https://images.unsplash.com/photo-1618231310344-934306356731?auto=format&fit=crop&q=80&w=600" className="w-full h-full object-cover" alt="After" />
+                <div className="relative group overflow-hidden rounded-[2rem] bg-white border border-black/5 shadow-sm">
+                   <img src="https://images.unsplash.com/photo-1542491595-3004b4475871?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover" alt="After" />
                    <div className="absolute inset-0 bg-gold/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <span className="text-[10px] font-bold text-white uppercase tracking-widest">Neural Render</span>
                    </div>
@@ -135,7 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
           <h2 className="text-4xl md:text-5xl font-serif text-emerald-950">Ready to transform your Maison’s digital presence?</h2>
           <div className="flex flex-col items-center gap-6">
             <button 
-              onClick={() => onEnterApp('studio')}
+              onClick={() => onEnterApp('editorial')}
               className="px-16 py-6 bg-emerald-950 text-white font-bold rounded-full text-[12px] uppercase tracking-[0.4em] hover:bg-gold transition-all btn-luxury"
             >
               Launch Studio

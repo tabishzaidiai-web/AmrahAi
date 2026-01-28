@@ -1,3 +1,4 @@
+
 // Type definitions for the application
 
 export type LuxuryStyle = 
@@ -11,19 +12,25 @@ export type CameraAngle = 'Standard' | 'Low Angle' | 'High Angle' | 'Bird\'s Eye
 export type CameraMotion = 'Static' | 'Pan Left' | 'Pan Right' | 'Tilt Up' | 'Tilt Down' | 'Zoom In' | 'Zoom Out';
 export type ProductPlacement = 'On ear' | 'On neck' | 'On wrist' | 'On finger' | 'On chest' | 'On shoulder' | 'Full body' | 'Handheld' | 'On table';
 
-export interface PersonalModelConfig {
+export interface User {
   id: string;
-  representativePortrait: string;
-  dataset: string[];
-  createdAt: number;
+  email: string;
+  name: string;
+  avatar?: string;
+  tier: 'Free' | 'Boutique' | 'Atelier' | 'Maison';
+  credits: {
+    images: number;
+    videos: number;
+  };
 }
 
-export interface PromptTemplate {
+export interface SubscriptionPackage {
   id: string;
-  category: string;
-  label: string;
-  promptTemplate: string;
-  supportsLogo: boolean;
+  name: string;
+  price: number;
+  imageCredits: number;
+  videoCredits: number;
+  features: string[];
 }
 
 export interface ProductAnalysis {
@@ -84,7 +91,6 @@ export type ProductType =
   | 'Bag' 
   | 'Shoes' 
   | 'Accessories' 
-  | 'Abaya' 
   | 'Abaya / Modest fashion'
   | 'Other';
 
@@ -128,8 +134,23 @@ export interface ShootConfig {
 
 export interface PromptLibraryItem {
   id: string;
+  category: string;
   title: string;
   description: string;
   template: string;
+}
+
+export interface PersonalModelConfig {
+  id: string;
+  representativePortrait: string;
+  dataset: string[];
+  createdAt: number;
+}
+
+export interface PromptTemplate {
+  id: string;
   category: string;
+  label: string;
+  promptTemplate: string;
+  supportsLogo: boolean;
 }
