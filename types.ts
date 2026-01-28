@@ -1,3 +1,30 @@
+// Type definitions for the application
+
+export type LuxuryStyle = 
+  | 'Standard' 
+  | 'Signature Jewel Close-Up' 
+  | 'Editorial Portrait With Jewel' 
+  | 'Curated Display Board' 
+  | 'Precision Timepiece Focus';
+
+export type CameraAngle = 'Standard' | 'Low Angle' | 'High Angle' | 'Bird\'s Eye' | 'Side' | 'Close-up';
+export type CameraMotion = 'Static' | 'Pan Left' | 'Pan Right' | 'Tilt Up' | 'Tilt Down' | 'Zoom In' | 'Zoom Out';
+export type ProductPlacement = 'On ear' | 'On neck' | 'On wrist' | 'On finger' | 'On chest' | 'On shoulder' | 'Full body' | 'Handheld' | 'On table';
+
+export interface PersonalModelConfig {
+  id: string;
+  representativePortrait: string;
+  dataset: string[];
+  createdAt: number;
+}
+
+export interface PromptTemplate {
+  id: string;
+  category: string;
+  label: string;
+  promptTemplate: string;
+  supportsLogo: boolean;
+}
 
 export interface ProductAnalysis {
   type: string;
@@ -21,7 +48,7 @@ export interface BrandKit {
   logoUrl?: string;
   primaryColor: string;
   secondaryColor: string;
-  tone: 'professional' | 'energetic' | 'minimal' | 'luxury';
+  tone: 'Minimal' | 'Opulent' | 'Street' | 'Classic' | 'Editorial';
   primaryFont: string;
   secondaryFont: string;
   fontWeight: string;
@@ -42,20 +69,13 @@ export interface ModelPersona {
   gender: 'Female' | 'Male';
   style: string[];
   mainUrl: string;
-  defaultPromptFragment: string; // The locked visual identity text
+  defaultPromptFragment: string;
   showcase: {
     category: string;
     url: string;
   }[];
   isPersonal?: boolean;
 }
-
-export type ShootUseCase = 
-  | 'Clothing photoshoot' 
-  | 'Jewelry close-up' 
-  | 'Footwear lifestyle' 
-  | 'Abaya editorial' 
-  | 'Luxury product advertisement';
 
 export type ProductType = 
   | 'Jewelry' 
@@ -64,7 +84,8 @@ export type ProductType =
   | 'Bag' 
   | 'Shoes' 
   | 'Accessories' 
-  | 'Abaya / Modest fashion' 
+  | 'Abaya' 
+  | 'Abaya / Modest fashion'
   | 'Other';
 
 export type ProductCategory = 
@@ -76,70 +97,39 @@ export type ProductCategory =
   | 'wellness' 
   | 'other';
 
-export type ProductPlacement = 
-  | 'On ear' 
-  | 'On neck' 
-  | 'On wrist' 
-  | 'On finger' 
-  | 'On chest' 
-  | 'On shoulder' 
-  | 'Full body' 
-  | 'Handheld' 
-  | 'On table';
-
 export type LogoPlacement = 
+  | 'Chest'
+  | 'Center front'
+  | 'Wrist/dial center'
+  | 'Bag front'
   | 'Top-right corner'
-  | 'Top-left corner'
-  | 'Bottom-center'
-  | 'Background watermark'
-  | 'Chest' 
-  | 'Center front' 
-  | 'Wrist/dial center' 
-  | 'Bag front';
-
-export type LuxuryStyle = 
-  | 'Standard'
-  | 'Signature Jewel Close-Up'
-  | 'Editorial Portrait With Jewel'
-  | 'Curated Display Board'
-  | 'Precision Timepiece Focus';
-
-export type CameraAngle = 'Standard' | 'Birds-eye' | 'Low-angle' | 'Side-profile' | 'Macro';
-export type CameraMotion = 'Static' | 'Slow Pan' | 'Zoom In' | 'Orbit' | 'Tilt';
+  | 'Background watermark';
 
 export interface ProductDetails {
   category: ProductCategory;
   type: ProductType;
   approxSize: string;
-  placement: ProductPlacement;
+  placement: ProductPlacement | string;
   addLogo: boolean;
   logoPlacement: LogoPlacement;
+  videoResolution?: '720p' | '1080p';
+  videoAspectRatio?: '16:9' | '9:16';
   luxuryStyle?: LuxuryStyle;
   cameraAngle?: CameraAngle;
   cameraMotion?: CameraMotion;
-  /* Added for Video Studio controls */
-  videoResolution?: '720p' | '1080p';
-  videoAspectRatio?: '16:9' | '9:16';
-}
-
-export interface PromptTemplate {
-  id: string;
-  category: string;
-  label: string;
-  promptTemplate: string;
-  supportsLogo: boolean;
 }
 
 export interface ShootConfig {
   model: ModelPersona | null;
-  productImage: string; // base64 encoded
-  useCase: ShootUseCase;
+  productImage: string;
+  useCase: string;
   productDetails: ProductDetails;
 }
 
-export interface PersonalModelConfig {
+export interface PromptLibraryItem {
   id: string;
-  representativePortrait: string;
-  dataset: string[];
-  createdAt: number;
+  title: string;
+  description: string;
+  template: string;
+  category: string;
 }

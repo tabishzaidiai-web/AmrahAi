@@ -282,7 +282,7 @@ export class GeminiService {
 
   static async generateCampaignAsset(
     prompt: string,
-    productB64: string | null,
+    productB64s: (string | null)[],
     brandKit: BrandKit,
     productDetails: ProductDetails,
     aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "16:9",
@@ -291,19 +291,26 @@ export class GeminiService {
     if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion. Please choose a more refined, tasteful direction.");
     const ai = this.getAi();
     const parts: any[] = [];
-    if (productB64) {
-      const cleanB64 = productB64.includes(',') ? productB64.split(',')[1] : productB64;
-      parts.push({ inlineData: { data: cleanB64, mimeType: 'image/png' } }, { text: "MASTER PRODUCT" });
-    }
+    
+    // Process multiple product images
+    productB64s.forEach((b64, idx) => {
+      if (b64) {
+        const cleanB64 = b64.includes(',') ? b64.split(',')[1] : b64;
+        const role = idx === 0 ? "PRIMARY FRONT VIEW" : idx === 1 ? "BACK SIDE VIEW" : "DETAIL MACRO REFERENCE";
+        parts.push({ inlineData: { data: cleanB64, mimeType: 'image/png' } }, { text: `MASTER PRODUCT ${role}` });
+      }
+    });
 
     const scaleClause = `Render the product at realistic scale relative to the human body based on: type = ${productDetails.type}, approx size = ${productDetails.approxSize}, placement = ${productDetails.placement}. Do not enlarge the product for drama or effect.`;
     const logoClause = productDetails.addLogo ? `Apply the brand logo at ${productDetails.logoPlacement} in a realistic, proportional way. Preserve logo colors and shape. Do not distort or stretch the logo.` : "";
     const styleClause = productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[productDetails.luxuryStyle] : "";
     const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
 
-    const instruction = `SYSTEM: CAMPAIGN BUILDER. 
+    const instruction = `SYSTEM: CAMPAIGN BUILDER. ZERO DEVIATION MODE.
     ${MODESTY_SYSTEM_INSTRUCTION}
-    Product fidelity: Match MASTER PRODUCT exactly.
+    Product Fidelity: 100% visual fidelity to ALL provided MASTER PRODUCT references. 
+    Use the primary view as the main source, but use the back and detail references to ensure 360-degree consistency in shape, color, print, and logo placement.
+    Do not invent or omit details found in any reference.
     Scale Realism: ${scaleClause}
     Category Aesthetics: ${categoryClause}
     Style Direction: ${styleClause}

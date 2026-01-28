@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrandKit } from '../types';
 
@@ -9,31 +8,31 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ brandKit, onLogoClick }) => {
   return (
-    <header className="glass sticky top-0 z-50 px-8 py-5 flex items-center justify-between">
+    <header className="glass sticky top-0 z-[100] px-10 py-6 flex items-center justify-between">
       <div className="flex items-center gap-6 cursor-pointer group" onClick={onLogoClick}>
-        {brandKit.logoUrl ? (
-          <div className="h-10 w-auto flex items-center gap-4 border-r border-black/[0.06] pr-6">
-            <img src={brandKit.logoUrl} alt="Maison Logo" className="h-full w-auto object-contain brightness-0 grayscale opacity-80 group-hover:opacity-100 transition-opacity" />
+        {brandKit.logoUrl && (
+          <div className="h-10 w-auto flex items-center gap-6 border-r border-black/5 pr-6">
+            <img src={brandKit.logoUrl} alt="Logo" className="h-full w-auto object-contain brightness-0 grayscale opacity-80 group-hover:opacity-100 transition-opacity" />
           </div>
-        ) : null}
+        )}
         <div className="flex flex-col">
-          <h1 className="text-2xl font-serif tracking-widest text-[#D4AF37] italic font-medium uppercase leading-none">
+          <h1 className="text-2xl font-serif tracking-[0.2em] text-emerald-950 font-bold uppercase leading-none">
             {brandKit.name || 'AMRAH'}
           </h1>
-          <span className="text-[6px] font-bold text-zinc-400 uppercase tracking-[0.5em] mt-1 text-center">
-            HERITAGE ENGINE
+          <span className="text-[7px] font-bold text-gold uppercase tracking-[0.4em] mt-1.5">
+            Luxury Visual Intelligence
           </span>
         </div>
       </div>
       
       <div className="flex items-center gap-10">
-        <div className="hidden sm:flex items-center gap-3">
-          <div className="w-1.5 h-1.5 bg-[#D4AF37] rounded-full animate-pulse shadow-[0_0_8px_rgba(212,175,55,0.4)]" />
-          <span className="text-[8px] font-bold text-zinc-300 uppercase tracking-[0.4em]">Neural Lock Active</span>
+        <div className="hidden lg:flex items-center gap-3">
+          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+          <span className="text-[9px] font-bold text-emerald-950/40 uppercase tracking-[0.2em]">Neural Engine Locked</span>
         </div>
         
-        <button className="text-[9px] font-bold text-zinc-400 hover:text-[#1A1A1A] uppercase tracking-[0.3em] transition-colors border-l border-black/[0.06] pl-10">
-          Concierge
+        <button className="text-[10px] font-bold text-emerald-950/60 hover:text-gold uppercase tracking-[0.2em] transition-colors pl-10 border-l border-black/5">
+          Plan & Usage
         </button>
       </div>
     </header>

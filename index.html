@@ -3,100 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AMRAH by Arabian AI | Hyper-Realistic Luxury Visuals</title>
+    <title>AMRAH | Luxury Visual Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            950: '#022c22',
+                        },
+                        gold: {
+                            DEFAULT: '#D4AF37',
+                            hover: '#C5A028'
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Playfair Display', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        '3xl': '1.5rem',
+                        '4xl': '2rem',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         :root {
-            --bg: #F9F9F9;
-            --surface: #FFFFFF;
-            --text-primary: #1A1A1A;
-            --text-secondary: #666666;
+            --bg: #FDFDFD;
+            --emerald-deep: #022c22;
             --gold: #D4AF37;
-            --gold-soft: rgba(212, 175, 55, 0.1);
-            --border: rgba(0, 0, 0, 0.06);
         }
+        
         body {
-            font-family: 'Inter', sans-serif;
             background-color: var(--bg);
-            color: var(--text-primary);
+            color: #111;
             scroll-behavior: smooth;
-            -webkit-font-smoothing: antialiased;
         }
-        .font-serif {
-            font-family: 'Playfair Display', serif;
+
+        .soft-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04);
         }
-        .text-gold { color: var(--gold); }
-        .bg-gold { background-color: var(--gold); }
-        .border-gold { border-color: var(--gold); }
-        
-        ::selection {
-            background-color: var(--gold);
-            color: #fff;
+
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
         }
-        
+
+        .btn-luxury {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-luxury:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: #DDD; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #EEE; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
         .reveal {
             opacity: 0;
             transform: translateY(20px);
-            transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .reveal.active {
             opacity: 1;
             transform: translateY(0);
         }
-
-        .gold-glow {
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15);
-        }
-
-        .gold-bg {
-            background-color: var(--gold);
-        }
-
-        .soft-shadow {
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
-        }
         
-        @keyframes subtleZoom {
-          from { transform: scale(1); }
-          to { transform: scale(1.05); }
+        input, select, textarea {
+            border: 1px solid #E5E7EB !important;
+            border-radius: 1rem !important;
+            padding: 0.75rem 1rem !important;
+            outline: none !important;
         }
-        .hero-zoom {
-          animation: subtleZoom 15s infinite alternate ease-in-out;
-        }
-
-        /* Hover interaction using the subtleZoom keyframes' scale logic */
-        .subtleZoom {
-          transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .subtleZoom:hover {
-          transform: scale(1.05);
-        }
-
-        .gold-gradient-text {
-            background: linear-gradient(to right, #D4AF37, #B8860B);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .glass {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .card-hover {
-            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+        input:focus {
+            border-color: var(--gold) !important;
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.05) !important;
         }
     </style>
 <script type="importmap">

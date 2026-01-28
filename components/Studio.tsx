@@ -1,8 +1,6 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement } from '../types';
+import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, PromptLibraryItem } from '../types';
 import { GeminiService } from '../services/geminiService';
-import { promptGallery } from '../data/prompts';
 import ImageEditor from './ImageEditor';
 
 interface StudioProps {
@@ -19,6 +17,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
   const [genType, setGenType] = useState<'image' | 'video'>('image');
   const [loadingMsg, setLoadingMsg] = useState('');
   const [showEditor, setShowEditor] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(true);
   
   const [productDetails, setProductDetails] = useState<ProductDetails>({
     category: initialCategory || 'jewelry',
@@ -38,53 +37,113 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
 
   const productTypes: ProductType[] = ['Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'];
   const productPlacements: ProductPlacement[] = ['On ear', 'On neck', 'On wrist', 'On finger', 'On chest', 'On shoulder', 'Full body', 'Handheld', 'On table'];
+  const logoPlacements: LogoPlacement[] = ['Chest', 'Center front', 'Wrist/dial center', 'Bag front', 'Top-right corner', 'Background watermark'];
 
-  // Enhanced Environment Presets for Visual Gallery
-  const environmentPresets = useMemo(() => [
-    {
-      category: 'Heritage',
-      items: [
-        { id: 'h-1', label: 'Old Souk Dusk', prompt: 'Inside a grand, atmospheric Arabian souk at twilight. Soft lantern light, intricate woodwork, warm amber shadows, and floating dust motes catching the light.', img: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&q=80&w=400' },
-        { id: 'h-2', label: 'Silk Palace', prompt: 'An opulent palace chamber with heavy silk drapes and marble floors. Royal blue and gold accents, soft volumetric lighting from high windows.', img: 'https://images.unsplash.com/photo-1512106373293-673e160249d8?auto=format&fit=crop&q=80&w=400' }
-      ]
-    },
-    {
-      category: 'Modernist',
-      items: [
-        { id: 'm-1', label: 'Concrete Zen', prompt: 'A minimalist architectural space with raw concrete walls. Sharp geometric shadows, cold northern light, clean lines, and an ultra-modern aesthetic.', img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=400' },
-        { id: 'm-2', label: 'Glass Infinity', prompt: 'A high-end glass showroom overlooking a blurred neon-lit metropolis at night. Rain droplets on the glass, cool blue reflections.', img: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=400' }
-      ]
-    },
-    {
-      category: 'Organic',
-      items: [
-        { id: 'o-1', label: 'Desert Silence', prompt: 'Golden sand dunes at the first light of dawn. Soft orange sky, deep blue shadows, wind ripples in the sand, very peaceful and vast.', img: 'https://images.unsplash.com/photo-1443633190479-502621746b14?auto=format&fit=crop&q=80&w=400' },
-        { id: 'o-2', label: 'Mossy Grotto', prompt: 'A damp stone cave floor covered in vibrant green moss. A single sunbeam pierces the dark, illuminating the product with natural brilliance.', img: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=400' }
-      ]
-    }
-  ], []);
-
-  // Neural Dynamic Suggestions based on Product Intelligence
+  // Dynamically generate 10 high-fidelity prompt suggestions based on Product Analysis
   const dynamicSuggestions = useMemo(() => {
     const type = analysis?.type || productDetails.type || 'luxury piece';
-    const mat = analysis?.material || 'exquisite material';
-    const feature = (analysis?.features && analysis.features.length > 0) 
-      ? analysis.features[0] 
-      : 'intricate craftsmanship';
-    
+    const mat = analysis?.material || 'premium material';
+    const mainFeature = analysis?.features?.[0] || 'intricate craftsmanship';
+    const colorNotes = analysis?.colorPalette?.slice(0, 2).join(' and ') || 'neutral';
+
     return [
       {
-        id: 'dyn-minimal',
-        label: 'Zen Minimalist',
-        prompt: `A high-fidelity minimalist composition featuring the ${mat} ${type} centered on a monolith of honed limestone. Natural, soft-angled morning light creates long, gentle shadows. Background is a seamless, matte neutral architectural space. Focus is sharp on the ${feature}.`
+        id: 's1',
+        label: 'Minimalist Monolith',
+        prompt: `A high-fidelity minimalist composition of the ${mat} ${type} on a slab of honed limestone. Natural soft-angled morning light, sharp focus on the ${mainFeature}. Light grey architectural background.`
       },
       {
-        id: 'dyn-opulent-arabian',
+        id: 's2',
         label: 'Opulent Arabian',
-        prompt: `A prestigious editorial shot of the ${mat} ${type} resting on a rich, midnight-blue silk cushion. Ornate mashrabiya patterns cast intricate shadows across the scene. Warm, golden volumetric lighting highlights the ${feature} and the heritage essence of the piece.`
+        prompt: `An opulent editorial scene with the ${mat} ${type} resting on deep royal-blue silk. Intricate mashrabiya shadow patterns across the surface. Warm golden lighting highlighting the ${mainFeature}.`
+      },
+      {
+        id: 's3',
+        label: 'Desert Dawn',
+        prompt: `The ${mat} ${type} positioned elegantly on a smooth desert sand dune at the first light of dawn. A soft violet and amber sky background. Low-key lighting emphasizes the silhouette and ${mainFeature}.`
+      },
+      {
+        id: 's4',
+        label: 'Marina Modern',
+        prompt: `A bright lifestyle campaign shot of the ${type} on a white marble ledge overlooking a blurred Mediterranean marina. Crisp daylight, sparkling water bokeh, highlighting the ${mat} quality and ${mainFeature}.`
+      },
+      {
+        id: 's5',
+        label: 'Noir Excellence',
+        prompt: `Cinematic product portrait of the ${mat} ${type} emerging from a deep charcoal void. A single rim light traces the form, accentuating the ${mainFeature}. High contrast, ultra-luxury aesthetic.`
+      },
+      {
+        id: 's6',
+        label: 'Heritage Majlis',
+        prompt: `The ${type} presented in a refined modern majlis setting. Traditional carved wood textures meet minimalist glass tables. Warm, ambient light catching the ${mat} and the ${mainFeature}.`
+      },
+      {
+        id: 's7',
+        label: 'Architectural Atrium',
+        prompt: `A high-fashion setting with the ${type} in an open-air glass and steel atrium. Sharp geometric shadows and high-noon lighting create a bold, structural look around the ${mainFeature}.`
+      },
+      {
+        id: 's8',
+        label: 'Silk & Velvet',
+        prompt: `Intimate macro shot of the ${type} nestled in heavy folds of charcoal velvet and silk. Dramatic mood lighting catches the sheen of the ${mat} and the fine detail of the ${mainFeature}.`
+      },
+      {
+        id: 's9',
+        label: 'Nordic Glass',
+        prompt: `Pristine product shot of the ${type} on a reflective frosted glass surface. Cold northern light, minimalist environment, highlighting the ${mainFeature} with mathematical clarity.`
+      },
+      {
+        id: 's10',
+        label: 'Metropolis Suite',
+        prompt: `High-rise penthouse suite at night. The ${type} is positioned near a window with blurred city lights reflecting in its ${mat} surface. Sharp focus on the ${mainFeature} against a sprawling urban backdrop.`
       }
     ];
   }, [analysis, productDetails.type]);
+
+  const promptLibrary: PromptLibraryItem[] = useMemo(() => {
+    const cat = analysis?.type || productDetails.type || 'luxury item';
+    const mat = analysis?.material || 'refined material';
+    const feat = (analysis?.features && analysis.features.length > 0) ? analysis.features[0] : 'fine detailing';
+    const brand = brandKit.name || 'the brand';
+
+    return [
+      {
+        id: 'lib-1',
+        category: 'Minimalist',
+        title: 'Zen Monolith',
+        description: 'Clean, architectural shot on stone.',
+        template: `A high-fidelity minimalist composition of the ${cat} resting on a monolith of honed grey limestone. Soft, directional morning light from high-left, sharp focus on the ${mat} and ${feat}. Seamless neutral background.`
+      },
+      {
+        id: 'lib-2',
+        category: 'Heritage',
+        title: 'Opulent Majlis',
+        description: 'Warm, rich Arabian interior setting.',
+        template: `A prestigious campaign shot of the ${cat} positioned in a modern luxury majlis. Warm ambient light, mashrabiya shadow patterns across the ${mat}, blurred heritage textures in the background. High-contrast and cinematic.`
+      },
+      {
+        id: 'lib-3',
+        category: 'Editorial',
+        title: 'Editorial Noir',
+        description: 'Dramatic lighting for high-end ads.',
+        template: `Dramatic studio product portrait of the ${brand} ${cat}. Single razor-sharp rim light tracing the form of the ${mat}, highlighting the ${feat} against a deep black void. Sophisticated and mysterious.`
+      },
+      {
+        id: 'lib-4',
+        category: 'Lifestyle',
+        title: 'Marina Chic',
+        description: 'Bright, outdoor coastal atmosphere.',
+        template: `Bright lifestyle campaign of the ${cat} on a marble table at a Dubai Marina penthouse. Sparkling water bokeh, crisp daylight reflecting off the ${mat}, high-fashion summer mood.`
+      },
+      {
+        id: 'lib-5',
+        category: 'Modernist',
+        title: 'Concrete Infinity',
+        description: 'Sharp lines and cool modern tones.',
+        template: `Modernist architectural setting with raw concrete. The ${cat} is framed within a geometric light well. Cool blue and grey tones, emphasizing the structural integrity and ${feat} of the piece.`
+      }
+    ];
+  }, [analysis, productDetails.type, brandKit.name]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,17 +169,14 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
   const handleGenerate = async () => {
     if (!sourceImage || !prompt) return;
     setState(AppState.GENERATING);
-    setLoadingMsg("Composing masterpiece...");
+    setLoadingMsg("Synthesizing masterpiece...");
     try {
       const base64 = sourceImage.split(',')[1];
       let finalPrompt = prompt;
       if (productDetails.addLogo) {
-        const logoText = productDetails.logoPlacement === 'Background watermark' 
-          ? `with the brand logo as a faint, subtle watermark in the background, keeping the product fully visible.`
-          : `with the brand logo placed in the ${productDetails.logoPlacement.toLowerCase()}, small and subtle, not covering the main product.`;
-        finalPrompt += ` ${logoText}`;
+        // Updated instruction logic for brand logo
+        finalPrompt += ` [BRAND LOGO PROTOCOL: Realistically apply the brand logo at the ${productDetails.logoPlacement.toLowerCase()} position. Preserve exact logo shape and colors. Maintain realistic scale and perspective without any distortion or stretching. Assume all rights for logo usage are owned by the user.]`;
       }
-
       let url = genType === 'image' 
         ? await GeminiService.generateProductImage(base64, analysis!, finalPrompt, brandKit, productDetails)
         : await GeminiService.generateProductVideo(base64, analysis!, finalPrompt, brandKit, productDetails, setLoadingMsg);
@@ -136,142 +192,209 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     }
   };
 
-  const logoPlacements: LogoPlacement[] = ['Top-right corner', 'Top-left corner', 'Bottom-center', 'Background watermark'];
+  const useLibraryPrompt = (item: PromptLibraryItem | { prompt: string }) => {
+    setPrompt('prompt' in item ? (item as any).prompt : (item as any).template);
+    const textarea = document.getElementById('main-prompt-input');
+    if (textarea) textarea.focus();
+  };
 
   return (
-    <div className="space-y-12 pb-24 reveal active">
+    <div className="flex gap-8 pb-20 reveal active relative h-full">
       {showEditor && activeLayer && activeLayer.type === 'image' && analysis && (
         <ImageEditor 
           imageUrl={activeLayer.url} 
           brandKit={brandKit}
           analysis={analysis}
-          onSave={(url) => { 
-            setLayers(layers.map(l => l.id === activeLayerId ? { ...l, url } : l)); 
-            setShowEditor(false); 
-          }} 
+          onSave={(url) => { setLayers(layers.map(l => l.id === activeLayerId ? { ...l, url } : l)); setShowEditor(false); }} 
           onCancel={() => setShowEditor(false)} 
         />
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-        <div className="space-y-2 text-center md:text-left">
-           <span className="text-[9px] font-bold text-[#D4AF37] uppercase tracking-[0.4em] block">Couture Studio</span>
-           <h2 className="text-4xl font-serif text-[#1A1A1A]">Neural Product Renders</h2>
+      {/* Main Studio Area */}
+      <div className={`transition-all duration-500 flex-1 space-y-8 ${showLibrary ? 'mr-[320px]' : ''}`}>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-serif text-[#111] font-medium">Neural Product Studio</h2>
+          <p className="text-xs text-gray-500 font-light">Synthesize high-fidelity product renders with granular control.</p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-4 space-y-8">
-           <div className="bg-white border border-black/[0.05] rounded-[48px] p-8 soft-shadow space-y-8">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Step 1: Asset Configuration</span>
-              
-              <div onClick={() => fileInputRef.current?.click()} className={`aspect-square rounded-[32px] border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${sourceImage ? 'border-transparent bg-[#F9F9F9]' : 'border-zinc-100 hover:border-[#D4AF37]/30'}`}>
-                {sourceImage ? <img src={sourceImage} className="w-full h-full object-cover" alt="Source" /> : <div className="text-center p-6 space-y-2"><svg className="w-8 h-8 text-zinc-100 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth={1}/></svg><span className="text-[8px] font-bold text-zinc-300 uppercase tracking-widest block">Upload product asset</span></div>}
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Control Panel */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white border border-gray-100 rounded-xl p-6 soft-shadow space-y-6">
+              <div className="space-y-4">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">1. Source Asset</span>
+                <div 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className={`aspect-square rounded-lg border border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${sourceImage ? 'border-transparent bg-gray-50' : 'border-gray-200 hover:border-gold/50'}`}
+                >
+                  {sourceImage ? <img src={sourceImage} className="w-full h-full object-cover" alt="Source" /> : <div className="text-center text-gray-300 space-y-1"><span className="text-[9px] font-bold uppercase block">Upload Asset</span></div>}
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                </div>
               </div>
 
-              {/* Quick Config */}
-              <div className="space-y-4 pt-4 border-t border-black/[0.04]">
+              <div className="space-y-4 pt-4 border-t border-gray-50">
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                       <label className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Type</label>
-                       <select value={productDetails.type} onChange={(e) => setProductDetails(prev => ({ ...prev, type: e.target.value as ProductType }))} className="w-full bg-zinc-50 border border-black/[0.05] rounded-xl px-3 py-2 text-[9px] font-bold uppercase">
+                       <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Type</label>
+                       <select value={productDetails.type} onChange={(e) => setProductDetails(prev => ({ ...prev, type: e.target.value as ProductType }))} className="w-full px-3 py-2 text-xs">
                           {productTypes.map(t => <option key={t} value={t}>{t}</option>)}
                        </select>
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Placement</label>
-                       <select value={productDetails.placement} onChange={(e) => setProductDetails(prev => ({ ...prev, placement: e.target.value as ProductPlacement }))} className="w-full bg-zinc-50 border border-black/[0.05] rounded-xl px-3 py-2 text-[9px] font-bold uppercase">
+                       <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Placement</label>
+                       <select value={productDetails.placement} onChange={(e) => setProductDetails(prev => ({ ...prev, placement: e.target.value as ProductPlacement }))} className="w-full px-3 py-2 text-xs">
                           {productPlacements.map(p => <option key={p} value={p}>{p}</option>)}
                        </select>
                     </div>
                  </div>
               </div>
 
-              <div className="space-y-6 pt-4 border-t border-black/[0.04]">
+              <div className="pt-4 border-t border-gray-50 space-y-4">
+                 <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      id="add-logo-cb"
+                      checked={productDetails.addLogo} 
+                      onChange={(e) => setProductDetails(prev => ({ ...prev, addLogo: e.target.checked }))}
+                      className="w-4 h-4 accent-[#D4AF37]"
+                    />
+                    <label htmlFor="add-logo-cb" className="text-[10px] font-bold text-gray-400 uppercase tracking-widest cursor-pointer select-none">Add my brand logo</label>
+                 </div>
+                 
+                 {productDetails.addLogo && (
+                   <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                      <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest block">Logo placement</label>
+                      <select 
+                        value={productDetails.logoPlacement} 
+                        onChange={(e) => setProductDetails(prev => ({ ...prev, logoPlacement: e.target.value as LogoPlacement }))}
+                        className="w-full px-3 py-2 text-xs bg-gray-50"
+                      >
+                         {logoPlacements.map(lp => <option key={lp} value={lp}>{lp}</option>)}
+                      </select>
+                   </div>
+                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Preview Panel */}
+          <div className="lg:col-span-8 space-y-6">
+            <div className="bg-white border border-gray-100 rounded-xl p-8 soft-shadow space-y-8">
+              <div className="space-y-4">
                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Add Maison Logo</span>
-                    <button onClick={() => setProductDetails(prev => ({ ...prev, addLogo: !prev.addLogo }))} className={`w-12 h-6 rounded-full transition-all relative ${productDetails.addLogo ? 'bg-[#D4AF37]' : 'bg-zinc-200'}`}>
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${productDetails.addLogo ? 'left-7' : 'left-1'}`} />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">2. Narrative Orchestration</span>
+                    <button 
+                      onClick={() => setShowLibrary(!showLibrary)}
+                      className="text-[8px] font-bold text-gold uppercase tracking-widest hover:underline"
+                    >
+                      {showLibrary ? 'Hide Library' : 'Open Library'}
                     </button>
                  </div>
-              </div>
-           </div>
-        </div>
-
-        <div className="lg:col-span-8 space-y-8">
-           <div className="bg-white border border-black/[0.05] rounded-[48px] p-10 soft-shadow space-y-10">
-              
-              {/* Environment Gallery */}
-              <div className="space-y-6">
-                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Signature Maison Backdrops</span>
-                    <span className="text-[8px] font-bold text-[#D4AF37] uppercase tracking-widest">Select to apply</span>
+                 <div className="relative group">
+                    <textarea 
+                      id="main-prompt-input"
+                      value={prompt} 
+                      onChange={(e) => setPrompt(e.target.value)} 
+                      placeholder="Define the environment and lighting for this masterpiece..." 
+                      className="w-full bg-gray-50 border-none rounded-xl p-6 text-sm italic min-h-[140px] focus:ring-1 focus:ring-gold/20 shadow-inner"
+                    />
                  </div>
-                 <div className="space-y-8">
-                    {environmentPresets.map((cat) => (
-                       <div key={cat.category} className="space-y-3">
-                          <h4 className="text-[9px] font-bold text-zinc-300 uppercase tracking-[0.3em]">{cat.category}</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                             {cat.items.map((item) => (
-                                <div 
-                                  key={item.id} 
-                                  onClick={() => setPrompt(item.prompt)}
-                                  className={`group cursor-pointer rounded-2xl overflow-hidden border-2 transition-all relative aspect-video ${prompt === item.prompt ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                                >
-                                   <img src={item.img} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" alt={item.label} />
-                                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center p-3">
-                                      <span className="text-[8px] font-bold text-white uppercase tracking-widest text-center">{item.label}</span>
-                                   </div>
-                                </div>
-                             ))}
-                          </div>
-                       </div>
-                    ))}
-                 </div>
-              </div>
 
-              {/* Director's Console */}
-              <div className="space-y-6 pt-10 border-t border-black/[0.04]">
-                 <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">Director's Console</span>
-                    <div className="flex gap-2">
-                       {dynamicSuggestions.map(s => (
-                         <button key={s.id} onClick={() => setPrompt(s.prompt)} className="px-3 py-1 bg-[#D4AF37]/5 border border-[#D4AF37]/10 rounded-full text-[7px] font-bold text-[#D4AF37] uppercase tracking-widest hover:border-[#D4AF37] transition-all">Neural Tip</button>
-                       ))}
+                 {/* Neural suggestions integrated below prompt box */}
+                 <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Neural Intelligence Suggestions</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {dynamicSuggestions.map(s => (
+                        <button 
+                          key={s.id} 
+                          onClick={() => useLibraryPrompt(s)}
+                          className={`px-3 py-2 bg-white border border-gray-100 hover:border-gold/30 rounded-full text-[8px] font-bold text-gray-500 hover:text-gold uppercase tracking-widest transition-all shadow-sm ${prompt === s.prompt ? 'border-gold text-gold ring-1 ring-gold/10' : ''}`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
                     </div>
                  </div>
-
-                 <textarea 
-                   value={prompt} 
-                   onChange={(e) => setPrompt(e.target.value)} 
-                   placeholder="Orchestrate a custom environment here..." 
-                   className="w-full bg-[#F9F9F9] border-none rounded-[32px] p-8 text-[#1A1A1A] text-xl font-serif italic focus:outline-none min-h-[140px] resize-none shadow-inner" 
-                 />
               </div>
 
-              <div className="pt-8 flex items-center justify-between gap-6 border-t border-black/[0.04]">
-                <div className="flex bg-zinc-50 p-1 rounded-2xl">
-                  <button onClick={() => setGenType('image')} className={`px-8 py-3 rounded-xl text-[9px] font-bold uppercase transition-all ${genType === 'image' ? 'bg-white text-[#1A1A1A] shadow-md' : 'text-zinc-400'}`}>Still</button>
-                  <button onClick={() => setGenType('video')} className={`px-8 py-3 rounded-xl text-[9px] font-bold uppercase transition-all ${genType === 'video' ? 'bg-white text-[#1A1A1A] shadow-md' : 'text-zinc-400'}`}>Film</button>
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-50">
+                <div className="flex bg-gray-50 p-1 rounded-lg">
+                  <button onClick={() => setGenType('image')} className={`px-6 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${genType === 'image' ? 'bg-white text-[#111] shadow-sm' : 'text-gray-400'}`}>Still</button>
+                  <button onClick={() => setGenType('video')} className={`px-6 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${genType === 'video' ? 'bg-white text-[#111] shadow-sm' : 'text-gray-400'}`}>Film</button>
                 </div>
                 <button 
                   onClick={handleGenerate} 
                   disabled={state === AppState.GENERATING || !sourceImage || !prompt} 
-                  className={`px-16 py-6 rounded-3xl font-bold text-[11px] uppercase tracking-[0.5em] transition-all shadow-xl ${state === AppState.GENERATING || !sourceImage || !prompt ? 'bg-zinc-100 text-zinc-300' : 'bg-[#1A1A1A] text-white hover:bg-[#D4AF37] hover:scale-105'}`}
+                  className={`px-10 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${state === AppState.GENERATING || !sourceImage || !prompt ? 'bg-gray-100 text-gray-300' : 'bg-[#111] text-white hover:bg-gold shadow-lg shadow-black/10'}`}
                 >
                   {state === AppState.GENERATING ? 'Synthesizing...' : 'Execute Neural Render'}
                 </button>
               </div>
-           </div>
+            </div>
 
-           {activeLayer && (
-             <div className="bg-white border border-black/[0.05] rounded-[48px] p-10 flex flex-col soft-shadow relative animate-in zoom-in duration-700">
-                <div className="aspect-square max-h-[500px] bg-[#F9F9F9] rounded-[32px] overflow-hidden mx-auto shadow-2xl relative group">
-                   {activeLayer.type === 'video' ? <video src={activeLayer.url} className="w-full h-full object-cover" controls autoPlay loop /> : <img src={activeLayer.url} className="w-full h-full object-cover" alt="Result" />}
+            {activeLayer && (
+              <div className="bg-white border border-gray-100 rounded-xl p-8 soft-shadow flex flex-col items-center animate-in zoom-in duration-500">
+                <div className="aspect-square w-full max-w-[500px] bg-gray-50 rounded-lg overflow-hidden shadow-inner relative group">
+                  {activeLayer.type === 'video' ? <video src={activeLayer.url} className="w-full h-full object-cover" controls autoPlay loop /> : <img src={activeLayer.url} className="w-full h-full object-cover" alt="Result" />}
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {activeLayer.type === 'image' && <button onClick={() => setShowEditor(true)} className="p-2 bg-white rounded-lg shadow-lg hover:text-gold transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2}/></svg></button>}
+                  </div>
                 </div>
-             </div>
-           )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Prompt Library Panel */}
+      <div 
+        className={`fixed top-24 bottom-6 right-6 w-[300px] bg-white border border-gray-100 rounded-xl soft-shadow transition-all duration-500 flex flex-col z-[40] ${showLibrary ? 'translate-x-0 opacity-100' : 'translate-x-[110%] opacity-0 pointer-events-none'}`}
+      >
+        <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h3 className="text-[11px] font-bold text-[#111] uppercase tracking-widest">Luxury Prompt Library</h3>
+            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Select to inject DNA</p>
+          </div>
+          <button 
+            onClick={() => setShowLibrary(false)}
+            className="p-1.5 text-gray-300 hover:text-gold transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* List of prompts scrolling bottom to top */}
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col-reverse gap-4">
+          {promptLibrary.map((item) => (
+            <div 
+              key={item.id} 
+              className="group bg-gray-50 hover:bg-white border border-transparent hover:border-gold/30 rounded-xl p-4 transition-all cursor-pointer shadow-sm hover:shadow-md"
+              onClick={() => useLibraryPrompt(item)}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[7px] font-bold text-gold uppercase tracking-[0.2em]">{item.category}</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg className="w-3 h-3 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </span>
+              </div>
+              <h4 className="text-[10px] font-bold text-[#111] uppercase tracking-widest mb-1">{item.title}</h4>
+              <p className="text-[8px] text-gray-500 font-medium leading-relaxed mb-3">{item.description}</p>
+              <button 
+                className="w-full py-2 border border-gray-100 rounded-lg text-[7px] font-bold text-gray-400 uppercase tracking-widest group-hover:bg-gold group-hover:text-white group-hover:border-gold transition-all"
+              >
+                Use Template
+              </button>
+            </div>
+          ))}
+          {/* Helper to show list starting from bottom visually */}
+          <div className="flex-1" />
         </div>
       </div>
     </div>
