@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory } from "../types";
+import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory, LuxuryPhotoshootConfig } from "../types";
 
 const SAFETY_BLOCKLIST = [
   'naked', 'nude', 'lingerie', 'underwear', 'bikini', 'swimsuit', 'explicit', 
@@ -16,6 +16,28 @@ For Emirati and Gulf female models, use abayas and headscarves with contemporary
 For Emirati and Gulf male models, use traditional Gulf attire such as kandura/thobe and appropriate headwear (Ghutra/Egal).
 Ensure diversity across regions, skin tones, and body types while keeping every look within a refined, luxury and modest fashion standard. 
 Avoid sexualized poses, exaggerated body features, or provocative expressions.
+`;
+
+const PRODUCT_ONLY_CONSTRAINT = `
+STRICT PRODUCT-ONLY MODE: 
+- Do NOT generate human models, people, hands, faces, or any human presence.
+- The product must exist purely as a standalone object in the environment.
+- Focus entirely on the background, lighting, and product details.
+`;
+
+const PHOTOSHOOT_PLANNER_INSTRUCTION = `
+SYSTEM: LUXURY PHOTOSHOOT STRATEGIST.
+TASK: Analyze the provided product image and generate a structured high-end editorial e-commerce photoshoot plan.
+The plan must describe:
+1. Product Summary: Accurately identify the type, materials, and key details from the image.
+2. Shoot Style: A professional editorial style (e.g., 'Atelier Minimalist', 'Opulent Desert Noir').
+3. Shot List: A series of specific shots including angles, framing, lighting, and model usage.
+
+RULES:
+- Focus on preserving product fidelity in descriptions.
+- Use luxury photography terminology.
+- OUTPUT MUST BE VALID JSON matching the provided schema.
+- Do not include any text before or after the JSON block.
 `;
 
 const LUXURY_STYLE_PROMPTS: Record<LuxuryStyle, string> = {
@@ -103,6 +125,69 @@ export class GeminiService {
     }
   }
 
+  // --- NEW FEATURE: LUXURY PHOTOSHOOT PLANNER (JSON MODE) ---
+  static async generateLuxuryPhotoshootConfig(
+    imageBase64: string,
+    mimeType: string,
+    userBrief?: string
+  ): Promise<LuxuryPhotoshootConfig> {
+    const ai = this.getAi();
+    const parts: any[] = [
+      { inlineData: { data: imageBase64, mimeType } }
+    ];
+    
+    const prompt = `${PHOTOSHOOT_PLANNER_INSTRUCTION} 
+    USER BRIEF: ${userBrief || 'Create a luxury 5-shot editorial sequence for this product.'}`;
+    parts.push({ text: prompt });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { parts },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            productSummary: {
+              type: Type.OBJECT,
+              properties: {
+                type: { type: Type.STRING },
+                materials: { type: Type.STRING },
+                keyDetails: { type: Type.STRING }
+              },
+              required: ["type", "materials", "keyDetails"]
+            },
+            shootStyle: { type: Type.STRING },
+            shots: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  angle: { type: Type.STRING },
+                  cameraFraming: { type: Type.STRING },
+                  background: { type: Type.STRING },
+                  lighting: { type: Type.STRING },
+                  modelUsage: { type: Type.STRING },
+                  notes: { type: Type.STRING }
+                },
+                required: ["id", "angle", "cameraFraming", "background", "lighting", "modelUsage", "notes"]
+              }
+            }
+          },
+          required: ["productSummary", "shootStyle", "shots"]
+        }
+      }
+    });
+
+    try {
+      return JSON.parse(response.text || '{}');
+    } catch (e) {
+      console.error("Failed to parse photoshoot config", e);
+      throw new Error("Failed to generate photoshoot planner JSON.");
+    }
+  }
+
   static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
     const ai = this.getAi();
     const prompt = `SYSTEM: LUXURY CAMPAIGN STRATEGIST.
@@ -168,14 +253,16 @@ export class GeminiService {
       parts.push({ inlineData: { data: logoB64, mimeType: 'image/png' } }, { text: "MAISON LOGO REFERENCE" });
     }
     
+    const isProductOnly = productDetails.renderMode === 'product-only';
     const scaleClause = `Render the product at realistic scale relative to the human body based on: type = ${productDetails.type}, approx size = ${productDetails.approxSize}, placement = ${productDetails.placement}.`;
-    const logoClause = productDetails.addLogo ? `Apply the brand logo at ${productDetails.logoPlacement} in a realistic, proportional way.` : "";
+    const logoClause = productDetails.addLogo ? `[LOGO PROTOCOL]: realistically apply the provided Maison brand logo at the ${productDetails.logoPlacement} placement. Preserve exact logo shape, color, and design fidelity. Assume all ownership rights for this logo application.` : "";
     const styleClause = productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[productDetails.luxuryStyle] : "";
     const cameraClause = `Perspective: ${productDetails.cameraAngle || 'Standard'} perspective shot.`;
     const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
+    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
     const instruction = `SYSTEM: PRODUCT-INTELLIGENT AI. ZERO ALTERATION MODE. 
-    ${MODESTY_SYSTEM_INSTRUCTION}
+    ${modeInstruction}
     Product Fidelity: Preserve product shape and branding from ground truth.
     Scale Realism: ${scaleClause}
     Category Aesthetics: ${categoryClause}
@@ -223,15 +310,17 @@ export class GeminiService {
         parts.push({ inlineData: { data: modelBase64, mimeType: 'image/png' } }, { text: "LOCKED MODEL IDENTITY SOURCE" });
       }
 
+      const isProductOnly = config.productDetails.renderMode === 'product-only';
       const scaleClause = `Render the product at realistic scale: type = ${config.productDetails.type}, placement = ${config.productDetails.placement}.`;
-      const logoClause = config.productDetails.addLogo ? `Apply logo at ${config.productDetails.logoPlacement}.` : "";
+      const logoClause = config.productDetails.addLogo ? `[LOGO PROTOCOL]: realistically apply the provided Maison brand logo at ${config.productDetails.logoPlacement}. Preserve exact shape, color, and design. Assume all ownership rights.` : "";
       const styleClause = config.productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[config.productDetails.luxuryStyle] : "";
       const cameraClause = `Perspective: ${config.productDetails.cameraAngle || 'Standard'} perspective shot.`;
       const categoryClause = CATEGORY_STYLE_FRAGMENTS[config.productDetails.category] || "";
-      const identityLock = config.model ? `Use a ${config.model.nationality} ${config.model.gender} model. Identity locked to source.` : "";
+      const identityLock = config.model && !isProductOnly ? `Use a ${config.model.nationality} ${config.model.gender} model. Identity locked to source.` : "";
+      const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
       const prompt = `SYSTEM: MODEL IDENTITY LOCK & MODESTY PROTOCOL. 
-      ${MODESTY_SYSTEM_INSTRUCTION}
+      ${modeInstruction}
       ${identityLock}
       Product: From PRODUCT ASSET only.
       Scale Realism: ${scaleClause}
@@ -258,10 +347,14 @@ export class GeminiService {
       throw new Error("Shoot generation failed.");
     } else {
       onStatus("Initializing Motion Flow...");
+      const isProductOnly = config.productDetails.renderMode === 'product-only';
       const cameraClause = `Camera style: ${config.productDetails.cameraAngle || 'Standard'}, motion: ${config.productDetails.cameraMotion || 'Static'}. Slow, deliberate, luxury brand film style.`;
       const categoryClause = CATEGORY_STYLE_FRAGMENTS[config.productDetails.category] || "";
-      const identityLock = config.model ? `Model: ${config.model.nationality} ${config.model.gender}. Identity locked.` : "";
-      const videoPrompt = `Cinematic cinematic sequence. ${MODESTY_SYSTEM_INSTRUCTION} ${identityLock} Category aesthetics: ${categoryClause}. Product type: ${config.productDetails.type}, placement: ${config.productDetails.placement}. ${cameraClause} Directive: ${config.useCase}.`;
+      const identityLock = config.model && !isProductOnly ? `Model: ${config.model.nationality} ${config.model.gender}. Identity locked.` : "";
+      const logoClause = config.productDetails.addLogo ? `Realistic brand logo at ${config.productDetails.logoPlacement}, preserving shape and color.` : "";
+      const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
+      
+      const videoPrompt = `Cinematic cinematic sequence. ${modeInstruction} ${identityLock} Category aesthetics: ${categoryClause}. Product type: ${config.productDetails.type}, placement: ${config.productDetails.placement}. ${cameraClause} ${logoClause} Directive: ${config.useCase}.`;
       
       let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
@@ -304,14 +397,16 @@ export class GeminiService {
       }
     });
 
+    const isProductOnly = productDetails.renderMode === 'product-only';
     const scaleClause = `Scale relative to body: type = ${productDetails.type}, placement = ${productDetails.placement}.`;
-    const logoClause = productDetails.addLogo ? `Apply logo at ${productDetails.logoPlacement}.` : "";
+    const logoClause = productDetails.addLogo ? `[LOGO PROTOCOL]: apply Maison brand logo at ${productDetails.logoPlacement}, exact shape and color preservation. Assume ownership rights.` : "";
     const styleClause = productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[productDetails.luxuryStyle] : "";
     const cameraClause = `Perspective: ${productDetails.cameraAngle || 'Standard'} perspective shot.`;
     const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
+    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
     const instruction = `SYSTEM: CAMPAIGN BUILDER. ZERO DEVIATION MODE.
-    ${MODESTY_SYSTEM_INSTRUCTION}
+    ${modeInstruction}
     Product Fidelity: 100% visual fidelity to ALL provided references.
     Scale Realism: ${scaleClause}
     Category Aesthetics: ${categoryClause}
@@ -347,9 +442,13 @@ export class GeminiService {
   ): Promise<string> {
     if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const ai = this.getAi();
+    const isProductOnly = productDetails.renderMode === 'product-only';
     const cameraClause = `Camera style: ${productDetails.cameraAngle || 'Standard'}, motion: ${productDetails.cameraMotion || 'Static'}.`;
     const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
-    const videoPrompt = `${prompt}. ${MODESTY_SYSTEM_INSTRUCTION} Aesthetics: ${categoryClause}. ${cameraClause}`;
+    const logoClause = productDetails.addLogo ? `Apply Maison brand logo at ${productDetails.logoPlacement}, preserving shape and color.` : "";
+    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
+
+    const videoPrompt = `${prompt}. ${modeInstruction} Aesthetics: ${categoryClause}. ${cameraClause} ${logoClause}`;
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
       prompt: videoPrompt,
@@ -377,8 +476,9 @@ export class GeminiService {
     brandKit: BrandKit
   ): Promise<string> {
     if (!this.validatePrompt(editPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
+    // Correctly use the parameter name currentImageUrl
     const base64 = currentImageUrl.includes('base64,') ? currentImageUrl.split(',')[1] : await this.urlToBase64(currentImageUrl);
-    const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest' };
+    const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only' };
     return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}`, brandKit, defaultDetails);
   }
 

@@ -8,7 +8,6 @@ interface CampaignsProps {
   brandKit: BrandKit;
   addToHistory: (res: GenerationResult) => void;
   initialCategory?: ProductCategory;
-  // Added credits and insufficient credits callback to match App.tsx usage
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
 }
@@ -27,7 +26,21 @@ const Campaigns: React.FC<CampaignsProps> = ({
   const [season, setSeason] = useState('Ramadan');
   const [selectedChannel, setSelectedChannel] = useState('Instagram post – 1:1');
 
+  // Suggestion State
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{label: string, prompt: string}[]>([]);
+
   const fileInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  const handleSuggestPrompts = async () => {
+    if (!productImages[0]) return;
+    setIsSuggesting(true);
+    try {
+      const base64 = productImages[0].split(',')[1];
+      const suggestions = await GeminiService.suggestCampaignStories(base64, brandKit);
+      setAiSuggestions(suggestions.slice(0, 3));
+    } catch (err) { console.error("Campaign Suggestion Error:", err); } finally { setIsSuggesting(false); }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
@@ -43,8 +56,6 @@ const Campaigns: React.FC<CampaignsProps> = ({
 
   const handleGenerate = async () => {
     if (!campaignIdea || !productImages[0]) return;
-
-    // Check if user has enough image credits before proceeding (Campaigns generate images)
     if (userCredits.images <= 0) return onInsufficientCredits();
 
     setGenerating(true);
@@ -76,11 +87,11 @@ const Campaigns: React.FC<CampaignsProps> = ({
               <div className="space-y-6">
                  <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">01. Master Assets</span>
-                    <button onClick={() => setProductImages([null, null, null])} className="text-[8px] font-bold text-gold uppercase tracking-widest">Reset</button>
+                    <button onClick={() => {setProductImages([null, null, null]); setAiSuggestions([]);}} className="text-[8px] font-bold text-gold uppercase tracking-widest">Reset</button>
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                     {[0, 1].map(idx => (
-                      <div key={idx} onClick={() => fileInputRefs[idx].current?.click()} className={`aspect-square rounded-3xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${productImages[idx] ? 'border-transparent bg-emerald-50' : 'border-emerald-100 hover:border-gold/30'}`}>
+                      <div key={idx} onClick={() => fileInputRefs[idx].current?.click()} className={`aspect-square rounded-3xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${productImages[idx] ? 'border-transparent bg-emerald-50 shadow-inner' : 'border-emerald-100 hover:border-gold/30'}`}>
                          {productImages[idx] ? <MediaAsset src={productImages[idx]!} className="w-full h-full object-cover" /> : <div className="text-center space-y-1"><svg className="w-5 h-5 mx-auto text-emerald-950/10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4" strokeWidth={2}/></svg><span className="text-[7px] font-bold text-emerald-950/20 uppercase tracking-widest">Asset {idx + 1}</span></div>}
                          <input type="file" ref={fileInputRefs[idx]} onChange={(e) => handleFileChange(e, idx)} className="hidden" />
                       </div>
@@ -103,19 +114,50 @@ const Campaigns: React.FC<CampaignsProps> = ({
         <div className="lg:col-span-8 space-y-10">
            <div className="bg-white rounded-4xl p-12 border border-emerald-50 soft-shadow space-y-10">
               <div className="space-y-6">
-                 <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">03. Global Campaign Narrative</span>
+                 <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-[0.2em]">Creative Direction</span>
+                    <button 
+                      onClick={handleSuggestPrompts}
+                      disabled={!productImages[0] || isSuggesting}
+                      className="px-6 py-2.5 border-2 border-gold text-gold rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all disabled:opacity-30 flex items-center gap-2"
+                    >
+                      {isSuggesting ? (
+                         <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      )}
+                      Suggest Luxury Prompts
+                    </button>
+                 </div>
                  <textarea 
                   value={campaignIdea} 
                   onChange={(e) => setCampaignIdea(e.target.value)} 
-                  placeholder="Define the overarching campaign vision (e.g. 'A celebration of heritage and modern elegance, minimal desert lighting')..." 
-                  className="w-full bg-emerald-50/20 border-emerald-50 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold/20 focus:bg-white transition-all shadow-inner"
+                  placeholder="Define the overarching campaign vision (e.g. 'A celebration of heritage and modern elegance')..." 
+                  className="w-full bg-emerald-50/20 border-2 border-emerald-100/30 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold focus:border-gold transition-all shadow-inner outline-none"
                  />
+                 
+                 {aiSuggestions.length > 0 && (
+                    <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+                       <span className="text-[9px] font-bold text-emerald-950/40 uppercase tracking-widest">Campaign Blueprints</span>
+                       <div className="flex flex-wrap gap-2">
+                          {aiSuggestions.map((s, i) => (
+                             <button 
+                                key={i} 
+                                onClick={() => setCampaignIdea(s.prompt)}
+                                className="px-5 py-2.5 bg-white border border-emerald-100 rounded-full text-[9px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold transition-all shadow-sm"
+                             >
+                                {s.label}
+                             </button>
+                          ))}
+                       </div>
+                    </div>
+                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-emerald-50">
                  <div className="space-y-4">
                     <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">Master Channel</span>
-                    <select value={selectedChannel} onChange={(e) => setSelectedChannel(e.target.value)} className="w-full bg-emerald-50/20 border-emerald-50 px-6 py-4 rounded-2xl text-[10px] uppercase font-bold tracking-widest">
+                    <select value={selectedChannel} onChange={(e) => setSelectedChannel(e.target.value)} className="w-full bg-emerald-50/20 border-emerald-50 px-6 py-4 rounded-2xl text-[10px] uppercase font-bold tracking-widest focus:border-gold/30 outline-none">
                        <option>Instagram post – 1:1</option>
                        <option>Instagram story – 9:16</option>
                        <option>Website hero – 16:9</option>

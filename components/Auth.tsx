@@ -12,35 +12,44 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Simulated backend credit allocation API call
-  const allocateFreeCredits = async (userId: string) => {
-    // In production, this would be: await fetch(`/api/credits/allocate-free?uid=${userId}`)
-    return { images: 5, videos: 5 };
-  };
-
-  const handleGoogleLogin = async () => {
+  const mockUserLogin = async (email: string, name: string, role: 'User' | 'Admin' = 'User') => {
     setIsLoading(true);
-    // Simulate OAuth Delay
-    setTimeout(async () => {
-      const credits = await allocateFreeCredits('google-123');
-      onLogin({
-        id: 'google-123',
-        email: 'maison.user@gmail.com',
-        name: 'Maison Partner',
-        // Updated to a high-end, elegant editorial fashion portrait
-        avatar: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=200',
-        tier: 'Free',
-        credits
-      });
+    // Simulate Server Latency
+    setTimeout(() => {
+      // Manage local database of users for simulation
+      const allUsers: User[] = JSON.parse(localStorage.getItem('amrah_all_users') || '[]');
+      let existing = allUsers.find(u => u.email === email);
+      
+      if (!existing) {
+        existing = {
+          id: `u-${Math.random().toString(36).substr(2, 9)}`,
+          email,
+          name,
+          role,
+          tier: role === 'Admin' ? 'Maison' : 'Free',
+          registrationDate: Date.now(),
+          lastLogin: Date.now(),
+          credits: { images: 5, videos: 5 },
+          totalGenerated: 0,
+          avatar: `https://ui-avatars.com/api/?name=${name}&background=022c22&color=D4AF37`
+        };
+        allUsers.push(existing);
+      } else {
+        existing.lastLogin = Date.now();
+      }
+      
+      localStorage.setItem('amrah_all_users', JSON.stringify(allUsers));
+      onLogin(existing);
       setIsLoading(false);
     }, 1500);
   };
+
+  const handleGoogleLogin = () => mockUserLogin('partner@maison.com', 'Maison Partner');
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setIsLoading(true);
-    // Simulate verification code sent
     setTimeout(() => {
       setStep('code');
       setIsLoading(false);
@@ -50,18 +59,13 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const handleCodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length < 6) return;
-    setIsLoading(true);
-    setTimeout(async () => {
-      const credits = await allocateFreeCredits('email-123');
-      onLogin({
-        id: 'email-123',
-        email: email,
-        name: email.split('@')[0].toUpperCase(),
-        tier: 'Free',
-        credits
-      });
-      setIsLoading(false);
-    }, 1000);
+    
+    // Secret admin code for testing
+    if (code === '999999' && email === 'admin@amrah.ai') {
+      mockUserLogin(email, 'Maison Commander', 'Admin');
+    } else {
+      mockUserLogin(email, email.split('@')[0].toUpperCase());
+    }
   };
 
   return (

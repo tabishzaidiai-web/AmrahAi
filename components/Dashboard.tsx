@@ -112,34 +112,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
               <div className="space-y-3">
                 <h4 className="text-sm font-bold uppercase tracking-widest text-emerald-950">AMRAH preserves:</h4>
                 <ul className="space-y-2 text-emerald-950/60 text-sm font-light">
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Exact logo design and placement.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Hex-accurate colors and textile textures.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Structural shape and intricate hardware details.</li>
+                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Exact marquise cut and setting integrity.</li>
+                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Metal luster and stone brilliance.</li>
+                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Structural fidelity of multi-band designs.</li>
                 </ul>
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-bold uppercase tracking-widest text-emerald-950">AMRAH evolves:</h4>
                 <ul className="space-y-2 text-emerald-950/60 text-sm font-light">
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Lighting, mood, and cinematic environments.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Model poses and styling.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Global campaign narratives.</li>
+                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Lighting, background, and presentation.</li>
+                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Luxury editorial staging.</li>
+                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> High-end cinematic reflections.</li>
                 </ul>
               </div>
             </div>
           </div>
           
-          <div className="bg-emerald-50 rounded-[3rem] p-4 aspect-square flex items-center justify-center overflow-hidden">
-             <div className="grid grid-cols-2 gap-4 w-full h-full">
+          <div className="bg-emerald-50 rounded-[3rem] p-8 aspect-square flex items-center justify-center overflow-hidden">
+             <div className="grid grid-cols-2 gap-6 w-full h-full">
                 <div className="relative group overflow-hidden rounded-[2rem] bg-white border border-black/5 shadow-sm">
-                   <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover" alt="Before" />
-                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">Ground Truth</span>
+                   <img 
+                     src="https://files.oaiusercontent.com/file-D0R1WfG72v65A68Gq8o0Yt?se=2025-02-12T16%3A36%3A05Z&sp=r&sv=2024-08-04&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3D45f27663-d142-46a4-8451-8758b292c10b.webp&sig=6K%2BFv6V7rE0zYQ2/6uHk7l%2BfU7X5YgEaN2L9Dk4L3wE%3D" 
+                     className="w-full h-full object-cover grayscale-[0.2]" 
+                     alt="Ground Truth" 
+                   />
+                   <div className="absolute top-4 left-4">
+                      <span className="px-3 py-1 bg-emerald-950 text-white text-[8px] font-bold uppercase tracking-widest rounded-full opacity-80">Ground Truth</span>
                    </div>
                 </div>
                 <div className="relative group overflow-hidden rounded-[2rem] bg-white border border-black/5 shadow-sm">
-                   <img src="https://images.unsplash.com/photo-1542491595-3004b4475871?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover" alt="After" />
-                   <div className="absolute inset-0 bg-gold/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">Neural Render</span>
+                   <img 
+                     src="https://files.oaiusercontent.com/file-M497D2rI9pYhF866QW8i3P?se=2025-02-12T16%3A36%3A11Z&sp=r&sv=2024-08-04&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3D1a2d67da-0857-41e1-b472-353272d3e513.webp&sig=rX/z1m6lR5iO%2Bn6v6uHk7l%2BfU7X5YgEaN2L9Dk4L3wE%3D" 
+                     className="w-full h-full object-cover" 
+                     alt="Neural Render" 
+                   />
+                   <div className="absolute top-4 left-4">
+                      <span className="px-3 py-1 bg-gold text-white text-[8px] font-bold uppercase tracking-widest rounded-full opacity-90 shadow-lg">Neural Render</span>
                    </div>
                 </div>
              </div>

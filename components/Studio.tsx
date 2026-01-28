@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, PromptLibraryItem, CameraAngle } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -28,6 +27,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     addLogo: false,
     logoPlacement: 'Top-right corner',
     cameraAngle: 'Standard',
+    renderMode: 'product-only', // Defaulting to Product-Only
     videoResolution: '720p',
     videoAspectRatio: '16:9'
   });
@@ -138,13 +138,40 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
           {/* Left Control Panel */}
           <div className="lg:col-span-4 space-y-6">
             <div className="bg-white border border-gray-100 rounded-xl p-6 soft-shadow space-y-6">
+              
               <div className="space-y-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">1. Source Asset</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Render Strategy</span>
+                <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-100">
+                  <button 
+                    onClick={() => setProductDetails({...productDetails, renderMode: 'product-only'})}
+                    className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${productDetails.renderMode === 'product-only' ? 'bg-white text-[#111] shadow-sm' : 'text-gray-400'}`}
+                  >
+                    Product Only
+                  </button>
+                  <button 
+                    onClick={() => setProductDetails({...productDetails, renderMode: 'on-model'})}
+                    className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${productDetails.renderMode === 'on-model' ? 'bg-white text-[#111] shadow-sm' : 'text-gray-400'}`}
+                  >
+                    On-Model
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  {productDetails.renderMode === 'product-only' ? '1. Source Asset (No Model)' : '1. Source Asset'}
+                </span>
                 <div 
                   onClick={() => fileInputRef.current?.click()} 
                   className={`aspect-square rounded-lg border border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${sourceImage ? 'border-transparent bg-gray-50' : 'border-gray-200 hover:border-gold/50'}`}
                 >
-                  {sourceImage ? <img src={sourceImage} className="w-full h-full object-cover" alt="Source" /> : <div className="text-center text-gray-300 space-y-1"><span className="text-[9px] font-bold uppercase block">Upload Asset</span></div>}
+                  {sourceImage ? <img src={sourceImage} className="w-full h-full object-cover" alt="Source" /> : (
+                    <div className="text-center text-gray-300 space-y-1 px-4">
+                      <span className="text-[9px] font-bold uppercase block leading-relaxed">
+                        {productDetails.renderMode === 'product-only' ? 'Upload product image (no model required)' : 'Upload product for model shoot'}
+                      </span>
+                    </div>
+                  )}
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                 </div>
               </div>
@@ -177,6 +204,36 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                     </div>
                  </div>
               </div>
+
+              {/* Video Specific Settings */}
+              {genType === 'video' && (
+                <div className="space-y-4 pt-4 border-t border-gray-50 animate-in slide-in-from-top-2 duration-300">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Resolution</label>
+                      <select 
+                        value={productDetails.videoResolution} 
+                        onChange={(e) => setProductDetails(prev => ({ ...prev, videoResolution: e.target.value as '720p' | '1080p' }))} 
+                        className="w-full px-3 py-2 text-xs"
+                      >
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Aspect Ratio</label>
+                      <select 
+                        value={productDetails.videoAspectRatio} 
+                        onChange={(e) => setProductDetails(prev => ({ ...prev, videoAspectRatio: e.target.value as '16:9' | '9:16' }))} 
+                        className="w-full px-3 py-2 text-xs"
+                      >
+                        <option value="16:9">16:9 (Wide)</option>
+                        <option value="9:16">9:16 (Story)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="pt-4 border-t border-gray-50 space-y-4">
                  <div className="flex items-center gap-3">
@@ -224,7 +281,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                       id="main-prompt-input"
                       value={prompt} 
                       onChange={(e) => setPrompt(e.target.value)} 
-                      placeholder="Define the environment and lighting for this masterpiece..." 
+                      placeholder={productDetails.renderMode === 'product-only' ? "Define the standalone product setting and lighting (strictly no people)..." : "Define the environment and lighting for this masterpiece..."} 
                       className="w-full bg-gray-50 border-none rounded-xl p-6 text-sm italic min-h-[140px] focus:ring-1 focus:ring-gold/20 shadow-inner"
                     />
                  </div>

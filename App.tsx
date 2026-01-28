@@ -3,12 +3,15 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import PhotoStudio from './components/PhotoStudio';
 import Dashboard from './components/Dashboard';
-import BrandKit from './components/BrandKit';
+import BrandMemory from './components/BrandMemory';
 import Campaigns from './components/Campaigns';
 import CreateShoot from './components/CreateShoot';
+import PhotoshootPlanner from './components/PhotoshootPlanner';
+import AdminDashboard from './components/AdminDashboard';
+import ModelShowcase from './components/ModelShowcase';
 import Auth from './components/Auth';
 import Pricing from './components/Pricing';
-import { GenerationResult, BrandKit as BrandKitType, ModelPersona, ProductCategory, User, SubscriptionPackage } from './types';
+import { GenerationResult, BrandKit as BrandKitType, ModelPersona, ProductCategory, User, SubscriptionPackage, UsageLog } from './types';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'app'>('landing');
@@ -19,6 +22,12 @@ const App: React.FC = () => {
   const [initialCategory, setInitialCategory] = useState<ProductCategory>('fashion');
   const [showPricing, setShowPricing] = useState(false);
   
+  // Usage Logs State (Simulated Database)
+  const [usageLogs, setUsageLogs] = useState<UsageLog[]>(() => {
+    const saved = localStorage.getItem('amrah_usage_logs');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Authentication State
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('amrah_user_session');
@@ -70,17 +79,41 @@ const App: React.FC = () => {
 
   const addToHistory = (result: GenerationResult) => {
     setHistory(prev => [result, ...prev]);
-    // Deduct credits based on generation type
+    
     if (user) {
+      // Update User Session & Usage
       const updatedUser: User = {
         ...user,
+        totalGenerated: (user.totalGenerated || 0) + 1,
         credits: {
-          images: result.type === 'image' ? Math.max(0, user.credits.images - 1) : user.credits.images,
-          videos: result.type === 'video' ? Math.max(0, user.credits.videos - 1) : user.credits.videos,
+          images: result.type === 'image' && user.credits.images !== -1 ? Math.max(0, user.credits.images - 1) : user.credits.images,
+          videos: result.type === 'video' && user.credits.videos !== -1 ? Math.max(0, user.credits.videos - 1) : user.credits.videos,
         }
       };
+      
       setUser(updatedUser);
       localStorage.setItem('amrah_user_session', JSON.stringify(updatedUser));
+
+      // Update Global Admin Simulation Database
+      const allUsers: User[] = JSON.parse(localStorage.getItem('amrah_all_users') || '[]');
+      const idx = allUsers.findIndex(u => u.id === user.id);
+      if (idx !== -1) {
+        allUsers[idx] = updatedUser;
+        localStorage.setItem('amrah_all_users', JSON.stringify(allUsers));
+      }
+
+      // Add to Usage Logs
+      const newLog: UsageLog = {
+        id: `log-${Date.now()}`,
+        userId: user.id,
+        userEmail: user.email,
+        type: result.type,
+        timestamp: Date.now(),
+        prompt: result.prompt
+      };
+      const updatedLogs = [newLog, ...usageLogs];
+      setUsageLogs(updatedLogs);
+      localStorage.setItem('amrah_usage_logs', JSON.stringify(updatedLogs));
     }
   };
 
@@ -101,14 +134,22 @@ const App: React.FC = () => {
         ...user,
         tier: pkg.name as User['tier'],
         credits: {
-          images: user.credits.images + pkg.imageCredits,
-          videos: user.credits.videos + pkg.videoCredits
+          images: pkg.imageCredits === -1 ? -1 : (user.credits.images + pkg.imageCredits),
+          videos: pkg.videoCredits === -1 ? -1 : (user.credits.videos + pkg.videoCredits)
         }
       };
       setUser(updatedUser);
       localStorage.setItem('amrah_user_session', JSON.stringify(updatedUser));
+      
+      // Update Global Simulation Store
+      const allUsers: User[] = JSON.parse(localStorage.getItem('amrah_all_users') || '[]');
+      const idx = allUsers.findIndex(u => u.id === user.id);
+      if (idx !== -1) {
+        allUsers[idx] = updatedUser;
+        localStorage.setItem('amrah_all_users', JSON.stringify(allUsers));
+      }
+      
       setShowPricing(false);
-      alert(`Success! Your Maison subscription to the ${pkg.name} package is active.`);
     }
   };
 
@@ -153,17 +194,20 @@ const App: React.FC = () => {
 
       {/* Navigation Sub-Header */}
       <div className="bg-white border-b border-black/5 px-10 py-6 flex items-center justify-between">
-        <div className="flex gap-16">
+        <div className="flex gap-12 overflow-x-auto no-scrollbar">
           {[
             { id: 'editorial', label: 'Photo Studio' },
+            { id: 'talent', label: 'Talent' },
             { id: 'quick', label: 'Quick Shot' },
             { id: 'banners', label: 'Campaigns' },
-            { id: 'brand', label: 'Brand Kit' }
+            { id: 'planner', label: 'Shoot Planner' },
+            { id: 'brand', label: 'Brand DNA' },
+            ...(user.role === 'Admin' ? [{ id: 'admin', label: 'Metrics (Admin)' }] : [])
           ].map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`text-[11px] font-bold uppercase tracking-[0.3em] transition-all relative ${
+              className={`text-[11px] font-bold uppercase tracking-[0.3em] transition-all relative whitespace-nowrap ${
                 activeTab === item.id ? 'text-gold' : 'text-emerald-950/40 hover:text-emerald-950'
               }`}
             >
@@ -173,7 +217,7 @@ const App: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center shrink-0">
            <button 
              onClick={() => setActiveTab('history')} 
              className={`px-8 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
@@ -190,23 +234,37 @@ const App: React.FC = () => {
           {activeTab === 'editorial' && (
             <CreateShoot 
               brandKit={brandKit} selectedModel={selectedModel} setSelectedModel={setSelectedModel}
-              addToHistory={addToHistory} onGoBackToModels={() => setActiveTab('editorial')} initialCategory={initialCategory}
-              userCredits={user.credits} onInsufficientCredits={() => setShowPricing(true)}
+              addToHistory={addToHistory} onGoBackToModels={() => setActiveTab('talent')} initialCategory={initialCategory}
+              userCredits={user.credits} 
+              onInsufficientCredits={() => setShowPricing(true)}
             />
+          )}
+          {activeTab === 'talent' && (
+             <ModelShowcase 
+               onModelSelect={(m) => { setSelectedModel(m); setActiveTab('editorial'); }} 
+               selectedModelId={selectedModel?.id}
+               personalModel={null}
+             />
           )}
           {activeTab === 'quick' && (
             <PhotoStudio 
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
-              userCredits={user.credits} onInsufficientCredits={() => setShowPricing(true)}
+              userCredits={user.credits} 
+              onInsufficientCredits={() => setShowPricing(true)}
             />
           )}
           {activeTab === 'banners' && (
             <Campaigns 
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
-              userCredits={user.credits} onInsufficientCredits={() => setShowPricing(true)}
+              userCredits={user.credits} 
+              onInsufficientCredits={() => setShowPricing(true)}
             />
           )}
-          {activeTab === 'brand' && <BrandKit brandKit={brandKit} setBrandKit={setBrandKit} />}
+          {activeTab === 'planner' && (
+            <PhotoshootPlanner brandKit={brandKit} />
+          )}
+          {activeTab === 'brand' && <BrandMemory brandKit={brandKit} setBrandKit={setBrandKit} />}
+          {activeTab === 'admin' && user.role === 'Admin' && <AdminDashboard logs={usageLogs} />}
           
           {activeTab === 'history' && (
             <div className="space-y-12 animate-in fade-in duration-700">

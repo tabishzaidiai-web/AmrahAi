@@ -17,18 +17,31 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
-  tier: 'Free' | 'Boutique' | 'Atelier' | 'Maison';
+  role: 'User' | 'Admin';
+  tier: 'Free' | 'Pro' | 'Boutique' | 'Atelier' | 'Maison';
+  registrationDate: number;
+  lastLogin: number;
   credits: {
     images: number;
     videos: number;
   };
+  totalGenerated: number;
+}
+
+export interface UsageLog {
+  id: string;
+  userId: string;
+  userEmail: string;
+  type: 'image' | 'video';
+  timestamp: number;
+  prompt: string;
 }
 
 export interface SubscriptionPackage {
   id: string;
   name: string;
   price: number;
-  imageCredits: number;
+  imageCredits: number; // -1 for unlimited
   videoCredits: number;
   features: string[];
 }
@@ -123,6 +136,7 @@ export interface ProductDetails {
   luxuryStyle?: LuxuryStyle;
   cameraAngle?: CameraAngle;
   cameraMotion?: CameraMotion;
+  renderMode?: 'product-only' | 'on-model';
 }
 
 export interface ShootConfig {
@@ -153,4 +167,25 @@ export interface PromptTemplate {
   label: string;
   promptTemplate: string;
   supportsLogo: boolean;
+}
+
+// Luxury Photoshoot Planner Types
+export interface PhotoshootShot {
+  id: string;
+  angle: string;
+  cameraFraming: string;
+  background: string;
+  lighting: string;
+  modelUsage: string;
+  notes: string;
+}
+
+export interface LuxuryPhotoshootConfig {
+  productSummary: {
+    type: string;
+    materials: string;
+    keyDetails: string;
+  };
+  shootStyle: string;
+  shots: PhotoshootShot[];
 }

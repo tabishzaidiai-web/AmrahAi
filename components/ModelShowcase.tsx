@@ -66,23 +66,34 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({ onModelSelect, selectedMo
               selectedModelId === model.id ? 'border-gold' : 'border-transparent hover:border-gold/30'
             } cursor-pointer`}
           >
-            <div className="aspect-[3/4] overflow-hidden relative">
-              <MediaAsset src={model.mainUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={model.name} />
+            <div className="aspect-[3/4] overflow-hidden relative bg-emerald-50">
+              <MediaAsset 
+                src={model.mainUrl} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                alt={`${model.name} - ${model.nationality} ${model.gender}`} 
+              />
               <div className="absolute top-4 left-4">
-                <span className="px-3 py-1 rounded-full text-[7px] font-bold uppercase tracking-widest bg-white/90 text-emerald-950 backdrop-blur-sm">
+                <span className="px-3 py-1 rounded-full text-[7px] font-bold uppercase tracking-widest bg-white/90 text-emerald-950 backdrop-blur-sm shadow-sm">
                   {model.isPersonal ? 'Private Identity' : model.nationality}
                 </span>
               </div>
             </div>
             <div className="p-8 space-y-4">
                 <div className="space-y-1">
-                  <h3 className="text-xl font-serif text-emerald-950">{model.name}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {model.style.map(s => <span key={s} className="text-[7px] text-emerald-950/40 font-bold uppercase tracking-widest"># {s}</span>)}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-serif text-emerald-950">{model.name}</h3>
+                    <span className="text-[7px] font-bold text-emerald-950/20 uppercase tracking-widest">{model.gender}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {model.style.map(s => (
+                      <span key={s} className="text-[7px] text-emerald-950/40 font-bold uppercase tracking-widest bg-emerald-50/50 px-2 py-0.5 rounded"># {s}</span>
+                    ))}
                   </div>
                 </div>
-                <button className="w-full py-4 bg-emerald-950 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-gold transition-all">
-                    Select Talent
+                <button className={`w-full py-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${
+                  selectedModelId === model.id ? 'bg-gold text-white shadow-gold/20' : 'bg-emerald-950 text-white hover:bg-gold'
+                }`}>
+                    {selectedModelId === model.id ? 'Talent Cast' : 'Select Identity'}
                 </button>
             </div>
           </div>
