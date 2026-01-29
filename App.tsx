@@ -9,6 +9,7 @@ import CreateShoot from './components/CreateShoot';
 import PhotoshootPlanner from './components/PhotoshootPlanner';
 import AdminDashboard from './components/AdminDashboard';
 import ModelShowcase from './components/ModelShowcase';
+import AmazonListingStudio from './components/AmazonListingStudio';
 import Auth from './components/Auth';
 import Pricing from './components/Pricing';
 import { GenerationResult, BrandKit as BrandKitType, ModelPersona, ProductCategory, User, SubscriptionPackage, UsageLog } from './types';
@@ -197,6 +198,7 @@ const App: React.FC = () => {
         <div className="flex gap-12 overflow-x-auto no-scrollbar">
           {[
             { id: 'editorial', label: 'Photo Studio' },
+            { id: 'amazon', label: 'Amazon Studio' },
             { id: 'talent', label: 'Talent' },
             { id: 'quick', label: 'Quick Shot' },
             { id: 'banners', label: 'Campaigns' },
@@ -236,6 +238,14 @@ const App: React.FC = () => {
               brandKit={brandKit} selectedModel={selectedModel} setSelectedModel={setSelectedModel}
               addToHistory={addToHistory} onGoBackToModels={() => setActiveTab('talent')} initialCategory={initialCategory}
               userCredits={user.credits} 
+              onInsufficientCredits={() => setShowPricing(true)}
+            />
+          )}
+          {activeTab === 'amazon' && (
+            <AmazonListingStudio 
+              brandKit={brandKit} 
+              addToHistory={addToHistory}
+              userCredits={user.credits}
               onInsufficientCredits={() => setShowPricing(true)}
             />
           )}

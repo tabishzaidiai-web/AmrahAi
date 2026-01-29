@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory, LuxuryPhotoshootConfig } from "../types";
+import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory, LuxuryPhotoshootConfig, AmazonListingSuite } from "../types";
 
 const SAFETY_BLOCKLIST = [
   'naked', 'nude', 'lingerie', 'underwear', 'bikini', 'swimsuit', 'explicit', 
@@ -125,7 +125,6 @@ export class GeminiService {
     }
   }
 
-  // --- NEW FEATURE: LUXURY PHOTOSHOOT PLANNER (JSON MODE) ---
   static async generateLuxuryPhotoshootConfig(
     imageBase64: string,
     mimeType: string,
@@ -185,6 +184,88 @@ export class GeminiService {
     } catch (e) {
       console.error("Failed to parse photoshoot config", e);
       throw new Error("Failed to generate photoshoot planner JSON.");
+    }
+  }
+
+  // --- NEW FEATURE: AMAZON LISTING ARCHITECT ---
+  static async generateAmazonListingSuitePrompts(
+    images: { b64: string, mimeType: string, role: string }[]
+  ): Promise<AmazonListingSuite> {
+    const ai = this.getAi();
+    const parts: any[] = [];
+    
+    images.forEach(img => {
+      parts.push({ inlineData: { data: img.b64, mimeType: img.mimeType } });
+      parts.push({ text: `IMAGE ROLE: ${img.role}` });
+    });
+
+    const systemInstruction = `
+    You are a specialized Amazon Listing Architect. Analyze the provided images to understand the product's 3D volume, texture, and branding. 
+    Your goal is to generate 9 distinct Image Generation Prompts that form a cohesive Amazon listing suite.
+    Ensure consistent branding and visual fidelity across all 9 slots.
+    
+    SEQUENCE REQUIREMENTS:
+    Slot 1 (Main): Pure white background (RGB 255,255,255), 85% fill, Front View. Meet all Amazon technical requirements.
+    Slot 2 (Dimensions): Front View with clean technical measurement overlays and scale cues.
+    Slot 3 (Angle): 45-degree isometric view showing depth (inferred from available images).
+    Slot 4 (Back): Clean render of the back of the product, focused on labels/text/details.
+    Slot 5 (Detail): Extreme macro close-up of the most premium material or unique feature identified.
+    Slot 6 (Lifestyle 1): Product in a high-end context (Kitchen/Office/Studio) based on its category.
+    Slot 7 (Lifestyle 2): Product in use, showing 'Problem/Solution' or aspirational context.
+    Slot 8 (Infographic): Focus on 3 key features identified from the visual analysis.
+    Slot 9 (Packaging/Trust): Product displayed with its premium box or a 'Quality Guarantee' badge.
+
+    Force JSON response matching the provided schema. No markdown headers.
+    `;
+    parts.push({ text: systemInstruction });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: { parts },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            listing_metadata: {
+              type: Type.OBJECT,
+              properties: {
+                product_identified: { type: Type.STRING },
+                primary_materials: { type: Type.STRING },
+                brand_color_palette: { type: Type.STRING }
+              },
+              required: ["product_identified", "primary_materials", "brand_color_palette"]
+            },
+            amazon_suite: {
+              type: Type.OBJECT,
+              properties: {
+                slot_1_main: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_2_dimensions: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_3_isometric: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_4_back_view: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_5_material_detail: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_6_lifestyle_1: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_7_lifestyle_2: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_8_infographic: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
+                slot_9_brand_trust: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] }
+              },
+              required: [
+                "slot_1_main", "slot_2_dimensions", "slot_3_isometric", "slot_4_back_view", 
+                "slot_5_material_detail", "slot_6_lifestyle_1", "slot_7_lifestyle_2", 
+                "slot_8_infographic", "slot_9_brand_trust"
+              ]
+            }
+          },
+          required: ["listing_metadata", "amazon_suite"]
+        }
+      }
+    });
+
+    try {
+      return JSON.parse(response.text || '{}');
+    } catch (e) {
+      console.error("Failed to parse Amazon Listing prompts", e);
+      throw new Error("Failed to generate Amazon studio suite JSON.");
     }
   }
 
@@ -261,8 +342,13 @@ export class GeminiService {
     const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
     const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
+    // Special technical mode check (for Amazon pure white backgrounds)
+    const isAmazonMain = customPrompt.includes("RGB 255,255,255");
+    const techConstraint = isAmazonMain ? "CRITICAL: The background must be PURE WHITE (RGB 255, 255, 255) with NO shadows stretching to edges." : "";
+
     const instruction = `SYSTEM: PRODUCT-INTELLIGENT AI. ZERO ALTERATION MODE. 
     ${modeInstruction}
+    ${techConstraint}
     Product Fidelity: Preserve product shape and branding from ground truth.
     Scale Realism: ${scaleClause}
     Category Aesthetics: ${categoryClause}
@@ -275,7 +361,7 @@ export class GeminiService {
     parts.push({ text: instruction });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
+      model: 'gemini-2.5-flash-image',
       contents: { parts },
       config: { imageConfig: { aspectRatio } }
     });
@@ -476,7 +562,6 @@ export class GeminiService {
     brandKit: BrandKit
   ): Promise<string> {
     if (!this.validatePrompt(editPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
-    // Correctly use the parameter name currentImageUrl
     const base64 = currentImageUrl.includes('base64,') ? currentImageUrl.split(',')[1] : await this.urlToBase64(currentImageUrl);
     const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only' };
     return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}`, brandKit, defaultDetails);

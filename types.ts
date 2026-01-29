@@ -189,3 +189,36 @@ export interface LuxuryPhotoshootConfig {
   shootStyle: string;
   shots: PhotoshootShot[];
 }
+
+// Amazon Listing Studio Types
+export interface AmazonListingPrompt {
+  prompt: string;
+  type: string;
+}
+
+export interface AmazonListingSuite {
+  listing_metadata: {
+    product_identified: string;
+    primary_materials: string;
+    brand_color_palette: string;
+  };
+  amazon_suite: {
+    slot_1_main: AmazonListingPrompt;
+    slot_2_dimensions: AmazonListingPrompt;
+    slot_3_isometric: AmazonListingPrompt;
+    slot_4_back_view: AmazonListingPrompt;
+    slot_5_material_detail: AmazonListingPrompt;
+    slot_6_lifestyle_1: AmazonListingPrompt;
+    slot_7_lifestyle_2: AmazonListingPrompt;
+    slot_8_infographic: AmazonListingPrompt;
+    slot_9_brand_trust: AmazonListingPrompt;
+  };
+}
+
+export interface AmazonResult {
+  id: string;
+  prompt: string;
+  url: string;
+  slot: string;
+  type: string;
+}

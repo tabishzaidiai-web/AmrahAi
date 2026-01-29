@@ -36,6 +36,37 @@ const CreateShoot: React.FC<CreateShootProps> = ({
   const [aiSuggestions, setAiSuggestions] = useState<{label: string, prompt: string}[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
 
+  // Dubai Collection Presets
+  const dubaiPresets = useMemo(() => {
+    const type = analysis?.type || 'premium product';
+    return [
+      {
+        id: 'dubai-fashion',
+        label: 'Dubai Fashion Skyline',
+        icon: '🏙️',
+        prompt: `Ultra-realistic editorial fashion photoshoot in Dubai, the model wearing ${type}, standing on a rooftop terrace with the glowing Dubai skyline behind her at golden hour. Burj Khalifa and surrounding towers in soft focus, warm sunlight, subtle haze, city lights starting to appear. Product (${type}) is the hero: crisp fabric texture, clean shadows, no warping, perfect proportions, looks like a real Dubai fashion campaign shot on a professional camera.`
+      },
+      {
+        id: 'dubai-abaya',
+        label: 'Dubai Abaya Elegance',
+        icon: '🕌',
+        prompt: `Ultra-realistic abaya photoshoot in Dubai, elegant Arab woman in a flowing ${type}, standing on a balcony or promenade overlooking the Dubai skyline at sunset. Museum of the Future or Burj Khalifa softly visible in the background, blurred but recognizable. Fabric is rich and detailed, with natural drape and movement, realistic embroidery and texture, modest and classy posing. Colors are warm, cinematic, with soft highlights and shadows, looks like a real high-end Dubai brand campaign.`
+      },
+      {
+        id: 'dubai-perfume',
+        label: 'Dubai Perfume Glow',
+        icon: '✨',
+        prompt: `Ultra-realistic luxury perfume product shot in Dubai, ${type} as the hero in the foreground on a glossy marble or glass surface, with soft reflections. Behind it, the Dubai skyline at blue hour with warm city lights and a hint of Museum of the Future or Dubai Marina towers in soft bokeh. Lighting is cinematic and moody, like a luxury fragrance ad: glowing highlights on the glass, rich amber and gold tones, very sharp, no distortion, looks like a real commercial photoshoot in Dubai.`
+      },
+      {
+        id: 'dubai-product',
+        label: 'Dubai City Product',
+        icon: '💎',
+        prompt: `Ultra-realistic commercial product photoshoot in Dubai, the ${type} perfectly centered on a clean premium surface (stone, marble or matte table), captured from a slightly low angle. In the background, Dubai skyline with Museum of the Future and Emirates Towers or Downtown towers, softly blurred but clearly Dubai. Golden hour or early night lighting with warm reflections, subtle city bokeh, clean composition, no extra props unless they match the brand (like subtle Arabic patterns). Output must look like a real campaign photo shot on a professional camera, not like AI art.`
+      }
+    ];
+  }, [analysis]);
+
   // Motion Conversion State
   const [isConvertingToVideo, setIsConvertingToVideo] = useState(false);
   const [motionPrompt, setMotionPrompt] = useState('');
@@ -276,7 +307,10 @@ const CreateShoot: React.FC<CreateShootProps> = ({
           <div className="bg-white rounded-4xl p-12 border border-emerald-50 soft-shadow space-y-10">
              <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                   <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-[0.2em]">Creative Direction</span>
+                   <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-[0.2em]">Creative Direction</span>
+                      <span className="text-[8px] font-bold text-gold uppercase tracking-widest">Neural Vision Pipeline</span>
+                   </div>
                    <button 
                       onClick={handleSuggestPrompts}
                       disabled={!productImage || isSuggesting}
@@ -290,12 +324,39 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                       Suggest Luxury Prompts
                     </button>
                 </div>
-                <textarea 
-                  value={customPrompt} 
-                  onChange={(e) => setCustomPrompt(e.target.value)} 
-                  placeholder={productDetails.renderMode === 'product-only' ? "Define the standalone product setting and lighting..." : "Define the photoshoot atmosphere, lighting, and global setting..."} 
-                  className="w-full bg-emerald-50/20 border-2 border-emerald-100/30 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold focus:border-gold transition-all shadow-inner outline-none"
-                />
+
+                {/* Dubai Studio Collection Presets Area */}
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-[0.3em]">Dubai Studio Collection</span>
+                    <div className="h-px flex-1 bg-emerald-50" />
+                    <span className="px-2 py-0.5 bg-gold/10 text-gold text-[7px] font-bold uppercase rounded border border-gold/20">Locked Presets</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {dubaiPresets.map((preset) => (
+                      <button 
+                        key={preset.id}
+                        onClick={() => setCustomPrompt(preset.prompt)}
+                        className={`group relative flex flex-col items-center justify-center p-4 bg-zinc-50 border border-emerald-50 rounded-2xl transition-all hover:border-gold/40 hover:bg-white active:scale-95 ${customPrompt === preset.prompt ? 'border-gold bg-gold/[0.03] ring-1 ring-gold/20' : ''}`}
+                      >
+                        <span className="text-xl mb-2 opacity-50 group-hover:opacity-100 transition-opacity">{preset.icon}</span>
+                        <span className={`text-[8px] font-bold uppercase tracking-widest text-center leading-tight ${customPrompt === preset.prompt ? 'text-gold' : 'text-emerald-950/40'}`}>
+                          {preset.label}
+                        </span>
+                        {customPrompt === preset.prompt && <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-gold rounded-full shadow-[0_0_8px_rgba(212,175,55,0.8)]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <textarea 
+                    value={customPrompt} 
+                    onChange={(e) => setCustomPrompt(e.target.value)} 
+                    placeholder={productDetails.renderMode === 'product-only' ? "Define the standalone product setting and lighting..." : "Define the photoshoot atmosphere, lighting, and global setting..."} 
+                    className="w-full bg-emerald-50/20 border-2 border-emerald-100/30 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold focus:border-gold transition-all shadow-inner outline-none"
+                  />
+                </div>
                 
                 {aiSuggestions.length > 0 && (
                   <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">

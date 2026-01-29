@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 
@@ -29,7 +28,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           tier: role === 'Admin' ? 'Maison' : 'Free',
           registrationDate: Date.now(),
           lastLogin: Date.now(),
-          credits: { images: 5, videos: 5 },
+          credits: { images: 10, videos: 5 }, // Increased to 10 to allow testing 9-shot Amazon suite
           totalGenerated: 0,
           avatar: `https://ui-avatars.com/api/?name=${name}&background=022c22&color=D4AF37`
         };

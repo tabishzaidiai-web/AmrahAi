@@ -6,178 +6,272 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
+  const useCases = [
+    {
+      id: 'fashion',
+      label: 'Fashion',
+      title: 'Editorial Apparel',
+      image: 'https://images.unsplash.com/photo-1616091216791-a5360b5fc78e?auto=format&fit=crop&q=80&w=1200',
+      inputImg: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&q=80&w=400',
+      description: 'Preserve fabric drape and modest silhouettes with studio-grade lighting.'
+    },
+    {
+      id: 'jewelry',
+      label: 'Jewelry',
+      title: 'High-Jewelry Macro',
+      image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=80&w=1200',
+      inputImg: 'https://images.unsplash.com/photo-1573408339311-253bc3546f8d?auto=format&fit=crop&q=80&w=400',
+      description: 'Unlock 100% fidelity in gem brilliance and precious metal luster.'
+    },
+    {
+      id: 'beauty',
+      label: 'Beauty',
+      title: 'Premium Skincare',
+      image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80&w=1200',
+      inputImg: 'https://images.unsplash.com/photo-1594489828839-29d0bb8d35a9?auto=format&fit=crop&q=80&w=400',
+      description: 'Elegant product staging with water ripples and atmospheric depth.'
+    },
+    {
+      id: 'lifestyle',
+      label: 'Lifestyle',
+      title: 'Luxury Objects',
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=1200',
+      inputImg: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400',
+      description: 'Sophisticated tech and home goods in high-end architectural settings.'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-white text-emerald-950 font-sans">
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-gold selection:text-black">
       {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 z-[100] px-8 py-5 flex items-center justify-between glass">
+      <nav className="fixed top-0 inset-x-0 z-[110] px-8 py-6 flex items-center justify-between glass !bg-black/20 !border-white/5">
         <div className="flex items-center gap-12">
           <div className="flex flex-col">
-            <span className="text-2xl font-serif tracking-[0.2em] text-emerald-950 font-bold uppercase leading-none">AMRAH</span>
-            <span className="text-[8px] font-bold text-gold uppercase tracking-widest mt-1">BY ARABIAN AI</span>
+            <span className="text-2xl font-serif tracking-[0.25em] text-white font-bold uppercase leading-none">AMRAH</span>
+            <span className="text-[7px] font-bold text-gold uppercase tracking-[0.6em] mt-1.5">Maison Intelligence</span>
           </div>
-          <div className="hidden lg:flex items-center gap-8 text-[10px] font-bold uppercase tracking-widest text-emerald-950/60">
-            <a href="#how-it-works" className="hover:text-gold transition-colors">How It Works</a>
-            <a href="#fidelity" className="hover:text-gold transition-colors">Fidelity</a>
-            <a href="#pricing" className="hover:text-gold transition-colors">Pricing</a>
-            <a href="#faq" className="hover:text-gold transition-colors">FAQ</a>
+          <div className="hidden lg:flex items-center gap-10 text-[9px] font-bold uppercase tracking-[0.3em] text-white/50">
+            <a href="#how-it-works" className="hover:text-gold transition-colors">Orchestration</a>
+            <a href="#fidelity" className="hover:text-gold transition-colors">Precision</a>
+            <a href="#use-cases" className="hover:text-gold transition-colors">Gallery</a>
           </div>
         </div>
         <button 
           onClick={() => onEnterApp('editorial')} 
-          className="px-10 py-3 bg-emerald-950 text-white font-bold rounded-full text-[10px] uppercase tracking-widest hover:bg-gold transition-all btn-luxury"
+          className="px-10 py-3 bg-white text-black font-bold rounded-full text-[10px] uppercase tracking-[0.3em] hover:bg-gold hover:text-white transition-all btn-luxury"
         >
-          Launch Studio
+          Enter Studio
         </button>
       </nav>
 
-      {/* Impactful Hero Section */}
-      <section className="relative h-screen min-h-[700px] flex items-center justify-center overflow-hidden">
-        {/* Background Image with Subtle Dark Overlay */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2000&auto=format&fit=crop" 
-            className="w-full h-full object-cover"
-            alt="Amrah Luxury Collection"
-          />
-          <div className="absolute inset-0 bg-emerald-950/50 backdrop-brightness-75" />
-        </div>
-
-        <div className="relative z-10 max-w-6xl mx-auto px-8 flex flex-col items-center text-center space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <span className="text-[11px] font-bold text-gold uppercase tracking-[0.5em] drop-shadow-sm">
-            Visual Intelligence for Luxury
-          </span>
-          <h1 className="text-5xl md:text-8xl font-serif text-white leading-[1.1] font-medium max-w-5xl drop-shadow-md">
-            Product-intelligent AI shoots that never break your brand.
-          </h1>
-          <p className="text-white/90 text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto drop-shadow-sm">
-            Upload your product once. AMRAH creates hyper-realistic images and videos that preserve every logo, color, and detail.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
-            <button 
-              onClick={() => onEnterApp('editorial')}
-              className="px-14 py-5 bg-gold text-white font-bold rounded-full text-[11px] uppercase tracking-[0.3em] hover:bg-gold-hover transition-all btn-luxury shadow-2xl shadow-gold/20"
-            >
-              Start Free with 10 Credits
-            </button>
-            <a 
-              href="#fidelity" 
-              className="px-14 py-5 bg-white/10 backdrop-blur-md text-white font-bold rounded-full text-[11px] uppercase tracking-[0.3em] hover:bg-white/20 transition-all border border-white/20"
-            >
-              See Examples
-            </a>
-          </div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40 animate-bounce">
-          <span className="text-[8px] font-bold uppercase tracking-widest">Scroll to Explore</span>
-          <div className="w-px h-8 bg-white/20" />
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section id="how-it-works" className="py-32 px-8 bg-emerald-950 text-white overflow-hidden">
-        <div className="max-w-6xl mx-auto space-y-24">
-          <div className="text-center space-y-4">
-            <span className="text-[10px] font-bold text-gold uppercase tracking-[0.5em]">The Journey</span>
-            <h2 className="text-4xl md:text-5xl font-serif">Three steps to perfection.</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-            {[
-              { step: '01', title: 'Set Identity', desc: 'Define your Brand Kit with logos, colors, and the editorial tone that guides every neural render.' },
-              { step: '02', title: 'Upload Product', desc: 'A simple photo is all we need. Our AI isolates the product and preserves 100% of its DNA.' },
-              { step: '03', title: 'Orchestrate', desc: 'Choose a locked AI model and a scene. AMRAH generates cinematic assets ready for global campaigns.' }
-            ].map((item, i) => (
-              <div key={i} className="space-y-6 group">
-                <span className="text-6xl font-serif text-white/10 group-hover:text-gold/40 transition-colors duration-500">{item.step}</span>
-                <h3 className="text-2xl font-serif">{item.title}</h3>
-                <p className="text-white/50 text-sm font-light leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Brand Safety & Fidelity */}
-      <section id="fidelity" className="py-32 px-8">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-          <div className="space-y-10">
-            <div className="space-y-4">
-              <span className="text-[10px] font-bold text-gold uppercase tracking-[0.5em]">Safety Protocol</span>
-              <h2 className="text-4xl md:text-5xl font-serif text-emerald-950 leading-tight">100% Precision. <br/>Zero Compromise.</h2>
+      {/* Immersive Multi-Panel Hero */}
+      <section className="relative h-screen w-full flex flex-col lg:flex-row overflow-hidden border-b border-white/5">
+        {useCases.map((useCase, idx) => (
+          <div 
+            key={useCase.id}
+            className="relative flex-1 group overflow-hidden border-r border-white/5 last:border-0 cursor-pointer transition-all duration-[1200ms] cubic-bezier(0.16, 1, 0.3, 1) hover:flex-[1.8]"
+            onClick={() => onEnterApp('editorial', useCase.id as ProductCategory)}
+          >
+            {/* Background Image with Ken Burns effect on hover */}
+            <div className="absolute inset-0 bg-emerald-950">
+              <img 
+                src={useCase.image} 
+                className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-[3000ms] ease-out opacity-80 group-hover:opacity-100"
+                alt={useCase.title}
+              />
             </div>
             
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-emerald-950">AMRAH preserves:</h4>
-                <ul className="space-y-2 text-emerald-950/60 text-sm font-light">
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Exact marquise cut and setting integrity.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Metal luster and stone brilliance.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-gold rounded-full"/> Structural fidelity of multi-band designs.</li>
-                </ul>
+            {/* Luxury Overlay Gradients */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 group-hover:via-black/10 transition-all duration-700" />
+            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all duration-700" />
+            
+            {/* Content Container */}
+            <div className="absolute inset-0 p-10 flex flex-col justify-end gap-6 z-20">
+              <div className="space-y-4 transform translate-y-8 group-hover:translate-y-0 transition-transform duration-1000">
+                <div className="flex items-center gap-4">
+                  <div className="h-px w-8 bg-gold transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-700 delay-100" />
+                  <span className="px-3 py-1 border border-gold/40 text-gold text-[8px] font-bold uppercase tracking-[0.3em] rounded-full backdrop-blur-sm">
+                    {useCase.label}
+                  </span>
+                </div>
+                <h3 className="text-3xl font-serif text-white leading-tight group-hover:text-gold transition-colors duration-500">
+                  {useCase.title}
+                </h3>
+                <p className="text-white/40 text-[11px] font-light leading-relaxed max-w-[280px] opacity-0 group-hover:opacity-100 transition-all duration-1000 delay-200">
+                  {useCase.description}
+                </p>
               </div>
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-emerald-950">AMRAH evolves:</h4>
-                <ul className="space-y-2 text-emerald-950/60 text-sm font-light">
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Lighting, background, and presentation.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> Luxury editorial staging.</li>
-                  <li className="flex items-center gap-3"><div className="w-1 h-1 bg-emerald-300 rounded-full"/> High-end cinematic reflections.</li>
-                </ul>
+
+              {/* Neural Mini-Preview (Before/After Cue) */}
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 lg:left-10 lg:translate-x-0 w-24 h-24 rounded-3xl overflow-hidden border border-white/10 shadow-2xl scale-0 group-hover:scale-100 transition-transform duration-700 delay-300 opacity-0 group-hover:opacity-100 group">
+                <img src={useCase.inputImg} className="w-full h-full object-cover brightness-50" alt="Input" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
+                  <span className="text-[7px] text-gold font-bold uppercase tracking-widest mb-1">Source</span>
+                  <div className="w-full h-[1px] bg-gold/30 mb-1" />
+                  <span className="text-[6px] text-white/60 uppercase font-light">Input Data</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Vertical Index Indicator */}
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 opacity-20 group-hover:opacity-100 transition-opacity">
+               <span className="text-[10px] font-serif italic">0{idx + 1}</span>
+               <div className="w-px h-12 bg-white/20" />
+            </div>
+          </div>
+        ))}
+
+        {/* Central Brand Callout */}
+        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-center px-8 z-50">
+          <div className="max-w-4xl space-y-10 animate-in fade-in zoom-in-95 duration-1000">
+            <div className="inline-flex items-center gap-4 px-6 py-2 bg-black/60 backdrop-blur-3xl border border-gold/20 rounded-full pointer-events-auto">
+              <div className="w-2 h-2 bg-gold rounded-full animate-pulse shadow-[0_0_10px_#D4AF37]" />
+              <span className="text-[9px] font-bold text-gold uppercase tracking-[0.5em]">
+                Neural Rendering for Luxury Maisons
+              </span>
+            </div>
+            
+            <h1 className="text-5xl md:text-8xl font-serif text-white leading-[1.1] font-medium pointer-events-auto">
+              Synthesize Your <br/><span className="italic text-gold">Visual Identity.</span>
+            </h1>
+            
+            <p className="text-white/60 text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto pointer-events-auto">
+              Transform standard product photography into cinematic, campaign-ready 4K assets with 100% visual fidelity.
+            </p>
+
+            <div className="pt-8 pointer-events-auto flex flex-col items-center gap-6">
+              <button 
+                onClick={() => onEnterApp('editorial')}
+                className="px-20 py-7 bg-gold text-white font-bold rounded-full text-[13px] uppercase tracking-[0.5em] hover:bg-white hover:text-black transition-all btn-luxury shadow-[0_0_50px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95"
+              >
+                Create Luxury Imagery
+              </button>
+              <div className="flex items-center gap-8 text-white/20 text-[9px] font-bold uppercase tracking-[0.3em]">
+                 <span>Enterprise Ready</span>
+                 <div className="w-1 h-1 rounded-full bg-white/20" />
+                 <span>Free Trial Credits Included</span>
               </div>
             </div>
           </div>
-          
-          <div className="bg-emerald-50 rounded-[3rem] p-8 aspect-square flex items-center justify-center overflow-hidden">
-             <div className="grid grid-cols-2 gap-6 w-full h-full">
-                <div className="relative group overflow-hidden rounded-[2rem] bg-white border border-black/5 shadow-sm">
-                   <img 
-                     src="https://files.oaiusercontent.com/file-D0R1WfG72v65A68Gq8o0Yt?se=2025-02-12T16%3A36%3A05Z&sp=r&sv=2024-08-04&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3D45f27663-d142-46a4-8451-8758b292c10b.webp&sig=6K%2BFv6V7rE0zYQ2/6uHk7l%2BfU7X5YgEaN2L9Dk4L3wE%3D" 
-                     className="w-full h-full object-cover grayscale-[0.2]" 
-                     alt="Ground Truth" 
-                   />
-                   <div className="absolute top-4 left-4">
-                      <span className="px-3 py-1 bg-emerald-950 text-white text-[8px] font-bold uppercase tracking-widest rounded-full opacity-80">Ground Truth</span>
-                   </div>
-                </div>
-                <div className="relative group overflow-hidden rounded-[2rem] bg-white border border-black/5 shadow-sm">
-                   <img 
-                     src="https://files.oaiusercontent.com/file-M497D2rI9pYhF866QW8i3P?se=2025-02-12T16%3A36%3A11Z&sp=r&sv=2024-08-04&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3D1a2d67da-0857-41e1-b472-353272d3e513.webp&sig=rX/z1m6lR5iO%2Bn6v6uHk7l%2BfU7X5YgEaN2L9Dk4L3wE%3D" 
-                     className="w-full h-full object-cover" 
-                     alt="Neural Render" 
-                   />
-                   <div className="absolute top-4 left-4">
-                      <span className="px-3 py-1 bg-gold text-white text-[8px] font-bold uppercase tracking-widest rounded-full opacity-90 shadow-lg">Neural Render</span>
-                   </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 text-white/20 z-40">
+          <span className="text-[8px] uppercase tracking-[0.4em] font-bold">Discover</span>
+          <div className="w-px h-16 bg-gradient-to-b from-gold/50 to-transparent animate-bounce" />
+        </div>
+      </section>
+
+      {/* Global Stat Bar */}
+      <section className="bg-white py-16">
+        <div className="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-12">
+           {[
+             { label: 'Neural Fidelity', val: '100%', detail: 'Zero deviation rendering' },
+             { label: 'Generation Speed', val: '< 20s', detail: 'Real-time studio flow' },
+             { label: 'Creative Efficiency', val: '15x', detail: 'Multi-channel sync' },
+             { label: 'Global Compliance', val: 'Verified', detail: 'Modesty & safety locked' }
+           ].map((stat, i) => (
+             <div key={i} className="space-y-2 border-l border-emerald-950/5 pl-8">
+                <div className="text-4xl font-serif text-emerald-950 font-medium">{stat.val}</div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-emerald-950 uppercase tracking-widest">{stat.label}</span>
+                  <span className="text-[9px] text-emerald-950/30 font-medium italic">{stat.detail}</span>
                 </div>
              </div>
+           ))}
+        </div>
+      </section>
+
+      {/* How It Works (Luxury Edition) */}
+      <section id="how-it-works" className="py-40 px-8 bg-emerald-950">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-32 items-center">
+          <div className="space-y-12">
+            <div className="space-y-6">
+              <span className="text-gold text-[10px] font-bold uppercase tracking-[0.6em]">The Orchestration</span>
+              <h2 className="text-5xl md:text-7xl font-serif text-white leading-tight">The Three Pillars of Perfection.</h2>
+            </div>
+            
+            <div className="space-y-16">
+              {[
+                { id: '01', title: 'Maison Identity', desc: 'Secure your Brand DNA. Upload logos, define your visual palette, and set the editorial tone that governs all neural synthesis.' },
+                { id: '02', title: 'Product Ground Truth', desc: 'Upload high-resolution source photos. Our vision model isolates the product, locking every texture, stitch, and reflection.' },
+                { id: '03', title: 'Neural Casting', desc: 'Assign locked AI identities to your product. Generate consistent global campaigns with zero studio overhead.' }
+              ].map((pill, i) => (
+                <div key={i} className="flex gap-10 items-start group">
+                  <span className="text-4xl font-serif text-gold/20 group-hover:text-gold transition-colors duration-500">{pill.id}</span>
+                  <div className="space-y-3">
+                    <h4 className="text-xl font-serif text-white">{pill.title}</h4>
+                    <p className="text-white/40 text-sm font-light leading-relaxed max-w-sm">{pill.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="relative">
+             <div className="aspect-[4/5] bg-black/40 rounded-[3rem] border border-white/5 overflow-hidden group">
+                <img src="https://images.unsplash.com/photo-1549439602-43ebca2327af?auto=format&fit=crop&q=90&w=1000" className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-1000" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="w-20 h-20 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center hover:scale-110 transition-transform cursor-pointer">
+                      <svg className="w-6 h-6 text-gold fill-gold" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                   </div>
+                </div>
+                <div className="absolute bottom-10 left-10 right-10 p-8 bg-black/60 backdrop-blur-2xl rounded-3xl border border-white/10">
+                   <span className="text-[9px] font-bold text-gold uppercase tracking-[0.3em] block mb-2">Live Demo</span>
+                   <p className="text-xs text-white/80 italic font-light">"Orchestrating high-jewelry macro sequence at 4K..."</p>
+                </div>
+             </div>
+             {/* Decorative element */}
+             <div className="absolute -top-12 -right-12 w-48 h-48 bg-gold/10 blur-[100px] rounded-full" />
           </div>
         </div>
       </section>
 
-      {/* Pricing / CTA */}
-      <section id="pricing" className="py-32 px-8 bg-emerald-50 text-center">
-        <div className="max-w-3xl mx-auto space-y-12">
-          <h2 className="text-4xl md:text-5xl font-serif text-emerald-950">Ready to transform your Maison’s digital presence?</h2>
-          <div className="flex flex-col items-center gap-6">
+      {/* Pricing / Footer CTA */}
+      <section id="pricing" className="py-40 px-8 bg-white text-emerald-950 text-center relative overflow-hidden">
+        <div className="max-w-4xl mx-auto space-y-12">
+          <span className="text-gold text-[10px] font-bold uppercase tracking-[0.6em]">Invitation</span>
+          <h2 className="text-5xl md:text-7xl font-serif leading-tight">Elevate your Maison’s digital legacy.</h2>
+          <p className="text-emerald-950/40 text-lg font-light max-w-2xl mx-auto">Join the leading luxury brands redefining e-commerce with AMRAH Visual Intelligence.</p>
+          
+          <div className="pt-8 flex flex-col items-center gap-8">
             <button 
               onClick={() => onEnterApp('editorial')}
-              className="px-16 py-6 bg-emerald-950 text-white font-bold rounded-full text-[12px] uppercase tracking-[0.4em] hover:bg-gold transition-all btn-luxury"
+              className="px-16 py-6 bg-emerald-950 text-white font-bold rounded-full text-[12px] uppercase tracking-[0.5em] hover:bg-gold transition-all btn-luxury shadow-2xl"
             >
-              Launch Studio
+              Begin Your Studio Session
             </button>
-            <p className="text-emerald-950/40 text-xs font-bold uppercase tracking-widest">Enterprise solutions start at $2,500/mo.</p>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-emerald-950/20 text-[9px] font-bold uppercase tracking-[0.3em]">Corporate Inquiries:</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-950 hover:text-gold transition-colors cursor-pointer border-b border-gold/30">partnerships@arabianai.maison</p>
+            </div>
           </div>
+        </div>
+        
+        {/* Corner decorative logos/patterns */}
+        <div className="absolute bottom-0 right-0 opacity-5 pointer-events-none p-20 transform rotate-12">
+           <span className="text-[140px] font-serif font-bold uppercase tracking-[0.4em]">AMRAH</span>
         </div>
       </section>
 
-      <footer className="py-20 px-8 border-t border-black/5 text-center">
-        <div className="flex flex-col items-center gap-6">
-          <div className="flex flex-col">
-            <span className="text-xl font-serif tracking-[0.2em] text-emerald-950 font-bold uppercase leading-none">AMRAH</span>
-            <span className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mt-1">BY ARABIAN AI</span>
+      <footer className="py-20 px-8 border-t border-black/5 bg-[#FAFAFA] text-center">
+        <div className="flex flex-col items-center gap-10">
+          <div className="flex flex-col items-center">
+            <span className="text-2xl font-serif tracking-[0.3em] text-emerald-950 font-bold uppercase leading-none">AMRAH</span>
+            <span className="text-[8px] font-bold text-gold uppercase tracking-[0.5em] mt-2">Neural Visual Excellence</span>
           </div>
-          <p className="text-emerald-950/30 text-[9px] font-bold uppercase tracking-widest">&copy; 2026 Arabian AI Engine. All rights reserved.</p>
+          
+          <div className="flex gap-12 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-950/40">
+            <a href="#" className="hover:text-gold">Privacy Protocol</a>
+            <a href="#" className="hover:text-gold">Terms of Service</a>
+            <a href="#" className="hover:text-gold">Security Ethics</a>
+            <a href="#" className="hover:text-gold">Legal</a>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-emerald-950/30 text-[9px] font-bold uppercase tracking-widest">&copy; 2026 Arabian AI Neural Engine. All rights reserved.</p>
+            <p className="text-[8px] text-emerald-950/10 font-bold uppercase tracking-[0.4em]">Optimized for Global Maison Networks</p>
+          </div>
         </div>
       </footer>
     </div>
