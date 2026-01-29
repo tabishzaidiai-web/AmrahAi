@@ -16,11 +16,12 @@ interface CreateShootProps {
   initialCategory?: ProductCategory;
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
+  onError: (err: any) => void;
 }
 
 const CreateShoot: React.FC<CreateShootProps> = ({ 
   brandKit, selectedModel, setSelectedModel, addToHistory, 
-  onGoBackToModels, initialCategory, userCredits, onInsufficientCredits 
+  onGoBackToModels, initialCategory, userCredits, onInsufficientCredits, onError 
 }) => {
   const [productImage, setProductImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
@@ -111,7 +112,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
       const base64 = productImage.split(',')[1];
       const suggestions = await GeminiService.suggestCampaignStories(base64, brandKit);
       setAiSuggestions(suggestions.slice(0, 3));
-    } catch (err) { console.error("Suggestion Error:", err); } finally { setIsSuggesting(false); }
+    } catch (err) { onError(err); } finally { setIsSuggesting(false); }
   };
 
   const handleImageUpload = async (file: File) => {
@@ -169,7 +170,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
       
       setOutput(resultUrl);
       addToHistory({ id: Math.random().toString(36).substr(2, 9), type: genType, url: resultUrl, prompt: finalPrompt, timestamp: Date.now() });
-    } catch (err: any) { alert(err.message); } finally { setState(AppState.READY); }
+    } catch (err: any) { onError(err); } finally { setState(AppState.READY); }
   };
 
   const handleConvertToVideo = async () => {
@@ -186,7 +187,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
       addToHistory(newRes);
       setShowMotionControls(false);
     } catch (err: any) {
-      alert(`Motion synthesis failed: ${err.message}`);
+      onError(err);
     } finally {
       setIsConvertingToVideo(false);
       setState(AppState.READY);
@@ -513,7 +514,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                               <div className="bg-white p-8 rounded-4xl space-y-8 shadow-2xl border border-emerald-50 animate-in slide-in-from-bottom-6">
                                  <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">Motion Profile</span>
-                                    <button onClick={() => setShowMotionControls(false)} className="text-emerald-950/40 hover:text-emerald-950"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                    <button onClick={() => setShowMotionControls(false)} className="text-emerald-950/40 hover:text-emerald-950"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                                  </div>
                                  <div className="flex flex-wrap gap-2">
                                     {motionSuggestions.map((m, i) => (

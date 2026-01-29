@@ -26,18 +26,32 @@ STRICT PRODUCT-ONLY MODE:
 `;
 
 const PHOTOSHOOT_PLANNER_INSTRUCTION = `
-SYSTEM: LUXURY PHOTOSHOOT STRATEGIST.
-TASK: Analyze the provided product image and generate a structured high-end editorial e-commerce photoshoot plan.
-The plan must describe:
-1. Product Summary: Accurately identify the type, materials, and key details from the image.
-2. Shoot Style: A professional editorial style (e.g., 'Atelier Minimalist', 'Opulent Desert Noir').
-3. Shot List: A series of specific shots including angles, framing, lighting, and model usage.
+You are “AMRAH Photoshoot Director” inside the AMRAH by Arabian AI app.
+Your job is to plan a complete photoshoot for fashion or products and convert that plan into a clean, generation-ready brief.
 
-RULES:
-- Focus on preserving product fidelity in descriptions.
-- Use luxury photography terminology.
-- OUTPUT MUST BE VALID JSON matching the provided schema.
-- Do not include any text before or after the JSON block.
+Always respond in TWO parts:
+
+PART 1 – HUMAN-FRIENDLY PLAN
+- Title: a short name for the shoot.
+- Concept & Mood: 3–6 sentences.
+- Location & Background: 3–5 ideas.
+- Lighting: 3–5 practical lighting tips.
+- Styling / Outfit Notes: key wardrobe, colors, and textures.
+- Shot List: at least 6 shots with camera angle, framing, and pose.
+- Props & Checklist: bullet list of what to prepare.
+
+PART 2 – GENERATION BRIEF (FOR AI)
+Write a single, compact prompt that another AI image/video model can use to generate the shoot.
+Include: model description (age range, gender, ethnicity), environment, mood, camera angle, framing, lighting, and styling.
+Explicitly mention that the AI must keep the product’s real color, shape, logo, and branding.
+Remove all internal notes, keep it as one continuous prompt paragraph.
+Start this section with the heading: “GENERATION BRIEF:”
+
+Rules:
+1. Don’t show JSON or code.
+2. Ask 1–3 short clarification questions if the user is too vague.
+3. Keep language simple and practical for beginners.
+4. Ensure 100% visual fidelity for the product.
 `;
 
 const LUXURY_STYLE_PROMPTS: Record<LuxuryStyle, string> = {
@@ -84,12 +98,33 @@ export class GeminiService {
     }
   }
 
-  static async trainPersonalModel(dataset: string[]): Promise<string> {
+  static async trainPersonalModel(images: string[]): Promise<string> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(`personal-${Math.random().toString(36).substring(2, 11)}`);
+        resolve(`pm-${Math.random().toString(36).substr(2, 9)}`);
       }, 3000);
     });
+  }
+
+  static async generatePhotoshootBrief(
+    imageBase64: string,
+    mimeType: string,
+    userBrief: string,
+    brandKit: BrandKit
+  ): Promise<string> {
+    const ai = this.getAi();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: imageBase64, mimeType } },
+          { text: `MAISON IDENTITY: ${brandKit.name}, Tone: ${brandKit.tone}.` },
+          { text: `USER BRIEF: ${userBrief}` },
+          { text: PHOTOSHOOT_PLANNER_INSTRUCTION }
+        ]
+      }
+    });
+    return response.text || "Failed to orchestrate brief.";
   }
 
   static async analyzeProduct(imageBase64: string, mimeType: string, brandKit?: BrandKit): Promise<ProductAnalysis> {
@@ -125,69 +160,6 @@ export class GeminiService {
     }
   }
 
-  static async generateLuxuryPhotoshootConfig(
-    imageBase64: string,
-    mimeType: string,
-    userBrief?: string
-  ): Promise<LuxuryPhotoshootConfig> {
-    const ai = this.getAi();
-    const parts: any[] = [
-      { inlineData: { data: imageBase64, mimeType } }
-    ];
-    
-    const prompt = `${PHOTOSHOOT_PLANNER_INSTRUCTION} 
-    USER BRIEF: ${userBrief || 'Create a luxury 5-shot editorial sequence for this product.'}`;
-    parts.push({ text: prompt });
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: { parts },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            productSummary: {
-              type: Type.OBJECT,
-              properties: {
-                type: { type: Type.STRING },
-                materials: { type: Type.STRING },
-                keyDetails: { type: Type.STRING }
-              },
-              required: ["type", "materials", "keyDetails"]
-            },
-            shootStyle: { type: Type.STRING },
-            shots: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  angle: { type: Type.STRING },
-                  cameraFraming: { type: Type.STRING },
-                  background: { type: Type.STRING },
-                  lighting: { type: Type.STRING },
-                  modelUsage: { type: Type.STRING },
-                  notes: { type: Type.STRING }
-                },
-                required: ["id", "angle", "cameraFraming", "background", "lighting", "modelUsage", "notes"]
-              }
-            }
-          },
-          required: ["productSummary", "shootStyle", "shots"]
-        }
-      }
-    });
-
-    try {
-      return JSON.parse(response.text || '{}');
-    } catch (e) {
-      console.error("Failed to parse photoshoot config", e);
-      throw new Error("Failed to generate photoshoot planner JSON.");
-    }
-  }
-
-  // --- NEW FEATURE: AMAZON LISTING ARCHITECT ---
   static async generateAmazonListingSuitePrompts(
     images: { b64: string, mimeType: string, role: string }[]
   ): Promise<AmazonListingSuite> {
@@ -342,7 +314,6 @@ export class GeminiService {
     const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
     const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
-    // Special technical mode check (for Amazon pure white backgrounds)
     const isAmazonMain = customPrompt.includes("RGB 255,255,255");
     const techConstraint = isAmazonMain ? "CRITICAL: The background must be PURE WHITE (RGB 255, 255, 255) with NO shadows stretching to edges." : "";
 

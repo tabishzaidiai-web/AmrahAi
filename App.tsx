@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import PhotoStudio from './components/PhotoStudio';
 import Dashboard from './components/Dashboard';
@@ -19,7 +19,8 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('editorial');
   const [history, setHistory] = useState<GenerationResult[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelPersona | null>(null);
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
+  // Default to true to prevent blocking if bridge is missing; useEffect will correct this if needed
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(true);
   const [initialCategory, setInitialCategory] = useState<ProductCategory>('fashion');
   const [showPricing, setShowPricing] = useState(false);
   
@@ -54,9 +55,14 @@ const App: React.FC = () => {
     const checkKeyStatus = async () => {
       // @ts-ignore
       if (window.aistudio) {
-        // @ts-ignore
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setIsKeySelected(selected);
+        try {
+          // @ts-ignore
+          const selected = await window.aistudio.hasSelectedApiKey();
+          setIsKeySelected(selected);
+        } catch (e) {
+          console.warn("AI Studio bridge check failed, proceeding with default.");
+          setIsKeySelected(true);
+        }
       }
     };
     checkKeyStatus();
@@ -72,11 +78,23 @@ const App: React.FC = () => {
   const handleOpenKeySelection = async () => {
     // @ts-ignore
     if (window.aistudio) {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
+      try {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+        // Mitigate race condition: assume success immediately after dialog call
+        setIsKeySelected(true);
+      } catch (e) {
+        alert("Failed to initialize Key Selector. Please ensure you are in a valid AI Studio context.");
+      }
+    } else {
+      // Fallback: If no bridge, just proceed assuming key is pre-configured in environment
       setIsKeySelected(true);
     }
   };
+
+  const handleResetKey = useCallback(() => {
+    setIsKeySelected(false);
+  }, []);
 
   const addToHistory = (result: GenerationResult) => {
     setHistory(prev => [result, ...prev]);
@@ -154,6 +172,16 @@ const App: React.FC = () => {
     }
   };
 
+  // Helper for components to handle "Requested entity was not found" errors
+  const handleApiError = useCallback((err: any) => {
+    if (err?.message?.includes("Requested entity was not found")) {
+      handleResetKey();
+      alert("Selected Maison key is no longer valid. Please re-authorize.");
+    } else {
+      alert(err?.message || "An unexpected neural orchestration error occurred.");
+    }
+  }, [handleResetKey]);
+
   if (view === 'landing') {
     return <Dashboard onEnterApp={handleEnterApp} />;
   }
@@ -177,6 +205,13 @@ const App: React.FC = () => {
         >
           Select Maison API Key
         </button>
+        {/* Helper text for local development or non-standard environments */}
+        {/* @ts-ignore */}
+        {!window.aistudio && (
+          <p className="text-[9px] text-emerald-950/20 font-bold uppercase tracking-widest pt-8">
+            Note: Standard Authorization bridge not detected. Proceed with manual key if available.
+          </p>
+        )}
       </div>
     );
   }
@@ -198,12 +233,12 @@ const App: React.FC = () => {
         <div className="flex gap-12 overflow-x-auto no-scrollbar">
           {[
             { id: 'editorial', label: 'Photo Studio' },
-            { id: 'amazon', label: 'Amazon Studio' },
             { id: 'talent', label: 'Talent' },
             { id: 'quick', label: 'Quick Shot' },
             { id: 'banners', label: 'Campaigns' },
             { id: 'planner', label: 'Shoot Planner' },
             { id: 'brand', label: 'Brand DNA' },
+            { id: 'amazon', label: 'Amazon Studio' },
             ...(user.role === 'Admin' ? [{ id: 'admin', label: 'Metrics (Admin)' }] : [])
           ].map((item) => (
             <button
@@ -220,6 +255,14 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex gap-4 items-center shrink-0">
+           {/* Key Reset Button for Pro users in case of identity loss */}
+           <button 
+             onClick={handleResetKey}
+             title="Reset Authorization Key"
+             className="p-2 text-emerald-950/20 hover:text-gold transition-colors"
+           >
+             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+           </button>
            <button 
              onClick={() => setActiveTab('history')} 
              className={`px-8 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
@@ -239,6 +282,7 @@ const App: React.FC = () => {
               addToHistory={addToHistory} onGoBackToModels={() => setActiveTab('talent')} initialCategory={initialCategory}
               userCredits={user.credits} 
               onInsufficientCredits={() => setShowPricing(true)}
+              onError={handleApiError}
             />
           )}
           {activeTab === 'amazon' && (
@@ -247,6 +291,7 @@ const App: React.FC = () => {
               addToHistory={addToHistory}
               userCredits={user.credits}
               onInsufficientCredits={() => setShowPricing(true)}
+              onError={handleApiError}
             />
           )}
           {activeTab === 'talent' && (
@@ -261,6 +306,7 @@ const App: React.FC = () => {
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
               userCredits={user.credits} 
               onInsufficientCredits={() => setShowPricing(true)}
+              onError={handleApiError}
             />
           )}
           {activeTab === 'banners' && (
@@ -268,6 +314,7 @@ const App: React.FC = () => {
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
               userCredits={user.credits} 
               onInsufficientCredits={() => setShowPricing(true)}
+              onError={handleApiError}
             />
           )}
           {activeTab === 'planner' && (
