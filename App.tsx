@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import PhotoStudio from './components/PhotoStudio';
 import Dashboard from './components/Dashboard';
-import BrandMemory from './components/BrandMemory';
 import Campaigns from './components/Campaigns';
 import CreateShoot from './components/CreateShoot';
 import PhotoshootPlanner from './components/PhotoshootPlanner';
@@ -36,7 +35,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Global Brand Kit State
+  // Global Brand Kit State (Kept for component prop compatibility but no longer editable via UI)
   const [brandKit, setBrandKit] = useState<BrandKitType>(() => {
     const saved = localStorage.getItem('amrah_brand_dna');
     if (saved) return JSON.parse(saved);
@@ -237,7 +236,6 @@ const App: React.FC = () => {
             { id: 'quick', label: 'Quick Shot' },
             { id: 'banners', label: 'Campaigns' },
             { id: 'planner', label: 'Shoot Planner' },
-            { id: 'brand', label: 'Brand DNA' },
             { id: 'amazon', label: 'Amazon Studio' },
             ...(user.role === 'Admin' ? [{ id: 'admin', label: 'Metrics (Admin)' }] : [])
           ].map((item) => (
@@ -320,7 +318,6 @@ const App: React.FC = () => {
           {activeTab === 'planner' && (
             <PhotoshootPlanner brandKit={brandKit} />
           )}
-          {activeTab === 'brand' && <BrandMemory brandKit={brandKit} setBrandKit={setBrandKit} />}
           {activeTab === 'admin' && user.role === 'Admin' && <AdminDashboard logs={usageLogs} />}
           
           {activeTab === 'history' && (

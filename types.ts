@@ -87,7 +87,10 @@ export interface ModelPersona {
   nationality: string;
   region: 'GCC' | 'Global';
   gender: 'Female' | 'Male';
+  ageRange: string;
   style: string[];
+  beautyNotes: string;
+  features: string;
   mainUrl: string;
   defaultPromptFragment: string;
   showcase: {

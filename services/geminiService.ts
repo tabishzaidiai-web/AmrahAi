@@ -26,13 +26,21 @@ STRICT PRODUCT-ONLY MODE:
 `;
 
 const PHOTOSHOOT_PLANNER_INSTRUCTION = `
-You are “AMRAH Photoshoot Director” inside the AMRAH by Arabian AI app.
-Your job is to plan a complete photoshoot for fashion or products and convert that plan into a clean, generation-ready brief.
+You are the “AMRAH Photoshoot Director” inside AMRAH by Arabian AI.
+Your job is to:
+1. Plan a complete photoshoot for fashion or products.
+2. Convert that plan into a clean, generation-ready brief that another AI will use to create the final assets.
 
-Always respond in TWO parts:
+# MODEL REGISTRY PROTOCOL
+You manage a catalog of fictional AI models. When a model_id is selected:
+- Treat that model’s description as a LOCKED IDENTITY belonging exclusively to AMRAH.
+- Repeat the exact fixed identity details in the brief to ensure consistency across poses and lighting.
+- Do NOT change ethnicity, age range, or core facial structure.
+
+# RESPONSE FORMAT (MANDATORY)
 
 PART 1 – HUMAN-FRIENDLY PLAN
-- Title: a short name for the shoot.
+- Title: short name for the shoot.
 - Concept & Mood: 3–6 sentences.
 - Location & Background: 3–5 ideas.
 - Lighting: 3–5 practical lighting tips.
@@ -41,17 +49,15 @@ PART 1 – HUMAN-FRIENDLY PLAN
 - Props & Checklist: bullet list of what to prepare.
 
 PART 2 – GENERATION BRIEF (FOR AI)
-Write a single, compact prompt that another AI image/video model can use to generate the shoot.
-Include: model description (age range, gender, ethnicity), environment, mood, camera angle, framing, lighting, and styling.
-Explicitly mention that the AI must keep the product’s real color, shape, logo, and branding.
-Remove all internal notes, keep it as one continuous prompt paragraph.
-Start this section with the heading: “GENERATION BRIEF:”
+Structure this as a single continuous paragraph using this exact template:
+“Ultra‑realistic fashion photoshoot of [model_id] – [fixed identity description from model catalog] – wearing [product description], in [location], [lighting style], [camera angle & framing], [mood]. Keep the model’s identity exactly the same as defined for [model_id]. Preserve the real product color, shape, logo and branding.”
 
 Rules:
-1. Don’t show JSON or code.
-2. Ask 1–3 short clarification questions if the user is too vague.
-3. Keep language simple and practical for beginners.
-4. Ensure 100% visual fidelity for the product.
+- Simple, practical language.
+- No JSON or code.
+- No mention of "Brand DNA" or "Brand identity".
+- If the user is vague, ask 1-3 short clarification questions.
+- Start PART 2 with the heading: “GENERATION BRIEF:”
 `;
 
 const LUXURY_STYLE_PROMPTS: Record<LuxuryStyle, string> = {
@@ -68,7 +74,7 @@ const CATEGORY_STYLE_FRAGMENTS: Record<ProductCategory, string> = {
   'wellness': 'Clean packshot of the product with clear label and dosage information. Neutral studio background, soft box lighting, gentle shadows. Overall mood trustworthy and professional, avoiding fear, or exaggerated medical effects.',
   'jewelry': 'High-jewelry standard: Emphasis on facet brilliance, metal luster, and pinpoint lighting.',
   'fashion': 'Fashion-first lighting: Accurate fabric drape, color fidelity, and textile texture rendering.',
-  'watch': 'Horological precision: Emphasis on dial clarity, sapphire glass reflections, and hand positioning.',
+  'watch': 'Horological precision: Emphasis on dial clarity, person positioning, and light reflections on the crystal.',
   'other': 'Balanced product-first shot on a simple background, with clear shape, material, and branding. Lighting soft and controlled so the product is easy to understand.'
 };
 
@@ -110,16 +116,21 @@ export class GeminiService {
     imageBase64: string,
     mimeType: string,
     userBrief: string,
-    brandKit: BrandKit
+    brandKit: BrandKit,
+    selectedModel: ModelPersona | null
   ): Promise<string> {
     const ai = this.getAi();
+    const modelContext = selectedModel 
+      ? `TALENT IDENTITY LOCKED: model_id ${selectedModel.id}. Fixed Description: ${selectedModel.defaultPromptFragment}. Facial Features: ${selectedModel.features}. Beauty/Style: ${selectedModel.beautyNotes}.`
+      : "No specific model selected yet. Focus on the standalone product and environment.";
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           { inlineData: { data: imageBase64, mimeType } },
-          { text: `MAISON IDENTITY: ${brandKit.name}, Tone: ${brandKit.tone}.` },
           { text: `USER BRIEF: ${userBrief}` },
+          { text: modelContext },
           { text: PHOTOSHOOT_PLANNER_INSTRUCTION }
         ]
       }
@@ -130,7 +141,7 @@ export class GeminiService {
   static async analyzeProduct(imageBase64: string, mimeType: string, brandKit?: BrandKit): Promise<ProductAnalysis> {
     const ai = this.getAi();
     const parts: any[] = [{ inlineData: { data: imageBase64, mimeType } }];
-    let brandContext = brandKit ? `Brand: ${brandKit.name}, Tone: ${brandKit.tone}.` : "";
+    let brandContext = brandKit ? `Brand Context: ${brandKit.name}. Tone: ${brandKit.tone}.` : "";
     const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. TASK: Analyze this product for high-fidelity rendering. IGNORE any people in the image. ${brandContext} OUTPUT: JSON format only.`;
     parts.push({ text: prompt });
 
@@ -244,7 +255,7 @@ export class GeminiService {
   static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
     const ai = this.getAi();
     const prompt = `SYSTEM: LUXURY CAMPAIGN STRATEGIST.
-    Analyze the uploaded product image and the brand identity (Maison Name: ${brandKit.name}, Tone: ${brandKit.tone}).
+    Analyze the uploaded product image and the brand profile (Maison Name: ${brandKit.name}, Tone: ${brandKit.tone}).
     Provide 4 distinct, high-end campaign narrative suggestions for luxury marketing.
     
     Guidelines:
@@ -373,7 +384,7 @@ export class GeminiService {
       const styleClause = config.productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[config.productDetails.luxuryStyle] : "";
       const cameraClause = `Perspective: ${config.productDetails.cameraAngle || 'Standard'} perspective shot.`;
       const categoryClause = CATEGORY_STYLE_FRAGMENTS[config.productDetails.category] || "";
-      const identityLock = config.model && !isProductOnly ? `Use a ${config.model.nationality} ${config.model.gender} model. Identity locked to source.` : "";
+      const identityLock = config.model && !isProductOnly ? `Use model_id ${config.model.id}. Identity Locked: ${config.model.defaultPromptFragment}. Features: ${config.model.features}.` : "";
       const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
       const prompt = `SYSTEM: MODEL IDENTITY LOCK & MODESTY PROTOCOL. 
@@ -471,7 +482,7 @@ export class GeminiService {
     Camera Angle: ${cameraClause}
     ${logoClause}
     Directive: ${prompt}.
-    Maison DNA: ${brandKit.name}.`;
+    Maison Name: ${brandKit.name}.`;
     parts.push({ text: instruction });
     
     const response = await ai.models.generateContent({
