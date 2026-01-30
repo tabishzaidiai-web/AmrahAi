@@ -74,27 +74,17 @@ Rules:
 - Start PART 2 with the heading: “GENERATION BRIEF:”
 `;
 
-const LUXURY_STYLE_PROMPTS: Record<LuxuryStyle, string> = {
-  'Standard': '',
-  'Signature Jewel Close-Up': 'Intimate close-up of a single fine-jewelry piece on a soft, dark backdrop. Gentle, directional light reveals metal curves and stone facets. Background stays quiet and out of focus so the piece feels like a gallery highlight.',
-  'Editorial Portrait With Jewel': 'Refined portrait of a model with calm styling and neutral make-up. The jewel is the focal point, framed near the face or hands. Depth of field is shallow, background soft, overall mood polished and understated.',
-  'Curated Display Board': 'Careful arrangement of a small set of pieces on stone, lacquer, or fabric. Side light adds gentle reflections and shadows. Composition feels like a boutique window or gallery tray, minimal props and clear negative space.',
-  'Precision Timepiece Focus': 'Close framing on a watch dial and case at realistic size. Glass reflections are clean, details on the face are sharp, background is a smooth gradient or subtle texture. Looks like a high-end catalog image for collectors.'
-};
-
-const CATEGORY_STYLE_FRAGMENTS: Record<ProductCategory, string> = {
-  'electronics': 'Crisp product shot with realistic proportions and reflections. Clean gradient or desk background, subtle highlights on edges, and clear separation from the background. Do not invent brand logos or user interfaces; keep branding to the uploaded logo or text only.',
-  'fragrance': 'Hero shot of the bottle and packaging. Glass and liquid color rendered accurately, labels readable, soft edge lighting, minimal props like stone, fabric, or petals. Background calm and luxurious, so the bottle design stands out.',
-  'wellness': 'Clean packshot of the product with clear label and dosage information. Neutral studio background, soft box lighting, gentle shadows. Overall mood trustworthy and professional, avoiding fear, or exaggerated medical effects.',
-  'jewelry': 'High-jewelry standard: Emphasis on facet brilliance, metal luster, and pinpoint lighting.',
-  'fashion': 'Fashion-first lighting: Accurate fabric drape, color fidelity, and textile texture rendering.',
-  'watch': 'Horological precision: Emphasis on dial clarity, person positioning, and light reflections on the crystal.',
-  'other': 'Balanced product-first shot on a simple background, with clear shape, material, and branding. Lighting soft and controlled so the product is easy to understand.'
-};
-
 export class GeminiService {
   private static getAi() {
     return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  }
+
+  /**
+   * Robustly cleans base64 strings by removing data URL prefixes and whitespace.
+   */
+  private static cleanBase64(b64: string): string {
+    if (!b64) return "";
+    return b64.includes(",") ? b64.split(",")[1].trim() : b64.trim();
   }
 
   private static validatePrompt(prompt: string): boolean {
@@ -108,7 +98,10 @@ export class GeminiService {
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onloadend = () => {
+          const res = reader.result as string;
+          resolve(this.cleanBase64(res));
+        };
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
@@ -158,6 +151,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     selectedModel: ModelPersona | null
   ): Promise<string> {
     const ai = this.getAi();
+    const cleanB64 = this.cleanBase64(imageBase64);
     const modelContext = selectedModel 
       ? `TALENT IDENTITY LOCKED: model_id ${selectedModel.id}. Fixed Description: ${selectedModel.defaultPromptFragment}. Facial Features: ${selectedModel.features}. Beauty/Style: ${selectedModel.beautyNotes}.`
       : "No specific model selected yet. Focus on the standalone product and environment.";
@@ -166,7 +160,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [
-          { inlineData: { data: imageBase64, mimeType } },
+          { inlineData: { data: cleanB64, mimeType: mimeType || 'image/png' } },
           { text: `USER BRIEF: ${userBrief}` },
           { text: modelContext },
           { text: PHOTOSHOOT_PLANNER_INSTRUCTION }
@@ -178,8 +172,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
 
   static async analyzeProduct(imageBase64: string, mimeType: string, brandKit?: BrandKit): Promise<ProductAnalysis> {
     const ai = this.getAi();
-    const parts: any[] = [{ inlineData: { data: imageBase64, mimeType } }];
-    let brandContext = brandKit ? `Brand Context: ${brandKit.name}. Tone: ${brandKit.tone}.` : "";
+    const cleanB64 = this.cleanBase64(imageBase64);
+    const parts: any[] = [{ inlineData: { data: cleanB64, mimeType: mimeType || 'image/png' } }];
     const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. TASK: Analyze this product for high-fidelity rendering. IGNORE any people or backgrounds in the image—isolate the product mentally. OUTPUT: JSON format only.`;
     parts.push({ text: prompt });
 
@@ -216,7 +210,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     const parts: any[] = [];
     
     images.forEach(img => {
-      parts.push({ inlineData: { data: img.b64, mimeType: img.mimeType } });
+      const cleanB64 = this.cleanBase64(img.b64);
+      parts.push({ inlineData: { data: cleanB64, mimeType: img.mimeType || 'image/png' } });
       parts.push({ text: `IMAGE ROLE: ${img.role}` });
     });
 
@@ -292,6 +287,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
 
   static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
     const ai = this.getAi();
+    const cleanB64 = this.cleanBase64(imageBase64);
     const prompt = `SYSTEM: LUXURY CAMPAIGN STRATEGIST.
     Analyze the uploaded product image and the brand profile (Maison Name: ${brandKit.name}, Tone: ${brandKit.tone}).
     Provide 4 distinct, high-end campaign narrative suggestions for luxury marketing.
@@ -308,7 +304,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       model: 'gemini-3-flash-preview',
       contents: { 
         parts: [
-          { inlineData: { data: imageBase64, mimeType: 'image/png' } },
+          { inlineData: { data: cleanB64, mimeType: 'image/png' } },
           { text: prompt }
         ] 
       },
@@ -347,13 +343,17 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     if (!this.validatePrompt(customPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
 
     const ai = this.getAi();
+    const cleanBaseB64 = this.cleanBase64(baseImage);
     const parts: any[] = [
-      { inlineData: { data: baseImage, mimeType: 'image/png' } },
+      { inlineData: { data: cleanBaseB64, mimeType: 'image/png' } },
       { text: "PRODUCT GROUND TRUTH - IGNORE ALL HUMANS/BACKGROUNDS IN THIS IMAGE." }
     ];
+    
     if (brandKit.logoUrl) {
-      const logoB64 = brandKit.logoUrl.includes(',') ? brandKit.logoUrl.split(',')[1] : brandKit.logoUrl;
-      parts.push({ inlineData: { data: logoB64, mimeType: 'image/png' } }, { text: "MAISON LOGO REFERENCE" });
+      const logoB64 = this.cleanBase64(brandKit.logoUrl);
+      if (logoB64) {
+        parts.push({ inlineData: { data: logoB64, mimeType: 'image/png' } }, { text: "MAISON LOGO REFERENCE" });
+      }
     }
     
     const finalStructuredPrompt = this.buildFidelityPrompt(customPrompt, analysis, productDetails, brandKit);
@@ -383,11 +383,12 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     if (!this.validatePrompt(config.useCase)) throw new Error("AMRAH only supports modest, respectful fashion.");
 
     const ai = this.getAi();
-    const analysis = await this.analyzeProduct(config.productImage, 'image/png', brandKit);
+    const cleanProductB64 = this.cleanBase64(config.productImage);
+    const analysis = await this.analyzeProduct(cleanProductB64, 'image/png', brandKit);
     
     if (type === 'image') {
       const parts: any[] = [
-        { inlineData: { data: config.productImage, mimeType: 'image/png' } },
+        { inlineData: { data: cleanProductB64, mimeType: 'image/png' } },
         { text: "PRODUCT ASSET - IGNORE ALL HUMAN SUBJECTS/BACKGROUNDS HERE" }
       ];
 
@@ -432,7 +433,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
         prompt: videoPrompt,
-        image: { imageBytes: config.productImage, mimeType: 'image/png' },
+        image: { imageBytes: cleanProductB64, mimeType: 'image/png' },
         config: { 
           numberOfVideos: 1, 
           resolution: config.productDetails.videoResolution || '720p', 
@@ -446,7 +447,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       }
       const link = operation.response?.generatedVideos?.[0]?.video?.uri;
       const res = await fetch(`${link}&key=${process.env.API_KEY}`);
-      return URL.createObjectURL(await res.blob());
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
     }
   }
 
@@ -464,13 +466,14 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     
     productB64s.forEach((b64, idx) => {
       if (b64) {
-        const cleanB64 = b64.includes(',') ? b64.split(',')[1] : b64;
+        const cleanB64 = this.cleanBase64(b64);
         const role = idx === 0 ? "PRIMARY FRONT VIEW" : idx === 1 ? "BACK SIDE VIEW" : "DETAIL MACRO REFERENCE";
         parts.push({ inlineData: { data: cleanB64, mimeType: 'image/png' } }, { text: `MASTER PRODUCT ${role}` });
       }
     });
 
-    const analysis = await this.analyzeProduct(productB64s[0]!.split(',')[1], 'image/png', brandKit);
+    const firstProductB64 = this.cleanBase64(productB64s[0]!);
+    const analysis = await this.analyzeProduct(firstProductB64, 'image/png', brandKit);
     const finalStructuredPrompt = this.buildFidelityPrompt(prompt, analysis, productDetails, brandKit);
     parts.push({ text: finalStructuredPrompt });
     
@@ -499,6 +502,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
   ): Promise<string> {
     if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const ai = this.getAi();
+    const cleanB64 = this.cleanBase64(base64);
     const isProductOnly = productDetails.renderMode === 'product-only';
     const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
@@ -513,7 +517,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
       prompt: videoPrompt,
-      image: { imageBytes: base64, mimeType: 'image/png' },
+      image: { imageBytes: cleanB64, mimeType: 'image/png' },
       config: { 
         numberOfVideos: 1, 
         resolution: productDetails.videoResolution || '720p', 
@@ -527,7 +531,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     }
     const link = operation.response?.generatedVideos?.[0]?.video?.uri;
     const res = await fetch(`${link}&key=${process.env.API_KEY}`);
-    return URL.createObjectURL(await res.blob());
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
   }
 
   static async editProductImage(
@@ -537,7 +542,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     brandKit: BrandKit
   ): Promise<string> {
     if (!this.validatePrompt(editPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
-    const base64 = currentImageUrl.includes('base64,') ? currentImageUrl.split(',')[1] : await this.urlToBase64(currentImageUrl);
+    const base64 = currentImageUrl.includes('base64,') ? this.cleanBase64(currentImageUrl) : await this.urlToBase64(currentImageUrl);
     const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only' };
     return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}. Important: Keep the core product structure locked.`, brandKit, defaultDetails);
   }
@@ -545,9 +550,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
   static async generateVideoFromImage(imageBase64: string, prompt: string, onStatus: (m: string) => void): Promise<string> {
     if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const ai = this.getAi();
-    const cleanB64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+    const cleanB64 = this.cleanBase64(imageBase64);
     
-    // We don't have full analysis here, but we can still enforce the lock
     const videoPrompt = `
     ${PRODUCT_LOCK_PROTOCOL}
     ${MODESTY_SYSTEM_INSTRUCTION}
@@ -568,6 +572,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     }
     const link = operation.response?.generatedVideos?.[0]?.video?.uri;
     const res = await fetch(`${link}&key=${process.env.API_KEY}`);
-    return URL.createObjectURL(await res.blob());
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
   }
 }
