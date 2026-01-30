@@ -10,6 +10,7 @@ interface CampaignsProps {
   initialCategory?: ProductCategory;
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
+  onError: (err: any) => void;
 }
 
 const Campaigns: React.FC<CampaignsProps> = ({ 
@@ -17,7 +18,8 @@ const Campaigns: React.FC<CampaignsProps> = ({
   addToHistory, 
   initialCategory,
   userCredits,
-  onInsufficientCredits 
+  onInsufficientCredits,
+  onError
 }) => {
   const [productImages, setProductImages] = useState<(string | null)[]>([null, null, null]);
   const [campaignIdea, setCampaignIdea] = useState('');
@@ -39,7 +41,10 @@ const Campaigns: React.FC<CampaignsProps> = ({
       const base64 = productImages[0].split(',')[1];
       const suggestions = await GeminiService.suggestCampaignStories(base64, brandKit);
       setAiSuggestions(suggestions.slice(0, 3));
-    } catch (err) { console.error("Campaign Suggestion Error:", err); } finally { setIsSuggesting(false); }
+    } catch (err) { 
+      onError(err);
+      console.error("Campaign Suggestion Error:", err); 
+    } finally { setIsSuggesting(false); }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -60,15 +65,18 @@ const Campaigns: React.FC<CampaignsProps> = ({
 
     setGenerating(true);
     try {
+      const finalNarrative = `Seasonal: ${season}. Channel: ${selectedChannel}. Idea: ${campaignIdea}. Important: Keep the product identical to the reference photo. Do not alter any design details or colors.`;
       const url = await GeminiService.generateCampaignAsset(
-        `Seasonal: ${season}. Channel: ${selectedChannel}. Idea: ${campaignIdea}`, 
+        finalNarrative, 
         productImages, brandKit, 
-        { category: initialCategory || 'fashion', type: 'Clothing', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest' }
+        { category: initialCategory || 'fashion', type: 'Clothing', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'on-model' }
       );
       const newRes: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: 'image', url, prompt: campaignIdea, timestamp: Date.now() };
       setResults(prev => [newRes, ...prev]);
       addToHistory(newRes);
-    } catch (err: any) { alert(err.message); } finally { setGenerating(false); }
+    } catch (err: any) { 
+      onError(err);
+    } finally { setGenerating(false); }
   };
 
   return (

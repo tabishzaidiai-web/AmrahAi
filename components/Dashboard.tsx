@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ProductCategory } from '../types';
 
@@ -11,7 +12,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
       id: 'fashion',
       label: 'Fashion',
       title: 'Editorial Apparel',
-      image: 'https://images.unsplash.com/photo-1616091216791-a5360b5fc78e?auto=format&fit=crop&q=80&w=1200',
+      image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=2000',
       inputImg: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&q=80&w=400',
       description: 'Preserve fabric drape and modest silhouettes with studio-grade lighting.'
     },
@@ -64,103 +65,55 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
         </button>
       </nav>
 
-      {/* Immersive Multi-Panel Hero */}
-      <section className="relative h-screen w-full flex flex-col lg:flex-row overflow-hidden border-b border-white/5">
-        {useCases.map((useCase, idx) => (
-          <div 
-            key={useCase.id}
-            className="relative flex-1 group overflow-hidden border-r border-white/5 last:border-0 cursor-pointer transition-all duration-[1200ms] cubic-bezier(0.16, 1, 0.3, 1) hover:flex-[1.8]"
-            onClick={() => onEnterApp('editorial', useCase.id as ProductCategory)}
-          >
-            {/* Background Image with Ken Burns effect on hover */}
-            <div className="absolute inset-0 bg-emerald-950">
-              <img 
-                src={useCase.image} 
-                className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-[3000ms] ease-out opacity-80 group-hover:opacity-100"
-                alt={useCase.title}
-              />
-            </div>
-            
-            {/* Luxury Overlay Gradients */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90 group-hover:via-black/10 transition-all duration-700" />
-            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all duration-700" />
-            
-            {/* Content Container */}
-            <div className="absolute inset-0 p-10 flex flex-col justify-end gap-6 z-20">
-              <div className="space-y-4 transform translate-y-8 group-hover:translate-y-0 transition-transform duration-1000">
-                <div className="flex items-center gap-4">
-                  <div className="h-px w-8 bg-gold transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-700 delay-100" />
-                  <span className="px-3 py-1 border border-gold/40 text-gold text-[8px] font-bold uppercase tracking-[0.3em] rounded-full backdrop-blur-sm">
-                    {useCase.label}
-                  </span>
-                </div>
-                <h3 className="text-3xl font-serif text-white leading-tight group-hover:text-gold transition-colors duration-500">
-                  {useCase.title}
-                </h3>
-                <p className="text-white/40 text-[11px] font-light leading-relaxed max-w-[280px] opacity-0 group-hover:opacity-100 transition-all duration-1000 delay-200">
-                  {useCase.description}
-                </p>
-              </div>
+      {/* Hero Section */}
+      <header className="relative w-full h-screen flex flex-col items-center justify-center text-center overflow-hidden border-b border-white/5">
+        {/* Absolute Background */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=2000" 
+            className="w-full h-full object-cover opacity-40"
+            alt="Hero Background"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black" />
+        </div>
 
-              {/* Neural Mini-Preview (Before/After Cue) */}
-              <div className="absolute top-12 left-1/2 -translate-x-1/2 lg:left-10 lg:translate-x-0 w-24 h-24 rounded-3xl overflow-hidden border border-white/10 shadow-2xl scale-0 group-hover:scale-100 transition-transform duration-700 delay-300 opacity-0 group-hover:opacity-100 group">
-                <img src={useCase.inputImg} className="w-full h-full object-cover brightness-50" alt="Input" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
-                  <span className="text-[7px] text-gold font-bold uppercase tracking-widest mb-1">Source</span>
-                  <div className="w-full h-[1px] bg-gold/30 mb-1" />
-                  <span className="text-[6px] text-white/60 uppercase font-light">Input Data</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Vertical Index Indicator */}
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 opacity-20 group-hover:opacity-100 transition-opacity">
-               <span className="text-[10px] font-serif italic">0{idx + 1}</span>
-               <div className="w-px h-12 bg-white/20" />
-            </div>
+        <div className="relative z-10 max-w-4xl px-8 space-y-10 animate-in fade-in zoom-in-95 duration-1000">
+          <div className="inline-flex items-center gap-4 px-6 py-2 bg-black/60 backdrop-blur-3xl border border-gold/20 rounded-full mx-auto">
+            <div className="w-2 h-2 bg-gold rounded-full animate-pulse shadow-[0_0_10px_#D4AF37]" />
+            <span className="text-[9px] font-bold text-gold uppercase tracking-[0.5em]">
+              Neural Rendering for Luxury Maisons
+            </span>
           </div>
-        ))}
+          
+          <h1 className="text-6xl md:text-9xl font-serif text-white leading-[1.1] font-medium">
+            Synthesize Your <br/><span className="italic text-gold">Visual Identity.</span>
+          </h1>
+          
+          <p className="text-white/60 text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto">
+            Transform standard product photography into cinematic, campaign-ready 4K assets with 100% visual fidelity.
+          </p>
 
-        {/* Central Brand Callout */}
-        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center text-center px-8 z-50">
-          <div className="max-w-4xl space-y-10 animate-in fade-in zoom-in-95 duration-1000">
-            <div className="inline-flex items-center gap-4 px-6 py-2 bg-black/60 backdrop-blur-3xl border border-gold/20 rounded-full pointer-events-auto">
-              <div className="w-2 h-2 bg-gold rounded-full animate-pulse shadow-[0_0_10px_#D4AF37]" />
-              <span className="text-[9px] font-bold text-gold uppercase tracking-[0.5em]">
-                Neural Rendering for Luxury Maisons
-              </span>
-            </div>
-            
-            <h1 className="text-5xl md:text-8xl font-serif text-white leading-[1.1] font-medium pointer-events-auto">
-              Synthesize Your <br/><span className="italic text-gold">Visual Identity.</span>
-            </h1>
-            
-            <p className="text-white/60 text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto pointer-events-auto">
-              Transform standard product photography into cinematic, campaign-ready 4K assets with 100% visual fidelity.
-            </p>
-
-            <div className="pt-8 pointer-events-auto flex flex-col items-center gap-6">
-              <button 
-                onClick={() => onEnterApp('editorial')}
-                className="px-20 py-7 bg-gold text-white font-bold rounded-full text-[13px] uppercase tracking-[0.5em] hover:bg-white hover:text-black transition-all btn-luxury shadow-[0_0_50px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95"
-              >
-                Create Luxury Imagery
-              </button>
-              <div className="flex items-center gap-8 text-white/20 text-[9px] font-bold uppercase tracking-[0.3em]">
-                 <span>Enterprise Ready</span>
-                 <div className="w-1 h-1 rounded-full bg-white/20" />
-                 <span>Free Trial Credits Included</span>
-              </div>
+          <div className="pt-8 flex flex-col md:flex-row items-center justify-center gap-6">
+            <button 
+              onClick={() => onEnterApp('editorial')}
+              className="px-20 py-7 bg-gold text-white font-bold rounded-full text-[13px] uppercase tracking-[0.5em] hover:bg-white hover:text-black transition-all btn-luxury shadow-[0_0_50px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95"
+            >
+              Create Luxury Imagery
+            </button>
+            <div className="flex items-center gap-8 text-white/20 text-[9px] font-bold uppercase tracking-[0.3em]">
+               <span>Enterprise Ready</span>
+               <div className="w-1 h-1 rounded-full bg-white/20" />
+               <span>Free Trial Credits Included</span>
             </div>
           </div>
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 text-white/20 z-40">
+        <div className="absolute bottom-12 flex flex-col items-center gap-4 text-white/20">
           <span className="text-[8px] uppercase tracking-[0.4em] font-bold">Discover</span>
           <div className="w-px h-16 bg-gradient-to-b from-gold/50 to-transparent animate-bounce" />
         </div>
-      </section>
+      </header>
 
       {/* Global Stat Bar */}
       <section className="bg-white py-16">
@@ -180,6 +133,61 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
              </div>
            ))}
         </div>
+      </section>
+
+      {/* Case Study Panels */}
+      <section id="use-cases" className="bg-[#050505] flex flex-col lg:flex-row overflow-hidden border-b border-white/5">
+        {useCases.map((useCase, idx) => (
+          <div 
+            key={useCase.id}
+            className="relative flex-1 group overflow-hidden border-b lg:border-b-0 lg:border-r border-white/5 last:border-0 cursor-pointer min-h-[400px] lg:min-h-[600px] transition-all duration-[1200ms] cubic-bezier(0.16, 1, 0.3, 1) hover:flex-[1.5]"
+            onClick={() => onEnterApp('editorial', useCase.id as ProductCategory)}
+          >
+            {/* Background Image */}
+            <div className="absolute inset-0 bg-emerald-950">
+              <img 
+                src={useCase.image} 
+                className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-[3000ms] ease-out opacity-80 group-hover:opacity-100"
+                alt={useCase.title}
+              />
+            </div>
+            
+            {/* Gradients */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90 group-hover:via-black/10 transition-all duration-700" />
+            
+            {/* Content Container */}
+            <div className="absolute inset-0 p-10 flex flex-col justify-end gap-6 z-20">
+              <div className="space-y-4 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-1000">
+                <div className="flex items-center gap-4">
+                  <div className="h-px w-8 bg-gold transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-700 delay-100" />
+                  <span className="px-3 py-1 border border-gold/40 text-gold text-[8px] font-bold uppercase tracking-[0.3em] rounded-full backdrop-blur-sm">
+                    {useCase.label}
+                  </span>
+                </div>
+                <h3 className="text-3xl font-serif text-white leading-tight group-hover:text-gold transition-colors duration-500">
+                  {useCase.title}
+                </h3>
+                <p className="text-white/40 text-[11px] font-light leading-relaxed max-w-[280px] opacity-0 group-hover:opacity-100 transition-all duration-1000 delay-200">
+                  {useCase.description}
+                </p>
+              </div>
+
+              {/* Neural Mini-Preview */}
+              <div className="absolute top-12 left-10 w-20 h-20 rounded-3xl overflow-hidden border border-white/10 shadow-2xl scale-0 group-hover:scale-100 transition-transform duration-700 delay-300 opacity-0 group-hover:opacity-100 group">
+                <img src={useCase.inputImg} className="w-full h-full object-cover brightness-50" alt="Input" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
+                  <span className="text-[7px] text-gold font-bold uppercase tracking-widest mb-1">Source</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Indicator */}
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 opacity-20 group-hover:opacity-100 transition-opacity">
+               <span className="text-[10px] font-serif italic">0{idx + 1}</span>
+               <div className="w-px h-12 bg-white/20" />
+            </div>
+          </div>
+        ))}
       </section>
 
       {/* How It Works (Luxury Edition) */}

@@ -17,7 +17,7 @@ export const modelData: ModelPersona[] = [
     style: ['Abaya Editorial', 'High Jewelry', 'Luxury Fragrance'],
     beautyNotes: 'Elegant and graceful with a royal presence.',
     features: 'Oval face, warm olive skin, large almond-shaped dark brown eyes, long dark wavy hair, refined features.',
-    mainUrl: 'https://images.unsplash.com/photo-1616091216791-a5360b5fc78e?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=20',
     defaultPromptFragment: 'Gulf Arab woman, mid-20s, oval face, warm olive skin, long dark wavy hair, soft glam makeup, elegant and modest editorial style.',
     showcase: []
   },
@@ -31,7 +31,7 @@ export const modelData: ModelPersona[] = [
     style: ['Modest Lifestyle', 'Kaftans', 'Daily Elegance'],
     beautyNotes: 'Approachable, commercial beauty with a glowing complexion.',
     features: 'Heart-shaped face, light tan skin, bright expressive eyes, sleek dark hair, soft features.',
-    mainUrl: 'https://images.unsplash.com/photo-1561571474-12fb0d7c0ff9?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=26',
     defaultPromptFragment: 'Young Emirati woman, heart-shaped face, light tan skin, bright expressive eyes, sleek dark hair, natural glowing skin, modest lifestyle look.',
     showcase: []
   },
@@ -45,7 +45,7 @@ export const modelData: ModelPersona[] = [
     style: ['Traditional Kandura', 'Luxury Watch', 'Oud Campaigns'],
     beautyNotes: 'Strong, masculine, and prestigious look.',
     features: 'Strong jawline, bronzed skin, dark piercing eyes, well-groomed short black beard.',
-    mainUrl: 'https://images.unsplash.com/photo-1614283233556-f35b0c801ef1?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=11',
     defaultPromptFragment: 'Emirati man, strong jawline, bronzed skin, dark piercing eyes, well-groomed short black beard, prestigious and masculine vibe.',
     showcase: []
   },
@@ -59,7 +59,7 @@ export const modelData: ModelPersona[] = [
     style: ['Contemporary Modest', 'Fine Jewelry', 'Street Chic'],
     beautyNotes: 'Striking features with a modern editorial edge.',
     features: 'Defined cheekbones, fair olive skin, deep hazel eyes, shoulder-length dark brown hair.',
-    mainUrl: 'https://images.unsplash.com/photo-1581403341630-a6e0b9d2d295?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=32',
     defaultPromptFragment: 'Levantine woman, fair olive skin, deep hazel eyes, defined cheekbones, chiseled features, modern modest contemporary style.',
     showcase: []
   },
@@ -73,7 +73,7 @@ export const modelData: ModelPersona[] = [
     style: ['Business Chic', 'Premium Watch', 'Fragrance'],
     beautyNotes: 'Sophisticated and polished intellectual look.',
     features: 'Fair olive skin, green-brown eyes, neat dark hair with slight wave, clean-shaven or light stubble.',
-    mainUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=12',
     defaultPromptFragment: 'Levantine man, fair olive skin, green-brown eyes, neat dark hair, sophisticated business chic style, polished and intellectual.',
     showcase: []
   },
@@ -87,7 +87,7 @@ export const modelData: ModelPersona[] = [
     style: ['High Fashion', 'Bold Textiles', 'Cosmetics'],
     beautyNotes: 'Regal, statuesque, and luminous beauty.',
     features: 'High cheekbones, deep ebony skin, striking dark eyes, short natural hair or silk wrap.',
-    mainUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=5',
     defaultPromptFragment: 'East African woman, deep ebony skin, high cheekbones, regal posture, striking dark eyes, luminous skin, high-fashion styling.',
     showcase: []
   },
@@ -101,7 +101,7 @@ export const modelData: ModelPersona[] = [
     style: ['Intricate Jewelry', 'Bridal Modest', 'Editorial'],
     beautyNotes: 'Classic intricate beauty with deep expressive eyes.',
     features: 'Almond eyes, golden brown skin, long jet-black hair, delicate facial structure.',
-    mainUrl: 'https://images.unsplash.com/photo-1586904745748-00d674b96103?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=34',
     defaultPromptFragment: 'South Asian woman, golden brown skin, large almond eyes, long jet-black hair, intricate modest jewelry focus, classic beauty.',
     showcase: []
   },
@@ -115,7 +115,7 @@ export const modelData: ModelPersona[] = [
     style: ['Minimalist Tech', 'Clean Beauty', 'Modern Modest'],
     beautyNotes: 'Fresh, serene, and modern aesthetic.',
     features: 'Slender face, porcelain skin, monolids, sleek bob-cut dark hair.',
-    mainUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=35',
     defaultPromptFragment: 'East Asian woman, slender face, porcelain skin, sleek bob-cut dark hair, serene and modern minimalist style.',
     showcase: []
   },
@@ -129,7 +129,7 @@ export const modelData: ModelPersona[] = [
     style: ['Luxury Athleisure', 'Tech Accessories', 'Outerwear'],
     beautyNotes: 'Dynamic, athletic, and charismatic.',
     features: 'Deep mahogany skin, broad shoulders, buzzed hair, dark brown eyes.',
-    mainUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=13',
     defaultPromptFragment: 'West African man, deep mahogany skin, buzzed hair, charismatic and athletic build, luxury modest streetwear style.',
     showcase: []
   },
@@ -143,7 +143,7 @@ export const modelData: ModelPersona[] = [
     style: ['Opulent Kaftans', 'Luxury Perfume', 'Heritage'],
     beautyNotes: 'Timeless, majestic, and wealthy vibe.',
     features: 'Sharp nose, honey skin tone, thick dark brows, dark curly hair, warm amber eyes.',
-    mainUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=36',
     defaultPromptFragment: 'North African woman, honey skin tone, thick dark brows, warm amber eyes, dark curly hair, majestic heritage editorial style.',
     showcase: []
   },
@@ -157,7 +157,7 @@ export const modelData: ModelPersona[] = [
     style: ['Global Luxury', 'Resort Wear', 'Handbags'],
     beautyNotes: 'Classic refined beauty with a global appeal.',
     features: 'Blue eyes, fair skin with subtle freckles, light brown hair in a low bun.',
-    mainUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=38',
     defaultPromptFragment: 'European woman, fair skin, light blue eyes, light brown hair, refined and classic luxury resort style.',
     showcase: []
   },
@@ -171,7 +171,7 @@ export const modelData: ModelPersona[] = [
     style: ['Modern Hijab', 'Cosmetics', 'Silk Scarves'],
     beautyNotes: 'Soft, poetic, and delicately striking.',
     features: 'Pale olive skin, deep dark eyes, elegant long neck, delicate nose.',
-    mainUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=41',
     defaultPromptFragment: 'Persian woman, pale olive skin, deep dark eyes, elegant long neck, soft and poetic modest editorial beauty.',
     showcase: []
   },
@@ -185,7 +185,7 @@ export const modelData: ModelPersona[] = [
     style: ['Linen Collection', 'Travel Lifestyle', 'Watches'],
     beautyNotes: 'Warm, charming, and adventurous spirit.',
     features: 'Tanned skin, wavy dark hair, brown eyes, friendly yet professional gaze.',
-    mainUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=14',
     defaultPromptFragment: 'Latin American man, tanned skin, wavy dark hair, warm brown eyes, charming and professional travel luxury look.',
     showcase: []
   },
@@ -199,7 +199,7 @@ export const modelData: ModelPersona[] = [
     style: ['Evening Wear', 'Luxury Jewelry', 'Accessories'],
     beautyNotes: 'Bold, charismatic, and sophisticated.',
     features: 'Olive skin, voluminous dark hair, high-set cheekbones, dark almond eyes.',
-    mainUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=44',
     defaultPromptFragment: 'Latin American woman, olive skin, high cheekbones, dark almond eyes, voluminous dark hair, sophisticated luxury evening style.',
     showcase: []
   },
@@ -213,7 +213,7 @@ export const modelData: ModelPersona[] = [
     style: ['Textile Editorial', 'Cultural Luxury', 'Eye Makeup'],
     beautyNotes: 'Deeply expressive with a heritage-focused beauty.',
     features: 'Square face, dusky skin tone, large black eyes, thick dark hair tied back.',
-    mainUrl: 'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=45',
     defaultPromptFragment: 'South Asian woman, square face, dusky skin, large black eyes, thick dark hair, cultural luxury textile campaign look.',
     showcase: []
   },
@@ -227,7 +227,7 @@ export const modelData: ModelPersona[] = [
     style: ['Minimalist Menswear', 'Tech Wear', 'Fragrance'],
     beautyNotes: 'Chiseled, avant-garde, and architectural look.',
     features: 'Sharp jawline, fair skin, hooded dark eyes, sleek black hair in a contemporary cut.',
-    mainUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=15',
     defaultPromptFragment: 'East Asian man, sharp jawline, hooded dark eyes, sleek black hair, chiseled architectural features, avant-garde minimalist style.',
     showcase: []
   },
@@ -241,7 +241,7 @@ export const modelData: ModelPersona[] = [
     style: ['Heritage Jewelry', 'Luxury Scarves', 'Cosmetics'],
     beautyNotes: 'Mesmerizing gaze with balanced, classical proportions.',
     features: 'Balanced features, light olive skin, piercing light green eyes, auburn-brown hair.',
-    mainUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=47',
     defaultPromptFragment: 'Turkish woman, light olive skin, piercing light green eyes, auburn-brown hair, Mesmerizing gaze, classical luxury beauty style.',
     showcase: []
   },
@@ -255,7 +255,7 @@ export const modelData: ModelPersona[] = [
     style: ['Outerwear', 'Premium Watches', 'Fragrance'],
     beautyNotes: 'Rugged yet refined with a commanding presence.',
     features: 'Fair skin, thick dark beard, deep-set dark eyes, strong forehead.',
-    mainUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=18',
     defaultPromptFragment: 'Turkish man, fair skin, thick dark beard, deep-set dark eyes, commanding and ruggedly refined luxury presence.',
     showcase: []
   },
@@ -269,7 +269,7 @@ export const modelData: ModelPersona[] = [
     style: ['High Jewelry', 'Silk Campaigns', 'Fashion Editorial'],
     beautyNotes: 'Radiant skin with a statuesque elegance.',
     features: 'Deep chocolate skin, high forehead, full lips, dark hair in a sleek low bun.',
-    mainUrl: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=48',
     defaultPromptFragment: 'West African woman, deep chocolate skin, high forehead, full lips, sleek low bun, radiant and statuesque fashion editorial look.',
     showcase: []
   },
@@ -283,7 +283,7 @@ export const modelData: ModelPersona[] = [
     style: ['Menswear', 'Watch Campaigns', 'Fragrance'],
     beautyNotes: 'Classic, sharp, and athletic.',
     features: 'Fair skin, light blue eyes, short blonde-brown hair, sharp profile.',
-    mainUrl: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?auto=format&fit=crop&q=80&w=1000',
+    mainUrl: 'https://i.pravatar.cc/400?img=33',
     defaultPromptFragment: 'European man, fair skin, light blue eyes, short blonde-brown hair, sharp profile, classic athletic luxury menswear style.',
     showcase: []
   }

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, PromptLibraryItem, CameraAngle } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -27,7 +28,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     addLogo: false,
     logoPlacement: 'Top-right corner',
     cameraAngle: 'Standard',
-    renderMode: 'product-only', // Defaulting to Product-Only
+    renderMode: 'product-only', 
     videoResolution: '720p',
     videoAspectRatio: '16:9'
   });
@@ -48,18 +49,19 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     const mat = analysis?.material || 'premium material';
     const mainFeature = analysis?.features?.[0] || 'intricate craftsmanship';
     const brand = brandKit.name || 'Maison';
+    const protection = "\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.";
 
     return [
-      { id: 's1', label: 'Minimalist Monolith', prompt: `A high-fidelity minimalist composition of the ${mat} ${type} on a slab of honed grey limestone. Natural morning light, focus on ${mainFeature}.` },
-      { id: 's2', label: 'Opulent Arabian', prompt: `An opulent editorial scene: the ${mat} ${type} on royal emerald velvet. Intricate mashrabiya shadows, warm golden lighting on the ${mainFeature}.` },
-      { id: 's3', label: 'Desert Dawn', prompt: `The ${mat} ${type} in the ${brand} style, nestled in fine desert sand dune at first light. Violet and amber sky background.` },
-      { id: 's4', label: 'Marina Modern', prompt: `Bright lifestyle campaign shot of the ${type} overlooking a blurred Mediterranean marina. Crisp daylight, sparkling water bokeh.` },
-      { id: 's5', label: 'Noir Excellence', prompt: `Cinematic product portrait of the ${mat} ${type} emerging from a deep charcoal void. A single rim light traces the ${mainFeature}.` },
-      { id: 's6', label: 'Heritage Majlis', prompt: `The ${type} in a refined modern majlis setting. Traditional carved wood textures meet minimalist glass tables. Warm ambient light.` },
-      { id: 's7', label: 'Architectural Atrium', prompt: `A high-fashion setting with the ${type} in an open-air glass and steel atrium. Sharp geometric shadows and high-noon lighting.` },
-      { id: 's8', label: 'Silk & Velvet', prompt: `Intimate macro shot of the ${type} nestled in heavy folds of charcoal velvet and silk. Dramatic mood lighting catches the sheen of ${mat}.` },
-      { id: 's9', label: 'Nordic Glass', prompt: `Pristine product shot of the ${type} on a reflective frosted glass surface. Cold northern light, minimalist environment.` },
-      { id: 's10', label: 'Metropolis Suite', prompt: `High-rise penthouse suite at night. The ${type} near a window with blurred city lights reflecting in its ${mat} surface.` }
+      { id: 's1', label: 'Minimalist Monolith', prompt: `A high-fidelity minimalist composition of the ${mat} ${type} on a slab of honed grey limestone. Natural morning light, focus on ${mainFeature}.${protection}` },
+      { id: 's2', label: 'Opulent Arabian', prompt: `An opulent editorial scene: the ${mat} ${type} on royal emerald velvet. Intricate mashrabiya shadows, warm golden lighting on the ${mainFeature}.${protection}` },
+      { id: 's3', label: 'Desert Dawn', prompt: `The ${mat} ${type} in the ${brand} style, nestled in fine desert sand dune at first light. Violet and amber sky background.${protection}` },
+      { id: 's4', label: 'Marina Modern', prompt: `Bright lifestyle campaign shot of the ${type} overlooking a blurred Mediterranean marina. Crisp daylight, sparkling water bokeh.${protection}` },
+      { id: 's5', label: 'Noir Excellence', prompt: `Cinematic product portrait of the ${mat} ${type} emerging from a deep charcoal void. A single rim light traces the ${mainFeature}.${protection}` },
+      { id: 's6', label: 'Heritage Majlis', prompt: `The ${type} in a refined modern majlis setting. Traditional carved wood textures meet minimalist glass tables. Warm ambient light.${protection}` },
+      { id: 's7', label: 'Architectural Atrium', prompt: `A high-fashion setting with the ${type} in an open-air glass and steel atrium. Sharp geometric shadows and high-noon lighting.${protection}` },
+      { id: 's8', label: 'Silk & Velvet', prompt: `Intimate macro shot of the ${type} nestled in heavy folds of charcoal velvet and silk. Dramatic mood lighting catches the sheen of ${mat}.${protection}` },
+      { id: 's9', label: 'Nordic Glass', prompt: `Pristine product shot of the ${type} on a reflective frosted glass surface. Cold northern light, minimalist environment.${protection}` },
+      { id: 's10', label: 'Metropolis Suite', prompt: `High-rise penthouse suite at night. The ${type} near a window with blurred city lights reflecting in its ${mat} surface.${protection}` }
     ];
   }, [analysis, brandKit.name, productDetails.type]);
 
@@ -93,18 +95,14 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
   const handleGenerate = async () => {
     if (!sourceImage || !prompt) return;
     setState(AppState.GENERATING);
-    setLoadingMsg("Synthesizing masterpiece...");
+    setLoadingMsg("Synthesizing with absolute fidelity...");
     try {
       const base64 = sourceImage.split(',')[1];
-      let finalPrompt = prompt;
-      if (productDetails.addLogo) {
-        finalPrompt += ` [BRAND LOGO PROTOCOL: Apply logo at ${productDetails.logoPlacement.toLowerCase()}.]`;
-      }
       let url = genType === 'image' 
-        ? await GeminiService.generateProductImage(base64, analysis!, finalPrompt, brandKit, productDetails)
-        : await GeminiService.generateProductVideo(base64, analysis!, finalPrompt, brandKit, productDetails, setLoadingMsg);
+        ? await GeminiService.generateProductImage(base64, analysis!, prompt, brandKit, productDetails)
+        : await GeminiService.generateProductVideo(base64, analysis!, prompt, brandKit, productDetails, setLoadingMsg);
 
-      const newLayer: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: genType, url, prompt: finalPrompt, timestamp: Date.now() };
+      const newLayer: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: genType, url, prompt: prompt, timestamp: Date.now() };
       setLayers(prev => [newLayer, ...prev]);
       setActiveLayerId(newLayer.id);
       addToHistory(newLayer);
@@ -172,6 +170,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                       </span>
                     </div>
                   )}
+                  {/* Fixed ref property from fileInputRef to ref */}
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                 </div>
               </div>
@@ -361,28 +360,28 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
               category: 'Minimalist',
               title: 'Zen Monolith',
               description: 'Clean, architectural shot on stone.',
-              template: 'A high-fidelity minimalist composition of the product resting on a monolith of honed grey limestone. Soft, directional morning light from high-left, sharp focus. Seamless neutral background.'
+              template: 'A high-fidelity minimalist composition of the product resting on a monolith of honed grey limestone. Soft, directional morning light from high-left, sharp focus. Seamless neutral background.\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.'
             },
             {
               id: 'lib-2',
               category: 'Heritage',
               title: 'Opulent Majlis',
               description: 'Warm, rich Arabian interior setting.',
-              template: 'A prestigious campaign shot of the product positioned in a modern luxury majlis. Warm ambient light, mashrabiya shadow patterns, blurred heritage textures in the background. High-contrast and cinematic.'
+              template: 'A prestigious campaign shot of the product positioned in a modern luxury majlis. Warm ambient light, mashrabiya shadow patterns, blurred heritage textures in the background. High-contrast and cinematic.\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.'
             },
             {
               id: 'lib-3',
               category: 'Editorial',
               title: 'Editorial Noir',
               description: 'Dramatic lighting for high-end ads.',
-              template: 'Dramatic studio product portrait. Single razor-sharp rim light tracing the form of the product, highlighting the fine details against a deep black void. Sophisticated and mysterious.'
+              template: 'Dramatic studio product portrait. Single razor-sharp rim light tracing the form of the product, highlighting the fine details against a deep black void. Sophisticated and mysterious.\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.'
             },
             {
               id: 'lib-4',
               category: 'Lifestyle',
               title: 'Marina Chic',
               description: 'Bright, outdoor coastal atmosphere.',
-              template: 'Bright lifestyle campaign on a marble table at a Dubai Marina penthouse. Sparkling water bokeh, crisp daylight, high-fashion summer mood.'
+              template: 'Bright lifestyle campaign on a marble table at a Dubai Marina penthouse. Sparkling water bokeh, culinary luxury summer mood.\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.'
             }
           ].map((item) => (
             <div 

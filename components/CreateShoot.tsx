@@ -40,30 +40,31 @@ const CreateShoot: React.FC<CreateShootProps> = ({
   // Dubai Collection Presets
   const dubaiPresets = useMemo(() => {
     const type = analysis?.type || 'premium product';
+    const protection = "\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.";
     return [
       {
         id: 'dubai-fashion',
         label: 'Dubai Fashion Skyline',
         icon: '🏙️',
-        prompt: `Ultra-realistic editorial fashion photoshoot in Dubai, the model wearing ${type}, standing on a rooftop terrace with the glowing Dubai skyline behind her at golden hour. Burj Khalifa and surrounding towers in soft focus, warm sunlight, subtle haze, city lights starting to appear. Product (${type}) is the hero: crisp fabric texture, clean shadows, no warping, perfect proportions, looks like a real Dubai fashion campaign shot on a professional camera.`
+        prompt: `Ultra-realistic editorial fashion photoshoot in Dubai, the model wearing the unchanged ${type}, standing on a rooftop terrace with the glowing Dubai skyline behind her at golden hour. Burj Khalifa and surrounding towers in soft focus, warm sunlight. Product (${type}) is the hero: crisp fabric texture, clean shadows, no warping, perfect proportions.${protection}`
       },
       {
         id: 'dubai-abaya',
         label: 'Dubai Abaya Elegance',
         icon: '🕌',
-        prompt: `Ultra-realistic abaya photoshoot in Dubai, elegant Arab woman in a flowing ${type}, standing on a balcony or promenade overlooking the Dubai skyline at sunset. Museum of the Future or Burj Khalifa softly visible in the background, blurred but recognizable. Fabric is rich and detailed, with natural drape and movement, realistic embroidery and texture, modest and classy posing. Colors are warm, cinematic, with soft highlights and shadows, looks like a real high-end Dubai brand campaign.`
+        prompt: `Ultra-realistic abaya photoshoot in Dubai, elegant Arab woman in the flowing unchanged ${type}, standing on a balcony or promenade overlooking the Dubai skyline at sunset. Museum of the Future softly visible in the background. Fabric is rich and detailed, with natural drape and movement, modest posing. Colors are warm, cinematic.${protection}`
       },
       {
         id: 'dubai-perfume',
         label: 'Dubai Perfume Glow',
         icon: '✨',
-        prompt: `Ultra-realistic luxury perfume product shot in Dubai, ${type} as the hero in the foreground on a glossy marble or glass surface, with soft reflections. Behind it, the Dubai skyline at blue hour with warm city lights and a hint of Museum of the Future or Dubai Marina towers in soft bokeh. Lighting is cinematic and moody, like a luxury fragrance ad: glowing highlights on the glass, rich amber and gold tones, very sharp, no distortion, looks like a real commercial photoshoot in Dubai.`
+        prompt: `Ultra-realistic luxury perfume product shot in Dubai, ${type} as the hero in the foreground on a glossy marble surface. Behind it, the Dubai skyline at blue hour with warm city lights in soft bokeh. Lighting is cinematic and moody: glowing highlights on the glass, rich amber tones, very sharp.${protection}`
       },
       {
         id: 'dubai-product',
         label: 'Dubai City Product',
         icon: '💎',
-        prompt: `Ultra-realistic commercial product photoshoot in Dubai, the ${type} perfectly centered on a clean premium surface (stone, marble or matte table), captured from a slightly low angle. In the background, Dubai skyline with Museum of the Future and Emirates Towers or Downtown towers, softly blurred but clearly Dubai. Golden hour or early night lighting with warm reflections, subtle city bokeh, clean composition, no extra props unless they match the brand (like subtle Arabic patterns). Output must look like a real campaign photo shot on a professional camera, not like AI art.`
+        prompt: `Ultra-realistic commercial product photoshoot in Dubai, the ${type} perfectly centered on a clean premium stone surface, captured from a slightly low angle. In the background, Dubai skyline softly blurred but clearly recognizable. Golden hour lighting with warm reflections, clean composition.${protection}`
       }
     ];
   }, [analysis]);
@@ -151,25 +152,17 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     if (genType === 'video' && userCredits.videos <= 0) return onInsufficientCredits();
 
     setState(AppState.GENERATING);
-    setLoadingMsg("Securing Visual Fidelity...");
+    setLoadingMsg("Orchestrating with 100% Fidelity...");
     try {
-      let finalPrompt = "";
-      if (productDetails.renderMode === 'product-only') {
-        finalPrompt = `[STRICT PRODUCT-ONLY MODE: Never generate humans, hands or faces.] ${customPrompt || 'Professional product editorial'}`;
-      } else {
-        let strictRules = `[STRICT MODESTY & FIDELITY LOCK: Never change product logo, color, or shape. Lock model identity to the source portrait.]`;
-        finalPrompt = `${strictRules} ${selectedModel?.defaultPromptFragment || ''} ${customPrompt || 'Professional editorial shoot'}`;
-      }
-      
       const resultUrl = await GeminiService.generatePhotoshoot({
         model: productDetails.renderMode === 'on-model' ? selectedModel : null, 
         productImage: productImage.split(',')[1], 
-        useCase: finalPrompt, 
+        useCase: customPrompt || 'Professional editorial shoot', 
         productDetails
       }, brandKit, genType, setLoadingMsg);
       
       setOutput(resultUrl);
-      addToHistory({ id: Math.random().toString(36).substr(2, 9), type: genType, url: resultUrl, prompt: finalPrompt, timestamp: Date.now() });
+      addToHistory({ id: Math.random().toString(36).substr(2, 9), type: genType, url: resultUrl, prompt: customPrompt, timestamp: Date.now() });
     } catch (err: any) { onError(err); } finally { setState(AppState.READY); }
   };
 
@@ -267,7 +260,6 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                     <button onClick={onGoBackToModels} className="text-[8px] font-bold text-gold uppercase tracking-widest hover:underline">Models Page</button>
                   </div>
 
-                  {/* Talent Quick Selection Dropdown */}
                   <div className="space-y-4">
                     <select 
                       value={selectedModel?.id || ''} 
@@ -326,7 +318,6 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                     </button>
                 </div>
 
-                {/* Dubai Studio Collection Presets Area */}
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
                   <div className="flex items-center gap-3">
                     <span className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-[0.3em]">Dubai Studio Collection</span>
@@ -355,7 +346,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                     value={customPrompt} 
                     onChange={(e) => setCustomPrompt(e.target.value)} 
                     placeholder={productDetails.renderMode === 'product-only' ? "Define the standalone product setting and lighting..." : "Define the photoshoot atmosphere, lighting, and global setting..."} 
-                    className="w-full bg-emerald-50/20 border-2 border-emerald-100/30 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold focus:border-gold transition-all shadow-inner outline-none"
+                    className="w-full bg-emerald-50/20 border-2 border-emerald-100/30 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold focus:border-gold transition-all shadow-inner outline-none placeholder:text-zinc-300"
                   />
                 </div>
                 
@@ -407,7 +398,6 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                 </div>
              </div>
 
-             {/* Film Specs Section */}
              {genType === 'video' && (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 animate-in slide-in-from-top-2 duration-500">
                   <div className="space-y-4">

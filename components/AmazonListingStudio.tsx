@@ -8,13 +8,16 @@ interface AmazonListingStudioProps {
   addToHistory: (res: any) => void;
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
+  // Callback for handling errors from the parent component
+  onError: (err: any) => void;
 }
 
 const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
   brandKit,
   addToHistory,
   userCredits,
-  onInsufficientCredits
+  onInsufficientCredits,
+  onError
 }) => {
   const [images, setImages] = useState<{ b64: string, role: string, url: string }[]>([
     { b64: '', role: 'Front View (Required)', url: '' },
@@ -121,7 +124,7 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
       }
 
     } catch (err: any) {
-      alert(`Listing generation failed: ${err.message}`);
+      onError(err);
     } finally {
       setState(AppState.READY);
       setLoadingMsg("");
@@ -134,7 +137,6 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
   };
 
   const downloadAll = async () => {
-    // In a real app, we'd zip these. For now, we trigger individual downloads
     results.forEach((res, i) => {
       const link = document.createElement('a');
       link.href = res.url;
@@ -161,7 +163,6 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Upload Panel */}
         <div className="lg:col-span-4 space-y-8">
           <div className="bg-white rounded-4xl p-10 border border-emerald-50 soft-shadow space-y-10">
             <div className="p-6 bg-gold/5 border border-gold/20 rounded-3xl space-y-2">
@@ -229,7 +230,6 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
           )}
         </div>
 
-        {/* Gallery Grid */}
         <div className="lg:col-span-8">
           {state === AppState.GENERATING && results.length < 9 ? (
             <div className="h-full bg-white rounded-[3rem] border border-emerald-50 flex flex-col items-center justify-center p-20 text-center space-y-10">
@@ -244,7 +244,7 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
                </div>
                <div className="space-y-3">
                   <h3 className="text-2xl font-serif text-emerald-950 italic">{loadingMsg}</h3>
-                  <p className="text-[10px] text-emerald-950/30 font-bold uppercase tracking-widest">Gemini 1.5 Pro Vision Intelligence engaged</p>
+                  <p className="text-[10px] text-emerald-950/30 font-bold uppercase tracking-widest">Gemini Intelligence engaged</p>
                </div>
                <div className="w-full max-w-xs h-1.5 bg-emerald-50 rounded-full overflow-hidden">
                   <div className="h-full bg-gold transition-all duration-500" style={{ width: `${progress}%` }} />
@@ -256,10 +256,10 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
                  <div key={res.id} className="bg-white rounded-3xl p-4 border border-emerald-50 soft-shadow group relative flex flex-col space-y-4">
                     <div className="aspect-square rounded-2xl overflow-hidden bg-emerald-50/30 shadow-inner">
                        <MediaAsset src={res.url} className="w-full h-full object-cover" />
-                       <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
-                          <button 
+                       <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button 
                             onClick={() => copyPrompt(res.prompt)}
-                            className="p-2.5 bg-white text-emerald-950 rounded-xl shadow-xl hover:text-gold transition-all"
+                            className="p-2 bg-white text-emerald-950 rounded-lg shadow-xl hover:text-gold transition-all"
                             title="Copy Prompt"
                           >
                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>

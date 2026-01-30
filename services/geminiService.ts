@@ -18,6 +18,20 @@ Ensure diversity across regions, skin tones, and body types while keeping every 
 Avoid sexualized poses, exaggerated body features, or provocative expressions.
 `;
 
+const PRODUCT_LOCK_PROTOCOL = `
+[SYSTEM PROMPT - PRODUCT FIDELITY LOCK]:
+Use the uploaded product image as the ABSOLUTE SINGLE SOURCE OF TRUTH. 
+DO NOT ALTER, REDESIGN, OR SIMPLIFY ANY PRODUCT DETAILS. 
+Preserve exact colors (hex/RGB), fabric textures, material weight, prints, embroidery patterns, beadwork, lace details, logos, and silhouette. 
+If a human is visible in the reference image, IGNORE them completely. Treat the upload as a PRODUCT-ONLY reference.
+
+[NEGATIVE PROMPT - HARD CONSTRAINTS]:
+DO NOT change garment design, prints, embroidery, or logos. 
+DO NOT add or remove patterns, trims, or motifs. 
+DO NOT modify color, silhouette, or fabric type. 
+NO redesigning, NO artistic liberties, NO simplification of the product.
+`;
+
 const PRODUCT_ONLY_CONSTRAINT = `
 STRICT PRODUCT-ONLY MODE: 
 - Do NOT generate human models, people, hands, faces, or any human presence.
@@ -104,6 +118,30 @@ export class GeminiService {
     }
   }
 
+  private static buildFidelityPrompt(userPrompt: string, analysis: ProductAnalysis, productDetails: ProductDetails, brandKit: BrandKit, modelContext: string = ""): string {
+    const isProductOnly = productDetails.renderMode === 'product-only';
+    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
+    const analysisKeys = `PRESERVE KEYS: Type: ${analysis.type}, Material: ${analysis.material}, Color Palette: ${analysis.colorPalette.join(', ')}, Key Features: ${analysis.features.join(', ')}.`;
+
+    return `
+${PRODUCT_LOCK_PROTOCOL}
+${modeInstruction}
+
+[SCENE PROMPT]:
+${userPrompt}. 
+Adjust only environment, lighting, and ${isProductOnly ? 'background' : 'model pose'}. 
+${modelContext}
+Maison Visual Tone: ${brandKit.tone}.
+
+[PRODUCT PRESERVE PROMPT]:
+Copy the product EXACTLY from the reference image. 
+${analysisKeys}
+Preserve exact fabric weave, stitch patterns, 3D floral/lace details, and metallic reflections. 
+No hallucinated design elements. 
+Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDetails.logoPlacement}.` : 'Preserve existing branding from reference.'}
+`;
+  }
+
   static async trainPersonalModel(images: string[]): Promise<string> {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -142,7 +180,7 @@ export class GeminiService {
     const ai = this.getAi();
     const parts: any[] = [{ inlineData: { data: imageBase64, mimeType } }];
     let brandContext = brandKit ? `Brand Context: ${brandKit.name}. Tone: ${brandKit.tone}.` : "";
-    const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. TASK: Analyze this product for high-fidelity rendering. IGNORE any people in the image. ${brandContext} OUTPUT: JSON format only.`;
+    const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. TASK: Analyze this product for high-fidelity rendering. IGNORE any people or backgrounds in the image—isolate the product mentally. OUTPUT: JSON format only.`;
     parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
@@ -262,6 +300,7 @@ export class GeminiService {
     1. Modesty: Respect Gulf and international modesty standards.
     2. Luxury: Focus on rich textures, cinematic lighting (Golden Hour, Studio Noir, Dawn), and prestigious environments.
     3. Narrative: Suggestions should vary from "Minimalist Architectural" to "Opulent Heritage".
+    4. FIDELITY: Always append a protection line: "Important: Keep the product identical to the reference photo. Do not alter any design details or colors."
     
     Output JSON format only: an array of objects with 'label' and 'prompt'.`;
 
@@ -310,37 +349,15 @@ export class GeminiService {
     const ai = this.getAi();
     const parts: any[] = [
       { inlineData: { data: baseImage, mimeType: 'image/png' } },
-      { text: "PRODUCT GROUND TRUTH - IGNORE ALL HUMANS IN THIS IMAGE." }
+      { text: "PRODUCT GROUND TRUTH - IGNORE ALL HUMANS/BACKGROUNDS IN THIS IMAGE." }
     ];
     if (brandKit.logoUrl) {
       const logoB64 = brandKit.logoUrl.includes(',') ? brandKit.logoUrl.split(',')[1] : brandKit.logoUrl;
       parts.push({ inlineData: { data: logoB64, mimeType: 'image/png' } }, { text: "MAISON LOGO REFERENCE" });
     }
     
-    const isProductOnly = productDetails.renderMode === 'product-only';
-    const scaleClause = `Render the product at realistic scale relative to the human body based on: type = ${productDetails.type}, approx size = ${productDetails.approxSize}, placement = ${productDetails.placement}.`;
-    const logoClause = productDetails.addLogo ? `[LOGO PROTOCOL]: realistically apply the provided Maison brand logo at the ${productDetails.logoPlacement} placement. Preserve exact logo shape, color, and design fidelity. Assume all ownership rights for this logo application.` : "";
-    const styleClause = productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[productDetails.luxuryStyle] : "";
-    const cameraClause = `Perspective: ${productDetails.cameraAngle || 'Standard'} perspective shot.`;
-    const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
-    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
-
-    const isAmazonMain = customPrompt.includes("RGB 255,255,255");
-    const techConstraint = isAmazonMain ? "CRITICAL: The background must be PURE WHITE (RGB 255, 255, 255) with NO shadows stretching to edges." : "";
-
-    const instruction = `SYSTEM: PRODUCT-INTELLIGENT AI. ZERO ALTERATION MODE. 
-    ${modeInstruction}
-    ${techConstraint}
-    Product Fidelity: Preserve product shape and branding from ground truth.
-    Scale Realism: ${scaleClause}
-    Category Aesthetics: ${categoryClause}
-    Style Direction: ${styleClause}
-    Camera Angle: ${cameraClause}
-    ${logoClause}
-    Scene: ${customPrompt}. 
-    Maison Style: ${brandKit.tone}.`;
-    
-    parts.push({ text: instruction });
+    const finalStructuredPrompt = this.buildFidelityPrompt(customPrompt, analysis, productDetails, brandKit);
+    parts.push({ text: finalStructuredPrompt });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -366,39 +383,23 @@ export class GeminiService {
     if (!this.validatePrompt(config.useCase)) throw new Error("AMRAH only supports modest, respectful fashion.");
 
     const ai = this.getAi();
+    const analysis = await this.analyzeProduct(config.productImage, 'image/png', brandKit);
     
     if (type === 'image') {
       const parts: any[] = [
         { inlineData: { data: config.productImage, mimeType: 'image/png' } },
-        { text: "PRODUCT ASSET - IGNORE ALL HUMAN SUBJECTS HERE" }
+        { text: "PRODUCT ASSET - IGNORE ALL HUMAN SUBJECTS/BACKGROUNDS HERE" }
       ];
 
+      let modelContext = "";
       if (config.model) {
         const modelBase64 = await this.urlToBase64(config.model.mainUrl);
         parts.push({ inlineData: { data: modelBase64, mimeType: 'image/png' } }, { text: "LOCKED MODEL IDENTITY SOURCE" });
+        modelContext = `Use model_id ${config.model.id}. Identity Locked: ${config.model.defaultPromptFragment}. Features: ${config.model.features}.`;
       }
 
-      const isProductOnly = config.productDetails.renderMode === 'product-only';
-      const scaleClause = `Render the product at realistic scale: type = ${config.productDetails.type}, placement = ${config.productDetails.placement}.`;
-      const logoClause = config.productDetails.addLogo ? `[LOGO PROTOCOL]: realistically apply the provided Maison brand logo at ${config.productDetails.logoPlacement}. Preserve exact shape, color, and design. Assume all ownership rights.` : "";
-      const styleClause = config.productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[config.productDetails.luxuryStyle] : "";
-      const cameraClause = `Perspective: ${config.productDetails.cameraAngle || 'Standard'} perspective shot.`;
-      const categoryClause = CATEGORY_STYLE_FRAGMENTS[config.productDetails.category] || "";
-      const identityLock = config.model && !isProductOnly ? `Use model_id ${config.model.id}. Identity Locked: ${config.model.defaultPromptFragment}. Features: ${config.model.features}.` : "";
-      const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
-
-      const prompt = `SYSTEM: MODEL IDENTITY LOCK & MODESTY PROTOCOL. 
-      ${modeInstruction}
-      ${identityLock}
-      Product: From PRODUCT ASSET only.
-      Scale Realism: ${scaleClause}
-      Category Aesthetics: ${categoryClause}
-      Style Direction: ${styleClause}
-      Camera Angle: ${cameraClause}
-      ${logoClause}
-      Directive: ${config.useCase}. Style: ${brandKit.tone}.`;
-      
-      parts.push({ text: prompt });
+      const finalStructuredPrompt = this.buildFidelityPrompt(config.useCase, analysis, config.productDetails, brandKit, modelContext);
+      parts.push({ text: finalStructuredPrompt });
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
@@ -416,13 +417,17 @@ export class GeminiService {
     } else {
       onStatus("Initializing Motion Flow...");
       const isProductOnly = config.productDetails.renderMode === 'product-only';
-      const cameraClause = `Camera style: ${config.productDetails.cameraAngle || 'Standard'}, motion: ${config.productDetails.cameraMotion || 'Static'}. Slow, deliberate, luxury brand film style.`;
-      const categoryClause = CATEGORY_STYLE_FRAGMENTS[config.productDetails.category] || "";
-      const identityLock = config.model && !isProductOnly ? `Model: ${config.model.nationality} ${config.model.gender}. Identity locked.` : "";
-      const logoClause = config.productDetails.addLogo ? `Realistic brand logo at ${config.productDetails.logoPlacement}, preserving shape and color.` : "";
       const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
+      const identityLock = config.model && !isProductOnly ? `Model: ${config.model.nationality} ${config.model.gender}. Identity locked.` : "";
       
-      const videoPrompt = `Cinematic cinematic sequence. ${modeInstruction} ${identityLock} Category aesthetics: ${categoryClause}. Product type: ${config.productDetails.type}, placement: ${config.productDetails.placement}. ${cameraClause} ${logoClause} Directive: ${config.useCase}.`;
+      const videoPrompt = `
+      ${PRODUCT_LOCK_PROTOCOL}
+      ${modeInstruction}
+      Cinematic cinematic sequence. 
+      [SCENE]: ${config.useCase}. ${identityLock} Camera: ${config.productDetails.cameraAngle}, Motion: ${config.productDetails.cameraMotion}.
+      [PRESERVE]: Copy product EXACTLY: ${analysis.material}, ${analysis.type}, ${analysis.features.join(', ')}. 
+      Never morph fabric or details during movement.
+      `;
       
       let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
@@ -465,25 +470,9 @@ export class GeminiService {
       }
     });
 
-    const isProductOnly = productDetails.renderMode === 'product-only';
-    const scaleClause = `Scale relative to body: type = ${productDetails.type}, placement = ${productDetails.placement}.`;
-    const logoClause = productDetails.addLogo ? `[LOGO PROTOCOL]: apply Maison brand logo at ${productDetails.logoPlacement}, exact shape and color preservation. Assume ownership rights.` : "";
-    const styleClause = productDetails.luxuryStyle ? LUXURY_STYLE_PROMPTS[productDetails.luxuryStyle] : "";
-    const cameraClause = `Perspective: ${productDetails.cameraAngle || 'Standard'} perspective shot.`;
-    const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
-    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
-
-    const instruction = `SYSTEM: CAMPAIGN BUILDER. ZERO DEVIATION MODE.
-    ${modeInstruction}
-    Product Fidelity: 100% visual fidelity to ALL provided references.
-    Scale Realism: ${scaleClause}
-    Category Aesthetics: ${categoryClause}
-    Style Direction: ${styleClause}
-    Camera Angle: ${cameraClause}
-    ${logoClause}
-    Directive: ${prompt}.
-    Maison Name: ${brandKit.name}.`;
-    parts.push({ text: instruction });
+    const analysis = await this.analyzeProduct(productB64s[0]!.split(',')[1], 'image/png', brandKit);
+    const finalStructuredPrompt = this.buildFidelityPrompt(prompt, analysis, productDetails, brandKit);
+    parts.push({ text: finalStructuredPrompt });
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
@@ -511,12 +500,16 @@ export class GeminiService {
     if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const ai = this.getAi();
     const isProductOnly = productDetails.renderMode === 'product-only';
-    const cameraClause = `Camera style: ${productDetails.cameraAngle || 'Standard'}, motion: ${productDetails.cameraMotion || 'Static'}.`;
-    const categoryClause = CATEGORY_STYLE_FRAGMENTS[productDetails.category] || "";
-    const logoClause = productDetails.addLogo ? `Apply Maison brand logo at ${productDetails.logoPlacement}, preserving shape and color.` : "";
     const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
 
-    const videoPrompt = `${prompt}. ${modeInstruction} Aesthetics: ${categoryClause}. ${cameraClause} ${logoClause}`;
+    const videoPrompt = `
+    ${PRODUCT_LOCK_PROTOCOL}
+    ${modeInstruction}
+    ${prompt}. 
+    [PRESERVE]: Absolute fidelity to reference. Material: ${analysis.material}. Features: ${analysis.features.join(', ')}. 
+    Movement must be slow luxury pan, no warping of product structure.
+    `;
+
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
       prompt: videoPrompt,
@@ -546,16 +539,25 @@ export class GeminiService {
     if (!this.validatePrompt(editPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const base64 = currentImageUrl.includes('base64,') ? currentImageUrl.split(',')[1] : await this.urlToBase64(currentImageUrl);
     const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only' };
-    return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}`, brandKit, defaultDetails);
+    return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}. Important: Keep the core product structure locked.`, brandKit, defaultDetails);
   }
 
   static async generateVideoFromImage(imageBase64: string, prompt: string, onStatus: (m: string) => void): Promise<string> {
     if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const ai = this.getAi();
     const cleanB64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+    
+    // We don't have full analysis here, but we can still enforce the lock
+    const videoPrompt = `
+    ${PRODUCT_LOCK_PROTOCOL}
+    ${MODESTY_SYSTEM_INSTRUCTION}
+    ${prompt}. 
+    Maintain absolute product fidelity during motion. No morphing or melting of fabric details.
+    `;
+
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
-      prompt: `${prompt}. ${MODESTY_SYSTEM_INSTRUCTION}`,
+      prompt: videoPrompt,
       image: { imageBytes: cleanB64, mimeType: 'image/png' },
       config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
     });

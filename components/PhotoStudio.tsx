@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo } from 'react';
 import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, CameraAngle, CameraMotion } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -10,9 +11,10 @@ interface PhotoStudioProps {
   initialCategory?: ProductCategory;
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
+  onError: (err: any) => void;
 }
 
-const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initialCategory, userCredits, onInsufficientCredits }) => {
+const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initialCategory, userCredits, onInsufficientCredits, onError }) => {
   const [state, setState] = useState<AppState>(AppState.UPLOADING);
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
@@ -37,7 +39,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
     logoPlacement: 'Chest',
     cameraAngle: 'Standard',
     cameraMotion: 'Static',
-    renderMode: 'product-only', // Defaulting to Product-Only per request
+    renderMode: 'product-only', 
     videoResolution: '720p',
     videoAspectRatio: '16:9'
   });
@@ -55,29 +57,70 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Dynamic Intelligence Prompt Suggestions based on Analysis
+  // Dynamic Intelligence Prompt Suggestions based on Product Analysis
   const dynamicSuggestions = useMemo(() => {
-    if (!analysis) return [];
-    
-    const type = analysis.type || productDetails.type || 'luxury piece';
-    const mat = analysis.material || 'premium material';
-    const feature = analysis.features?.[0] || 'intricate detailing';
-    const brand = brandKit.name || 'Maison';
-    const humanConstraint = productDetails.renderMode === 'product-only' ? 'standing standalone with no people' : 'with an elegant human model';
+    const product = analysis?.type || productDetails.type || 'luxury piece';
+    const material = analysis?.material || 'premium material';
+    const detail = analysis?.features?.[0] || 'fine craftsmanship';
+    const mode = productDetails.renderMode === 'product-only' 
+      ? 'standing standalone as a singular hero object with no humans in scene' 
+      : 'presented gracefully by a high-fashion model in a modest editorial pose';
+
+    const protectionLine = "\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.";
 
     return [
-      { label: 'Minimalist Monolith', prompt: `A high-fidelity minimalist composition of the ${mat} ${type} resting on a monolith of honed grey limestone. ${humanConstraint}. Natural morning light, sharp focus on ${feature}.` },
-      { label: 'Opulent Arabian', prompt: `An opulent editorial scene: the ${mat} ${type} positioned on royal emerald velvet. ${humanConstraint}. Intricate mashrabiya shadow patterns, warm golden lighting accentuating the ${feature}.` },
-      { label: 'Desert Horizon', prompt: `The ${mat} ${type} captured in a vast, ethereal desert landscape at blue hour. ${humanConstraint}. A single beam of dawn light highlights the ${feature}. Ultra-luxury atmosphere.` },
-      { label: 'Editorial Noir', prompt: `Cinematic product portrait. The ${type} emerges from a deep charcoal void. ${humanConstraint}. Singular sharp rim light tracing the silhouette and ${mat} texture.` },
-      { label: 'Marina Modern', prompt: `Bright lifestyle campaign shot of the ${type} on a white marble table overlooking a blurred Mediterranean marina. ${humanConstraint}. Crisp daylight, sparkling water bokeh.` },
-      { label: 'Heritage Majlis', prompt: `The ${type} in a refined modern Majlis setting. ${humanConstraint}. Traditional carved wood textures meet minimalist glass. Soft ambient light highlighting ${feature}.` },
-      { label: 'Zen Atelier', prompt: `Positioned in a pristine, white-walled architectural atelier. ${humanConstraint}. Soft, volumetric daylight and geometric shadows. Focus on ${mat} integrity.` },
-      { label: 'Prismatic Light', prompt: `Intimate macro focus on the ${feature}. ${humanConstraint}. Caustic light reflections dancing across a silk background. Shimmering ${mat} highlights.` },
-      { label: 'Architectural Flow', prompt: `High-fashion setting with the ${type} in an open-air glass and steel atrium. ${humanConstraint}. Sharp geometric shadows and professional high-noon lighting.` },
-      { label: 'Luxe Penthouse', prompt: `An executive penthouse lounge at dusk. ${humanConstraint}. The ${type} rests on dark mahogany, with blurred city lights reflecting in its ${mat} surface.` }
+      { 
+        label: 'Minimalist Monolith', 
+        icon: '📐',
+        prompt: `Surgical-grade minimalist composition. The ${material} ${product} is centered on a raw, honed basalt monolith. ${mode}. Soft directional morning light, sharp focus on the ${detail}. Zero distortion, 100% visual fidelity.${protectionLine}` 
+      },
+      { 
+        label: 'Opulent Arabian', 
+        icon: '🌙',
+        prompt: `An opulent Maison campaign. The ${material} ${product} is nestled on heavy royal emerald velvet. ${mode}. Intricate mashrabiya shadow patterns across the background, warm golden highlights on the ${detail}. Heritage luxury mood.${protectionLine}` 
+      },
+      { 
+        label: 'Desert Mirage', 
+        icon: '🏜️',
+        prompt: `Prestige landscape editorial. The ${material} ${product} in the style of Al-Ula, positioned in fine crimson desert sand at blue hour. ${mode}. A single beam of dawn light hitting the ${detail}. Violet and amber sky gradients.${protectionLine}` 
+      },
+      { 
+        label: 'Noir Excellence', 
+        icon: '🎞️',
+        prompt: `Cinematic product portrait. The ${material} ${product} emerging from a deep charcoal void. ${mode}. A singular razor-sharp rim light traces the silhouette and ${detail}. Dramatic, sophisticated high-end advertising aesthetic.${protectionLine}` 
+      },
+      { 
+        label: 'Marina Modern', 
+        icon: '🛥️',
+        prompt: `Bright lifestyle campaign. The ${product} resting on a white marble table overlooking a blurred Mediterranean marina. ${mode}. Crisp afternoon sunlight, sparkling water bokeh, high-fashion summer atmosphere.${protectionLine}` 
+      },
+      { 
+        label: 'Heritage Majlis', 
+        icon: '🍵',
+        prompt: `Refined modern majlis setting. The ${product} surrounded by dark wood textures and silk. ${mode}. Warm volumetric ambient light illuminating the ${detail}. A celebration of cultural luxury and modern elegance.${protectionLine}` 
+      },
+      { 
+        label: 'Zen Architectural', 
+        icon: '🏢',
+        prompt: `Pristine architectural shoot. The ${material} ${product} in an open-air glass and steel atrium. ${mode}. Sharp geometric shadows, cool northern daylight, emphasis on structural integrity and the ${detail}.${protectionLine}` 
+      },
+      { 
+        label: 'Prismatic Macro', 
+        icon: '💎',
+        prompt: `Extreme macro study. Intimate focus on the ${detail} of the ${product}. ${mode}. Caustic light reflections dancing across a silk backdrop. Shimmering ${material} highlights, soft creamy depth of field.${protectionLine}` 
+      },
+      { 
+        label: 'Silk & Shadows', 
+        icon: '🧣',
+        prompt: `Sensory material focus. The ${product} draped among heavy folds of charcoal grey silk. ${mode}. Moody, directional side-lighting revealing every detail of the ${material} and ${detail}.${protectionLine}` 
+      },
+      { 
+        label: 'Luxe Penthouse', 
+        icon: '🏙️',
+        prompt: `High-rise penthouse suite at night. The ${material} ${product} positioned near a floor-to-ceiling window. ${mode}. Warm interior light meets the blurred cold bokeh of city skyline lights in the background.${protectionLine}` 
+      }
     ];
-  }, [analysis, brandKit.name, productDetails.type, productDetails.renderMode]);
+  }, [analysis, productDetails.type, productDetails.renderMode]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,6 +135,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
         const res = await GeminiService.analyzeProduct(result.split(',')[1], file.type, brandKit);
         setAnalysis(res);
       } catch (err) { 
+        onError(err);
         console.error("Analysis Error:", err); 
         setAnalysis({ type: 'Product', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] });
       } finally { 
@@ -107,19 +151,19 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
     if (genType === 'video' && userCredits.videos <= 0) return onInsufficientCredits();
 
     setState(AppState.GENERATING);
-    setLoadingMsg("Orchestrating...");
+    setLoadingMsg("Orchestrating with Strict Fidelity...");
     try {
       const base64 = sourceImage.split(',')[1];
-      let finalPrompt = `[SYSTEM: 100% VISUAL FIDELITY MODE. Never alter color, logo, or shape.] ${prompt}`;
-      
       let url = genType === 'image' 
-        ? await GeminiService.generateProductImage(base64, analysis!, finalPrompt, brandKit, productDetails)
-        : await GeminiService.generateProductVideo(base64, analysis!, finalPrompt, brandKit, productDetails, setLoadingMsg);
+        ? await GeminiService.generateProductImage(base64, analysis!, prompt, brandKit, productDetails)
+        : await GeminiService.generateProductVideo(base64, analysis!, prompt, brandKit, productDetails, setLoadingMsg);
 
-      const newRes: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: genType, url, prompt: finalPrompt, timestamp: Date.now() };
+      const newRes: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: genType, url, prompt: prompt, timestamp: Date.now() };
       setOutput(url);
       addToHistory(newRes);
-    } catch (err: any) { alert(`Error: ${err.message}`); } finally { setState(AppState.READY); }
+    } catch (err: any) { 
+      onError(err);
+    } finally { setState(AppState.READY); }
   };
 
   const handleConvertToVideo = async () => {
@@ -136,7 +180,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
       addToHistory(newRes);
       setShowMotionControls(false);
     } catch (err: any) {
-      alert(`Motion synthesis failed: ${err.message}`);
+      onError(err);
     } finally {
       setIsConvertingToVideo(false);
       setState(AppState.READY);
@@ -155,7 +199,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                   <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">
                     {productDetails.renderMode === 'product-only' ? 'Master Asset (No Model)' : 'Master Asset'}
                   </span>
-                  {sourceImage && <button onClick={() => {setSourceImage(null); setAnalysis(null);}} className="text-[8px] font-bold text-gold uppercase tracking-widest">Replace</button>}
+                  {sourceImage && <button onClick={() => {setSourceImage(null); setAnalysis(null); setPrompt('');}} className="text-[8px] font-bold text-gold uppercase tracking-widest">Replace</button>}
                </div>
                <div 
                 onClick={() => !sourceImage && fileInputRef.current?.click()} 
@@ -218,20 +262,9 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                         {cameraMotions.map(m => <option key={m} value={m}>{m}</option>)}
                      </select>
                   </div>
-                  <div className="space-y-2">
-                     <label className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-1">Product Type</label>
-                     <select 
-                       value={productDetails.type} 
-                       onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} 
-                       className="w-full text-[10px] uppercase font-bold tracking-widest px-4 py-3 bg-emerald-50/20 border-emerald-50 outline-none rounded-2xl focus:border-gold/30"
-                     >
-                        {productTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                     </select>
-                  </div>
                </div>
             </div>
 
-            {/* Video Orchestration Controls */}
             {genType === 'video' && (
               <div className="space-y-6 pt-6 border-t border-emerald-50 animate-in slide-in-from-top-2 duration-500">
                  <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">Film Specs</span>
@@ -245,17 +278,6 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                        >
                           <option value="720p">720p (HD)</option>
                           <option value="1080p">1080p (FHD)</option>
-                       </select>
-                    </div>
-                    <div className="space-y-2">
-                       <label className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-1">Aspect Ratio</label>
-                       <select 
-                         value={productDetails.videoAspectRatio} 
-                         onChange={(e) => setProductDetails({...productDetails, videoAspectRatio: e.target.value as any})} 
-                         className="w-full text-[10px] uppercase font-bold tracking-widest px-4 py-3 bg-emerald-50/20 border-emerald-50 outline-none rounded-2xl focus:border-gold/30"
-                       >
-                          <option value="16:9">16:9 (Cinema)</option>
-                          <option value="9:16">9:16 (Story)</option>
                        </select>
                     </div>
                  </div>
@@ -272,35 +294,6 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                   <p className="text-[8px] text-emerald-950/30 font-bold uppercase tracking-widest">{brandKit.tone} Tone Active</p>
                </div>
             </div>
-
-            <div className="pt-6 border-t border-emerald-50 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                   <span className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest">Pro Controls</span>
-                   <button onClick={() => setShowProControls(!showProControls)} className={`w-10 h-5 rounded-full transition-all relative ${showProControls ? 'bg-gold' : 'bg-emerald-50'}`}>
-                      <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${showProControls ? 'left-6' : 'left-1'}`} />
-                   </button>
-                </div>
-                {showProControls && (
-                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center justify-between">
-                       <span className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-widest">Add my brand logo</span>
-                       <input type="checkbox" checked={productDetails.addLogo} onChange={(e) => setProductDetails({...productDetails, addLogo: e.target.checked})} className="w-4 h-4 accent-gold" />
-                    </div>
-                    {productDetails.addLogo && (
-                      <div className="space-y-2 pt-2 animate-in slide-in-from-top-1 duration-300">
-                         <label className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-1">Logo Placement</label>
-                         <select 
-                           value={productDetails.logoPlacement} 
-                           onChange={(e) => setProductDetails({...productDetails, logoPlacement: e.target.value as LogoPlacement})} 
-                           className="w-full text-[10px] uppercase font-bold tracking-widest px-4 py-2 bg-emerald-50/20 border-emerald-50 outline-none rounded-2xl focus:border-gold/30"
-                         >
-                            {logoPlacements.map(lp => <option key={lp} value={lp}>{lp}</option>)}
-                         </select>
-                      </div>
-                    )}
-                  </div>
-                )}
-            </div>
           </div>
         </div>
 
@@ -313,9 +306,14 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                       <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-[0.3em]">Creative Direction</span>
                       <span className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-widest">Neural Vision Pipeline</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
-                       <span className="text-[9px] font-bold text-gold uppercase tracking-widest">Elite AI Active</span>
+                    <div className="flex items-center gap-4">
+                       {prompt && (
+                          <button onClick={() => setPrompt('')} className="text-[8px] font-bold text-red-400 uppercase tracking-widest hover:text-red-500 transition-colors">Clear Brief</button>
+                       )}
+                       <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />
+                          <span className="text-[9px] font-bold text-gold uppercase tracking-widest">Elite AI Active</span>
+                       </div>
                     </div>
                  </div>
 
@@ -333,16 +331,19 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                          <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-[0.2em]">Director's Vision Blueprint</span>
                          {analysis && <span className="text-[8px] font-bold text-emerald-950/20 uppercase tracking-widest italic">Personalized for your {analysis.type}</span>}
                       </div>
-                      <div className="grid grid-cols-1 gap-2.5 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="grid grid-cols-1 gap-2.5 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
                           {dynamicSuggestions.length > 0 ? (
                             dynamicSuggestions.map((s, idx) => (
                               <button 
                                 key={idx} 
                                 onClick={() => setPrompt(s.prompt)}
-                                className={`text-left px-5 py-4 bg-zinc-50/50 border border-emerald-50 rounded-2xl group hover:border-gold/40 transition-all duration-300 shadow-sm ${prompt === s.prompt ? 'border-gold bg-gold/[0.03] ring-1 ring-gold/20' : ''}`}
+                                className={`text-left px-6 py-5 bg-zinc-50/50 border border-emerald-50 rounded-2xl group hover:border-gold/40 transition-all duration-300 shadow-sm ${prompt === s.prompt ? 'border-gold bg-gold/[0.03] ring-1 ring-gold/20' : ''}`}
                               >
-                                <div className="flex items-center justify-between mb-1">
-                                   <span className={`text-[9px] font-bold uppercase tracking-[0.2em] transition-colors ${prompt === s.prompt ? 'text-gold' : 'text-emerald-950/60'}`}>{s.label}</span>
+                                <div className="flex items-center justify-between mb-2">
+                                   <div className="flex items-center gap-3">
+                                      <span className="text-lg">{s.icon}</span>
+                                      <span className={`text-[9px] font-bold uppercase tracking-[0.2em] transition-colors ${prompt === s.prompt ? 'text-gold' : 'text-emerald-950/60'}`}>{s.label}</span>
+                                   </div>
                                    <svg className={`w-3 h-3 transition-all ${prompt === s.prompt ? 'text-gold scale-125' : 'text-emerald-950/10'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                                 </div>
                                 <p className={`text-[10px] italic leading-relaxed transition-colors line-clamp-2 ${prompt === s.prompt ? 'text-emerald-950' : 'text-emerald-950/40'}`}>
@@ -351,8 +352,8 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
                               </button>
                             ))
                           ) : (
-                            <div className="py-12 text-center bg-emerald-50/20 rounded-3xl border border-emerald-50">
-                               <p className="text-[10px] font-bold text-emerald-950/20 uppercase tracking-widest">Upload asset to unlock <br/>Dynamic Neural Visions</p>
+                            <div className="py-12 text-center bg-emerald-50/20 rounded-3xl border border-emerald-50 border-dashed">
+                               <p className="text-[10px] font-bold text-emerald-950/20 uppercase tracking-widest">Upload your product asset to unlock <br/>Dynamic Neural Visions</p>
                             </div>
                           )}
                       </div>
@@ -400,7 +401,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({ brandKit, addToHistory, initi
 
                      <div className="absolute top-6 right-6 flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                         <a href={output || '#'} download className="p-4 bg-white text-emerald-950 rounded-2xl shadow-2xl hover:text-gold transition-colors"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></a>
-                        {genType === 'image' && <button onClick={() => setShowEditor(true)} className="p-4 bg-white text-emerald-950 rounded-2xl shadow-2xl hover:text-gold transition-colors"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>}
+                        {genType === 'image' && <button onClick={() => setShowEditor(true)} className="p-4 bg-white text-emerald-950 rounded-2xl shadow-2xl hover:text-gold transition-colors"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>}
                      </div>
 
                      {genType === 'image' && !isConvertingToVideo && (

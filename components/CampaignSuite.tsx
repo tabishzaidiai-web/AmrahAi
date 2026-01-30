@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { BrandKit, GenerationResult, ProductDetails, ProductCategory, ProductAnalysis } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -80,8 +81,9 @@ const CampaignSuite: React.FC<CampaignSuiteProps> = ({ brandKit, addToHistory, i
     if (!campaignStory || !productImages[0]) return;
     setGenerating(true);
     try {
-      const url = await GeminiService.generateCampaignAsset(campaignStory, productImages, brandKit, { 
-        category: initialCategory || 'fashion', type: 'Clothing', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest' 
+      const finalPrompt = `${campaignStory}. Important: Keep the product identical to the reference photo. Do not alter any design details or colors.`;
+      const url = await GeminiService.generateCampaignAsset(finalPrompt, productImages, brandKit, { 
+        category: initialCategory || 'fashion', type: 'Clothing', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only'
       }, '16:9', '2K');
       const newResult: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: 'image', url, prompt: campaignStory, timestamp: Date.now() };
       setResults(prev => [newResult, ...prev]);
