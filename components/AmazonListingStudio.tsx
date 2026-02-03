@@ -1,5 +1,6 @@
+
 import React, { useState, useRef } from 'react';
-import { BrandKit, AmazonListingSuite, AmazonResult, AppState } from '../types';
+import { BrandKit, AmazonListingSuite, AmazonResult, AppState, AmazonListingPrompt } from '../types';
 import { GeminiService } from '../services/geminiService';
 import MediaAsset from './MediaAsset';
 
@@ -68,7 +69,8 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
       setSuitePrompts(suite);
 
       // Step 2: Generate 9 Images
-      const slots = Object.entries(suite.amazon_suite);
+      // Cast Object.entries to correct type to fix property 'type'/'prompt' errors on unknown
+      const slots = Object.entries(suite.amazon_suite) as [string, AmazonListingPrompt][];
       const generatedResults: AmazonResult[] = [];
 
       for (let i = 0; i < slots.length; i++) {

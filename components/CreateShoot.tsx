@@ -1,10 +1,9 @@
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ModelPersona, BrandKit, AppState, GenerationResult, ProductDetails, ProductCategory, LogoPlacement, ProductType, ProductPlacement, ProductAnalysis, CameraAngle, CameraMotion } from '../types';
 import { GeminiService } from '../services/geminiService';
-import { modelData } from '../data/models';
-import ImageEditor from './ImageEditor';
 import ModelShowcase from './ModelShowcase';
+import ImageEditor from './ImageEditor';
 import MediaAsset from './MediaAsset';
 
 interface CreateShootProps {
@@ -12,7 +11,6 @@ interface CreateShootProps {
   selectedModel: ModelPersona | null;
   setSelectedModel: (model: ModelPersona) => void;
   addToHistory: (res: GenerationResult) => void;
-  onGoBackToModels: () => void;
   initialCategory?: ProductCategory;
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
@@ -21,59 +19,23 @@ interface CreateShootProps {
 
 const CreateShoot: React.FC<CreateShootProps> = ({ 
   brandKit, selectedModel, setSelectedModel, addToHistory, 
-  onGoBackToModels, initialCategory, userCredits, onInsufficientCredits, onError 
+  initialCategory, userCredits, onInsufficientCredits, onError 
 }) => {
   const [productImage, setProductImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [videoDirective, setVideoDirective] = useState('');
   const [genType, setGenType] = useState<'image' | 'video'>('image');
-  const [state, setState] = useState<AppState>(AppState.UPLOADING);
+  const [state, setState] = useState<AppState>(AppState.READY);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [output, setOutput] = useState<string | null>(null);
+  const [videoOutput, setVideoOutput] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // Intelligence Logic
-  const [aiSuggestions, setAiSuggestions] = useState<{label: string, prompt: string}[]>([]);
-  const [isSuggesting, setIsSuggesting] = useState(false);
-
-  // Dubai Collection Presets
-  const dubaiPresets = useMemo(() => {
-    const type = analysis?.type || 'premium product';
-    const protection = "\n\nImportant: Keep the product identical to the reference photo. Do not alter any design details or colors.";
-    return [
-      {
-        id: 'dubai-fashion',
-        label: 'Dubai Fashion Skyline',
-        icon: '🏙️',
-        prompt: `Ultra-realistic editorial fashion photoshoot in Dubai, the model wearing the unchanged ${type}, standing on a rooftop terrace with the glowing Dubai skyline behind her at golden hour. Burj Khalifa and surrounding towers in soft focus, warm sunlight. Product (${type}) is the hero: crisp fabric texture, clean shadows, no warping, perfect proportions.${protection}`
-      },
-      {
-        id: 'dubai-abaya',
-        label: 'Dubai Abaya Elegance',
-        icon: '🕌',
-        prompt: `Ultra-realistic abaya photoshoot in Dubai, elegant Arab woman in the flowing unchanged ${type}, standing on a balcony or promenade overlooking the Dubai skyline at sunset. Museum of the Future softly visible in the background. Fabric is rich and detailed, with natural drape and movement, modest posing. Colors are warm, cinematic.${protection}`
-      },
-      {
-        id: 'dubai-perfume',
-        label: 'Dubai Perfume Glow',
-        icon: '✨',
-        prompt: `Ultra-realistic luxury perfume product shot in Dubai, ${type} as the hero in the foreground on a glossy marble surface. Behind it, the Dubai skyline at blue hour with warm city lights in soft bokeh. Lighting is cinematic and moody: glowing highlights on the glass, rich amber tones, very sharp.${protection}`
-      },
-      {
-        id: 'dubai-product',
-        label: 'Dubai City Product',
-        icon: '💎',
-        prompt: `Ultra-realistic commercial product photoshoot in Dubai, the ${type} perfectly centered on a clean premium stone surface, captured from a slightly low angle. In the background, Dubai skyline softly blurred but clearly recognizable. Golden hour lighting with warm reflections, clean composition.${protection}`
-      }
-    ];
-  }, [analysis]);
-
-  // Motion Conversion State
-  const [isConvertingToVideo, setIsConvertingToVideo] = useState(false);
-  const [motionPrompt, setMotionPrompt] = useState('');
-  const [showMotionControls, setShowMotionControls] = useState(false);
-
+  const [aiConcepts, setAiConcepts] = useState<{label: string, prompt: string}[]>([]);
+  const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false);
+  
   const [productDetails, setProductDetails] = useState<ProductDetails>({
     category: initialCategory || 'fashion', 
     type: 'Clothing', 
@@ -83,38 +45,21 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     logoPlacement: 'Chest',
     cameraAngle: 'Standard',
     cameraMotion: 'Static',
-    renderMode: 'product-only', 
+    renderMode: 'on-model', 
     videoResolution: '720p',
-    videoAspectRatio: '16:9'
+    videoAspectRatio: '3:4'
   });
 
   const productTypes: ProductType[] = ['Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'];
+  const placements: ProductPlacement[] = ['On ear', 'On neck', 'On wrist', 'On finger', 'On chest', 'On shoulder', 'Full body', 'Handheld', 'On table'];
   const cameraAngles: CameraAngle[] = ['Standard', 'Low Angle', 'High Angle', "Bird's Eye", 'Side', 'Close-up'];
-  const cameraMotions: CameraMotion[] = ['Static', 'Pan Left', 'Pan Right', 'Tilt Up', 'Tilt Down', 'Zoom In', 'Zoom Out'];
-  const logoPlacements: LogoPlacement[] = ['Chest', 'Center front', 'Wrist/dial center', 'Bag front', 'Top-right corner', 'Background watermark'];
-
-  const motionSuggestions = [
-    { label: "Cinematic Dolly", prompt: "A slow dolly-in towards the model and product." },
-    { label: "Fashion Pan", prompt: "A professional horizontal pan following the drape of the garment." },
-    { label: "Atmospheric Zoom", prompt: "A soft, subtle zoom-in on the product details." }
-  ];
 
   const steps = [
-    { id: 1, label: 'Upload Product' },
-    { id: 2, label: 'Choose Model' },
-    { id: 3, label: 'Style & Details' },
-    { id: 4, label: 'Generate' }
+    { id: 1, label: 'Upload Product', active: !!productImage },
+    { id: 2, label: 'Choose Model', active: !!productImage && !!selectedModel },
+    { id: 3, label: 'Style & Details', active: !!productImage && !!selectedModel && customPrompt.length > 5 },
+    { id: 4, label: 'Generate & Download', active: !!output || !!videoOutput }
   ];
-
-  const handleSuggestPrompts = async () => {
-    if (!productImage) return;
-    setIsSuggesting(true);
-    try {
-      const base64 = productImage.split(',')[1];
-      const suggestions = await GeminiService.suggestCampaignStories(base64, brandKit);
-      setAiSuggestions(suggestions.slice(0, 3));
-    } catch (err) { onError(err); } finally { setIsSuggesting(false); }
-  };
 
   const handleImageUpload = async (file: File) => {
     const reader = new FileReader();
@@ -122,432 +67,329 @@ const CreateShoot: React.FC<CreateShootProps> = ({
       const dataUrl = ev.target?.result as string;
       setProductImage(dataUrl);
       setState(AppState.ANALYZING);
-      setLoadingMsg("Identifying DNA...");
+      setLoadingMsg("Performing Asset Analysis...");
       try {
-        const res = await GeminiService.analyzeProduct(dataUrl.split(',')[1], file.type, brandKit);
+        const base64 = dataUrl.split(',')[1];
+        const res = await GeminiService.analyzeProduct(base64, file.type, brandKit);
         setAnalysis(res);
-        if (res.type) {
-          const matched = productTypes.find(t => t.toLowerCase().includes(res.type.toLowerCase())) || 'Other';
-          setProductDetails(prev => ({ ...prev, type: matched as ProductType }));
-        }
+        setIsGeneratingConcepts(true);
+        const concepts = await GeminiService.suggestPhotoshootPrompts(base64, brandKit);
+        setAiConcepts(concepts);
       } catch (e) { 
-        console.error("Analysis failed", e);
         setAnalysis({ type: 'Product', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] });
-      } finally { setState(AppState.READY); }
+      } finally { 
+        setState(AppState.READY); 
+        setIsGeneratingConcepts(false);
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const currentStep = useMemo(() => {
-    if (!productImage) return 1;
-    if (!selectedModel && productDetails.renderMode === 'on-model') return 2;
-    if (!output) return 3;
-    return 4;
-  }, [productImage, selectedModel, output, productDetails.renderMode]);
-
-  const handleGenerate = async () => {
-    if (!productImage) return;
-    if (productDetails.renderMode === 'on-model' && !selectedModel) return;
-    if (genType === 'image' && userCredits.images <= 0) return onInsufficientCredits();
-    if (genType === 'video' && userCredits.videos <= 0) return onInsufficientCredits();
+  const handleGenerate = async (type: 'image' | 'video' = 'image') => {
+    if (!productImage || !selectedModel || !customPrompt) return;
+    
+    if (type === 'image' && userCredits.images <= 0) return onInsufficientCredits();
+    if (type === 'video' && userCredits.videos <= 0) return onInsufficientCredits();
 
     setState(AppState.GENERATING);
-    setLoadingMsg("Orchestrating with 100% Fidelity...");
+    setLoadingMsg(type === 'image' ? "Orchestrating Render..." : "Synthesizing Motion...");
+    
     try {
+      const finalUseCase = type === 'video' && videoDirective 
+        ? `${customPrompt}. Motion Directive: ${videoDirective}`
+        : customPrompt;
+
       const resultUrl = await GeminiService.generatePhotoshoot({
-        model: productDetails.renderMode === 'on-model' ? selectedModel : null, 
+        model: selectedModel, 
         productImage: productImage.split(',')[1], 
-        useCase: customPrompt || 'Professional editorial shoot', 
+        useCase: finalUseCase, 
         productDetails
-      }, brandKit, genType, setLoadingMsg);
-      
-      setOutput(resultUrl);
-      addToHistory({ id: Math.random().toString(36).substr(2, 9), type: genType, url: resultUrl, prompt: customPrompt, timestamp: Date.now() });
-    } catch (err: any) { onError(err); } finally { setState(AppState.READY); }
-  };
+      }, brandKit, type, setLoadingMsg);
 
-  const handleConvertToVideo = async () => {
-    if (!output || genType !== 'image') return;
-    if (userCredits.videos <= 0) return onInsufficientCredits();
+      if (type === 'image') {
+        setOutput(resultUrl);
+      } else {
+        setVideoOutput(resultUrl);
+      }
 
-    setIsConvertingToVideo(true);
-    setLoadingMsg("Synthesizing Motion...");
-    try {
-      const url = await GeminiService.generateVideoFromImage(output, motionPrompt || "Cinematic fashion reveal", (msg) => setLoadingMsg(msg));
-      const newRes: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: 'video', url, prompt: motionPrompt || "Cinematic Motion", timestamp: Date.now() };
-      setOutput(url);
-      setGenType('video');
-      addToHistory(newRes);
-      setShowMotionControls(false);
-    } catch (err: any) {
-      onError(err);
-    } finally {
-      setIsConvertingToVideo(false);
-      setState(AppState.READY);
+      addToHistory({ 
+        id: Math.random().toString(36).substr(2, 9), 
+        type, 
+        url: resultUrl, 
+        prompt: finalUseCase, 
+        timestamp: Date.now() 
+      });
+    } catch (err: any) { 
+      onError(err); 
+    } finally { 
+      setState(AppState.READY); 
     }
   };
 
   return (
-    <div className="space-y-16 pb-24 animate-in fade-in duration-700">
-      <div className="flex items-center justify-between px-12">
-        {steps.map((step) => {
-          const isSkipped = productDetails.renderMode === 'product-only' && step.id === 2;
-          if (isSkipped) return null;
-          return (
-            <div key={step.id} className="flex flex-col items-center gap-4 relative flex-1 group">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold transition-all border-2 ${
-                currentStep >= step.id ? 'bg-emerald-950 text-white border-emerald-950 shadow-lg' : 'bg-white text-emerald-950/20 border-emerald-50'
-              }`}>
-                {step.id}
-              </div>
-              <span className={`text-[10px] font-bold uppercase tracking-[0.3em] transition-colors ${currentStep >= step.id ? 'text-emerald-950' : 'text-emerald-950/20'}`}>
-                {step.label}
-              </span>
-              {step.id < 4 && (
-                <div className="absolute top-5 left-[calc(50%+25px)] right-[calc(-50%+25px)] h-[2px] bg-emerald-50" />
-              )}
+    <div className="space-y-32 py-12 animate-lux-in">
+      {/* 4-Step Flow Header */}
+      <div className="flex items-center justify-between max-w-4xl mx-auto border-b border-gray-50 pb-20">
+        {steps.map((step, idx) => (
+          <div key={step.id} className="flex flex-col items-center gap-6 flex-1 relative">
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-[12px] font-bold border transition-all duration-1000 ${
+              step.active 
+                ? 'bg-gold border-gold text-white shadow-2xl shadow-gold/20' 
+                : 'bg-white border-gray-100 text-gray-200'
+            }`}>
+              {step.active ? (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+              ) : step.id}
             </div>
-          );
-        })}
+            <span className={`text-[10px] font-bold uppercase tracking-[0.4em] transition-all duration-700 whitespace-nowrap ${
+              step.active ? 'text-emerald-950' : 'text-gray-200'
+            }`}>{step.label}</span>
+            {idx < steps.length - 1 && (
+              <div className="absolute top-7 left-[calc(50%+35px)] right-[calc(-50%+35px)] h-[1px] bg-gray-50" />
+            )}
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-        <div className="lg:col-span-4 space-y-10">
-          <div className="bg-white rounded-4xl p-10 border border-emerald-50 soft-shadow space-y-10">
-             <div className="space-y-4">
-                <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-widest">
-                  {productDetails.renderMode === 'product-only' ? 'Master Product Asset (No Model)' : 'Master Product Asset'}
-                </span>
-                <div onClick={() => !productImage && document.getElementById('ps_up')?.click()} className={`aspect-square rounded-3xl border-2 border-dashed flex items-center justify-center cursor-pointer overflow-hidden transition-all ${productImage ? 'border-transparent bg-emerald-50 shadow-inner' : 'border-emerald-100 hover:border-gold/30'}`}>
-                   {productImage ? <MediaAsset src={productImage} className="w-full h-full object-cover" /> : (
-                     <div className="text-center space-y-2 px-6">
-                       <div className="w-12 h-12 bg-emerald-50 rounded-full mx-auto flex items-center justify-center text-gold">
-                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path d="M12 4v16m8-8H4" strokeWidth={2}/>
-                         </svg>
-                       </div>
-                       <span className="text-[10px] font-bold text-emerald-950/20 uppercase tracking-widest block leading-relaxed">
-                         {productDetails.renderMode === 'product-only' ? 'Upload product image (no model required)' : 'Upload product for editorial shoot'}
-                       </span>
-                     </div>
-                   )}
-                   <input type="file" id="ps_up" onChange={(e) => { const f = e.target.files?.[0]; if(f) handleImageUpload(f); }} className="hidden" />
-                </div>
-             </div>
-
-             <div className="space-y-4 pt-10 border-t border-emerald-50">
-               <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-widest">Render Mode</span>
-               <div className="flex bg-emerald-50/50 p-1 rounded-2xl border border-emerald-100">
-                  <button 
-                    onClick={() => { setProductDetails({...productDetails, renderMode: 'product-only'}); setOutput(null); }}
-                    className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${productDetails.renderMode === 'product-only' ? 'bg-white text-emerald-950 shadow-sm' : 'text-emerald-950/30'}`}
-                  >
-                    Product Only
-                  </button>
-                  <button 
-                    onClick={() => setProductDetails({...productDetails, renderMode: 'on-model'})}
-                    className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${productDetails.renderMode === 'on-model' ? 'bg-white text-emerald-950 shadow-sm' : 'text-emerald-950/30'}`}
-                  >
-                    On-Model
-                  </button>
-               </div>
-             </div>
-
-             {productImage && productDetails.renderMode === 'on-model' && (
-               <div className="space-y-6 pt-10 border-t border-emerald-50 animate-in slide-in-from-top-6">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-widest">Neural Talent Cast</span>
-                    <button onClick={onGoBackToModels} className="text-[8px] font-bold text-gold uppercase tracking-widest hover:underline">Models Page</button>
+      <div className="grid grid-cols-1 gap-32">
+        {/* Input Phase */}
+        {(!output && !videoOutput) && (
+          <div className="grid grid-cols-1 gap-32">
+            <div className="space-y-12">
+              <div className="space-y-4">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.5em] text-gold">Step 01</h3>
+                <h2 className="text-4xl font-serif text-emerald-950 italic">Upload Product Asset</h2>
+              </div>
+              <div 
+                onClick={() => document.getElementById('shoot_up')?.click()}
+                className={`aspect-[21/9] rounded-[4rem] border-2 border-dashed flex items-center justify-center cursor-pointer overflow-hidden transition-all duration-1000 group ${productImage ? 'border-transparent bg-gray-50 shadow-inner' : 'border-gray-100 hover:border-gold/30 hover:bg-gold/5'}`}
+              >
+                {productImage ? <MediaAsset src={productImage} className="w-full h-full object-cover" /> : (
+                  <div className="text-center space-y-6 px-12 group-hover:scale-105 transition-transform duration-700">
+                    <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center text-gold shadow-xl border border-gray-50">
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    </div>
+                    <span className="text-[12px] font-bold text-gray-300 uppercase tracking-widest block leading-relaxed italic">Deposit Master Product</span>
                   </div>
+                )}
+                <input type="file" id="shoot_up" onChange={(e) => { const f = e.target.files?.[0]; if(f) handleImageUpload(f); }} className="hidden" />
+              </div>
+            </div>
 
-                  <div className="space-y-4">
-                    <select 
-                      value={selectedModel?.id || ''} 
-                      onChange={(e) => {
-                        const m = modelData.find(model => model.id === e.target.value);
-                        if (m) setSelectedModel(m);
-                      }}
-                      className="w-full px-4 py-3 bg-emerald-50/20 border-emerald-50 rounded-2xl text-[10px] uppercase font-bold tracking-widest outline-none focus:border-gold/30 transition-colors"
-                    >
-                      <option value="" disabled>Select Maison Talent</option>
-                      {modelData.map(m => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.nationality})</option>
-                      ))}
-                    </select>
-
-                    {selectedModel ? (
-                      <div className="flex items-center gap-6 bg-emerald-50/40 p-5 rounded-3xl group cursor-pointer transition-all hover:bg-emerald-100/50" onClick={() => setSelectedModel(null as any)}>
-                        <MediaAsset src={selectedModel.mainUrl} className="w-16 h-16 rounded-2xl object-cover shadow-lg bg-emerald-50" />
-                        <div className="space-y-1">
-                          <h4 className="text-lg font-serif text-emerald-950">{selectedModel.name}</h4>
-                          <span className="text-[8px] text-emerald-950/40 font-bold uppercase tracking-widest">{selectedModel.nationality}</span>
-                        </div>
-                        <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"><svg className="w-5 h-5 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></div>
-                      </div>
-                    ) : (
-                      <button onClick={onGoBackToModels} className="w-full py-5 border-2 border-dashed border-emerald-100 rounded-3xl text-[10px] font-bold text-emerald-950/20 uppercase tracking-widest hover:border-gold/30 hover:text-gold transition-all flex items-center justify-center gap-3">
-                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" strokeWidth={2}/></svg>
-                         Browse Identity Registry
-                      </button>
-                    )}
-                  </div>
-               </div>
-             )}
+            <div className="space-y-12">
+              <div className="space-y-4">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.5em] text-gold">Step 02</h3>
+                <h2 className="text-4xl font-serif text-emerald-950 italic">Cast Identity</h2>
+              </div>
+              <div className="bg-white border border-gray-50 rounded-[4rem] p-12 soft-shadow">
+                <ModelShowcase 
+                  compact 
+                  selectedModelId={selectedModel?.id} 
+                  onModelSelect={setSelectedModel} 
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="lg:col-span-8 space-y-10">
-          <div className="bg-white rounded-4xl p-12 border border-emerald-50 soft-shadow space-y-10">
-             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                   <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-emerald-950/40 uppercase tracking-[0.2em]">Creative Direction</span>
-                      <span className="text-[8px] font-bold text-gold uppercase tracking-widest">Neural Vision Pipeline</span>
-                   </div>
-                   <button 
-                      onClick={handleSuggestPrompts}
-                      disabled={!productImage || isSuggesting}
-                      className="px-6 py-2.5 border-2 border-gold text-gold rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all disabled:opacity-30 flex items-center gap-2"
-                    >
-                      {isSuggesting ? (
-                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                      )}
-                      Suggest Luxury Prompts
-                    </button>
+        {/* Step 3 & 4 Section */}
+        {(!output && !videoOutput) ? (
+          <div className="space-y-20 pt-24 border-t border-gray-100">
+            <div className="space-y-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.5em] text-gold">Step 03</h3>
+              <h2 className="text-4xl font-serif text-emerald-950 italic">Style & Narrative</h2>
+            </div>
+
+            <div className="space-y-12">
+              <div className="space-y-8">
+                <div className="flex items-center justify-between ml-4">
+                  <label className="text-[10px] font-bold text-emerald-950/20 uppercase tracking-widest block">Creative Vision Directive</label>
+                  {isGeneratingConcepts && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-gold rounded-full animate-pulse" />
+                      <span className="text-[9px] font-bold text-gold uppercase tracking-widest">Architecting concepts...</span>
+                    </div>
+                  )}
                 </div>
+                
+                <textarea 
+                  value={customPrompt} 
+                  onChange={(e) => setCustomPrompt(e.target.value)} 
+                  placeholder="Define the photoshoot atmosphere, editorial lighting, and environment..." 
+                  className="w-full bg-gray-50/50 border-none rounded-[3rem] p-12 text-sm font-serif italic min-h-[220px] focus:ring-1 focus:ring-gold/20 outline-none shadow-inner transition-all focus:bg-white"
+                />
 
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-[0.3em]">Dubai Studio Collection</span>
-                    <div className="h-px flex-1 bg-emerald-50" />
-                    <span className="px-2 py-0.5 bg-gold/10 text-gold text-[7px] font-bold uppercase rounded border border-gold/20">Locked Presets</span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {dubaiPresets.map((preset) => (
+                {aiConcepts.length > 0 && (
+                  <div className="flex flex-wrap gap-3 px-2">
+                    {aiConcepts.map((concept, idx) => (
                       <button 
-                        key={preset.id}
-                        onClick={() => setCustomPrompt(preset.prompt)}
-                        className={`group relative flex flex-col items-center justify-center p-4 bg-zinc-50 border border-emerald-50 rounded-2xl transition-all hover:border-gold/40 hover:bg-white active:scale-95 ${customPrompt === preset.prompt ? 'border-gold bg-gold/[0.03] ring-1 ring-gold/20' : ''}`}
+                        key={idx}
+                        onClick={() => setCustomPrompt(concept.prompt)}
+                        className={`px-8 py-3 bg-white border border-gray-100 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all hover:border-gold hover:text-gold hover:shadow-lg ${customPrompt === concept.prompt ? 'bg-gold text-white border-gold shadow-gold/20' : 'text-emerald-950/40'}`}
                       >
-                        <span className="text-xl mb-2 opacity-50 group-hover:opacity-100 transition-opacity">{preset.icon}</span>
-                        <span className={`text-[8px] font-bold uppercase tracking-widest text-center leading-tight ${customPrompt === preset.prompt ? 'text-gold' : 'text-emerald-950/40'}`}>
-                          {preset.label}
-                        </span>
-                        {customPrompt === preset.prompt && <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-gold rounded-full shadow-[0_0_8px_rgba(212,175,55,0.8)]" />}
+                        {concept.label}
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="pt-6">
-                  <textarea 
-                    value={customPrompt} 
-                    onChange={(e) => setCustomPrompt(e.target.value)} 
-                    placeholder={productDetails.renderMode === 'product-only' ? "Define the standalone product setting and lighting..." : "Define the photoshoot atmosphere, lighting, and global setting..."} 
-                    className="w-full bg-emerald-50/20 border-2 border-emerald-100/30 rounded-3xl p-8 text-sm italic min-h-[160px] focus:ring-1 focus:ring-gold focus:border-gold transition-all shadow-inner outline-none placeholder:text-zinc-300"
-                  />
-                </div>
-                
-                {aiSuggestions.length > 0 && (
-                  <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
-                     <span className="text-[9px] font-bold text-emerald-950/40 uppercase tracking-widest">Director's Vision</span>
-                     <div className="flex flex-wrap gap-2">
-                        {aiSuggestions.map((s, i) => (
-                           <button 
-                              key={i} 
-                              onClick={() => setCustomPrompt(s.prompt)}
-                              className="px-5 py-2.5 bg-white border border-emerald-100 rounded-full text-[9px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold transition-all shadow-sm active:scale-95"
-                           >
-                              {s.label}
-                           </button>
-                        ))}
-                     </div>
-                  </div>
                 )}
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-6 border-t border-emerald-50">
-                <div className="space-y-4">
-                  <label className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Master Format</label>
-                  <div className="flex bg-emerald-50 p-1 rounded-2xl border border-emerald-100">
-                    <button onClick={() => setGenType('image')} className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase transition-all ${genType === 'image' ? 'bg-white text-emerald-950 shadow-sm' : 'text-emerald-950/20'}`}>Still</button>
-                    <button onClick={() => setGenType('video')} className={`flex-1 py-3 rounded-xl text-[9px] font-bold uppercase transition-all ${genType === 'video' ? 'bg-white text-emerald-950 shadow-sm' : 'text-emerald-950/20'}`}>Film</button>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                   <label className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Camera Perspective</label>
-                   <select 
-                     value={productDetails.cameraAngle} 
-                     onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} 
-                     className="w-full px-6 py-4 bg-emerald-50/20 border-emerald-50 rounded-2xl text-[10px] uppercase font-bold tracking-widest outline-none focus:border-gold/30 transition-colors"
-                   >
-                      {cameraAngles.map(a => <option key={a} value={a}>{a}</option>)}
-                   </select>
-                </div>
-                <div className="space-y-4">
-                   <label className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Camera Motion</label>
-                   <select 
-                     value={productDetails.cameraMotion} 
-                     onChange={(e) => setProductDetails({...productDetails, cameraMotion: e.target.value as CameraMotion})} 
-                     className="w-full px-6 py-4 bg-emerald-50/20 border-emerald-50 rounded-2xl text-[10px] uppercase font-bold tracking-widest outline-none focus:border-gold/30 transition-colors"
-                   >
-                      {cameraMotions.map(m => <option key={m} value={m}>{m}</option>)}
-                   </select>
-                </div>
-             </div>
-
-             {genType === 'video' && (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 animate-in slide-in-from-top-2 duration-500">
-                  <div className="space-y-4">
-                     <label className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Video Resolution</label>
-                     <select 
-                       value={productDetails.videoResolution} 
-                       onChange={(e) => setProductDetails({...productDetails, videoResolution: e.target.value as any})} 
-                       className="w-full px-6 py-4 bg-emerald-50/20 border-emerald-50 rounded-2xl text-[10px] uppercase font-bold tracking-widest outline-none focus:border-gold/30 transition-colors"
-                     >
-                        <option value="720p">720p (HD)</option>
-                        <option value="1080p">1080p (Full HD)</option>
-                     </select>
-                  </div>
-                  <div className="space-y-4">
-                     <label className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Aspect Ratio</label>
-                     <select 
-                       value={productDetails.videoAspectRatio} 
-                       onChange={(e) => setProductDetails({...productDetails, videoAspectRatio: e.target.value as any})} 
-                       className="w-full px-6 py-4 bg-emerald-50/20 border-emerald-50 rounded-2xl text-[10px] uppercase font-bold tracking-widest outline-none focus:border-gold/30 transition-colors"
-                     >
-                        <option value="16:9">16:9 (Landscape)</option>
-                        <option value="9:16">9:16 (Story)</option>
-                     </select>
-                  </div>
-               </div>
-             )}
-
-             <div className="pt-6 border-t border-emerald-50">
+              </div>
+              
+              {/* Advanced Options Accordion */}
+              <div className="border border-gray-100 rounded-[3rem] overflow-hidden bg-white soft-shadow">
                 <button 
                   onClick={() => setShowAdvanced(!showAdvanced)}
-                  className="flex items-center gap-3 text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest hover:text-gold transition-all py-2"
+                  className="w-full px-12 py-10 flex items-center justify-between group hover:bg-gray-50 transition-colors"
                 >
-                  <svg className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  Pro Specs & Brand Injection
+                  <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-[0.4em]">Advanced Refinements</span>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border border-gray-100 transition-all ${showAdvanced ? 'rotate-180 bg-gold border-gold text-white' : 'text-emerald-950/20'}`}>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
                 </button>
                 {showAdvanced && (
-                  <div className="pt-8 animate-in slide-in-from-top-4 duration-300">
-                    <div className="max-w-md space-y-6">
-                       <label className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-widest ml-2">Brand Injection</label>
-                       <div className="space-y-4">
-                          <div className="flex items-center justify-between px-6 py-4 bg-emerald-50/20 border-emerald-50 rounded-2xl">
-                             <span className="text-[9px] font-bold text-emerald-950/40 uppercase tracking-widest">Add my brand logo</span>
-                             <input type="checkbox" checked={productDetails.addLogo} onChange={(e) => setProductDetails({...productDetails, addLogo: e.target.checked})} className="w-4 h-4 accent-gold" />
-                          </div>
-                          {productDetails.addLogo && (
-                            <div className="space-y-2 animate-in slide-in-from-top-1 duration-300">
-                               <label className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Logo Placement</label>
-                               <select 
-                                 value={productDetails.logoPlacement} 
-                                 onChange={(e) => setProductDetails({...productDetails, logoPlacement: e.target.value as LogoPlacement})} 
-                                 className="w-full px-6 py-4 bg-emerald-50/20 border-emerald-50 rounded-2xl text-[10px] uppercase font-bold tracking-widest outline-none focus:border-gold/30 transition-colors"
-                               >
-                                  {logoPlacements.map(lp => <option key={lp} value={lp}>{lp}</option>)}
-                               </select>
-                            </div>
-                          )}
-                       </div>
-                    </div>
-                  </div>
-                )}
-             </div>
-
-             <div className="pt-10 border-t border-emerald-50 flex justify-end gap-10 items-center">
-                <div className="text-right">
-                   <span className="block text-[9px] font-bold text-emerald-950/20 uppercase tracking-widest">Authorization Cost</span>
-                   <span className="text-[11px] font-bold text-gold uppercase tracking-widest">1 Render Credit</span>
-                </div>
-                <button 
-                  onClick={handleGenerate} 
-                  disabled={!productImage || (productDetails.renderMode === 'on-model' && !selectedModel) || state === AppState.GENERATING} 
-                  className={`px-20 py-6 rounded-full font-bold text-[12px] uppercase tracking-[0.5em] transition-all ${!productImage || (productDetails.renderMode === 'on-model' && !selectedModel) || state === AppState.GENERATING ? 'bg-emerald-50 text-emerald-100 cursor-not-allowed' : 'bg-emerald-950 text-white hover:bg-gold shadow-2xl active:scale-95 shadow-emerald-950/20'} btn-luxury`}
-                >
-                   {state === AppState.GENERATING ? loadingMsg : 'Execute Neural Photoshoot'}
-                </button>
-             </div>
-          </div>
-
-          {(output || state === AppState.GENERATING || isConvertingToVideo) && (
-            <div className="bg-white rounded-4xl p-12 border border-emerald-50 soft-shadow space-y-8 flex flex-col items-center animate-in zoom-in duration-1000">
-              <div className="aspect-[4/5] w-full max-w-[480px] rounded-4xl overflow-hidden shadow-2xl relative group bg-emerald-50/50">
-                {(state === AppState.GENERATING || isConvertingToVideo) ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center space-y-8 bg-emerald-950/10 backdrop-blur-sm z-30">
-                    <div className="w-20 h-20 border-4 border-gold border-t-transparent rounded-full animate-spin" />
-                    <p className="text-[12px] font-bold uppercase text-gold tracking-[0.5em] animate-pulse">{loadingMsg}</p>
-                  </div>
-                ) : (
-                  <>
-                    <MediaAsset src={output!} type={genType} className="w-full h-full object-cover" />
-                    <div className="absolute top-8 right-8 flex flex-col gap-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                      {genType === 'image' && <button onClick={() => setShowEditor(true)} className="p-4 bg-white text-emerald-950 rounded-2xl shadow-2xl hover:text-gold transition-all hover:scale-110"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>}
-                      <a href={output!} download className="p-4 bg-white text-emerald-950 rounded-2xl shadow-2xl hover:text-gold transition-all hover:scale-110"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></a>
-                    </div>
-
-                    {genType === 'image' && (
-                        <div className="absolute bottom-8 left-8 right-8 space-y-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                           {!showMotionControls ? (
-                              <button 
-                                onClick={() => setShowMotionControls(true)}
-                                className="w-full py-5 bg-gold text-white rounded-3xl font-bold text-[11px] uppercase tracking-[0.3em] shadow-2xl hover:bg-gold-hover transition-all"
-                              >
-                                Convert to Cinematic Film
-                              </button>
-                           ) : (
-                              <div className="bg-white p-8 rounded-4xl space-y-8 shadow-2xl border border-emerald-50 animate-in slide-in-from-bottom-6">
-                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-emerald-950/40 uppercase tracking-widest">Motion Profile</span>
-                                    <button onClick={() => setShowMotionControls(false)} className="text-emerald-950/40 hover:text-emerald-950"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                                 </div>
-                                 <div className="flex flex-wrap gap-2">
-                                    {motionSuggestions.map((m, i) => (
-                                       <button 
-                                          key={i} 
-                                          onClick={() => setMotionPrompt(m.prompt)}
-                                          className={`px-5 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest border transition-all ${motionPrompt === m.prompt ? 'bg-gold border-gold text-white' : 'bg-emerald-50 border-emerald-50 text-emerald-950/40 hover:bg-emerald-100'}`}
-                                       >
-                                          {m.label}
-                                       </button>
-                                    ))}
-                                 </div>
-                                 <textarea 
-                                    value={motionPrompt}
-                                    onChange={(e) => setMotionPrompt(e.target.value)}
-                                    placeholder="Define the motion trajectory..."
-                                    className="w-full bg-emerald-50/50 rounded-2xl p-4 text-xs italic min-h-[100px] focus:ring-1 focus:ring-gold outline-none"
-                                 />
-                                 <button 
-                                    onClick={handleConvertToVideo}
-                                    className="w-full py-5 bg-emerald-950 text-white rounded-3xl font-bold text-[11px] uppercase tracking-[0.3em] hover:bg-gold transition-all"
-                                 >
-                                    Synthesize Motion
-                                 </button>
-                              </div>
-                           )}
+                  <div className="px-12 pb-16 space-y-12 animate-in fade-in slide-in-from-top-4 duration-500">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Product Type</label>
+                          <select value={productDetails.type} onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} className="w-full bg-gray-50 border-none rounded-3xl px-8 py-5 text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white transition-all">
+                            {productTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
                         </div>
-                    )}
-                  </>
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Approx Size</label>
+                          <input 
+                            type="text" 
+                            value={productDetails.approxSize} 
+                            onChange={(e) => setProductDetails({...productDetails, approxSize: e.target.value})} 
+                            placeholder="e.g. 24cm, US 10" 
+                            className="w-full bg-gray-50 border-none rounded-3xl px-8 py-5 text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white transition-all" 
+                          />
+                        </div>
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Placement</label>
+                          <select value={productDetails.placement} onChange={(e) => setProductDetails({...productDetails, placement: e.target.value as ProductPlacement})} className="w-full bg-gray-50 border-none rounded-3xl px-8 py-5 text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white transition-all">
+                            {placements.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Perspective</label>
+                          <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-gray-50 border-none rounded-3xl px-8 py-5 text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white transition-all">
+                            {cameraAngles.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 border-t border-gray-50 pt-12">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-bold text-emerald-950/30 uppercase tracking-widest block ml-2">Rendering Spec</label>
+                          <select value={productDetails.videoResolution} onChange={(e) => setProductDetails({...productDetails, videoResolution: e.target.value as '720p' | '1080p'})} className="w-full bg-gray-50 border-none rounded-3xl px-8 py-5 text-[11px] font-bold uppercase tracking-widest outline-none focus:bg-white transition-all">
+                            <option value="720p">720p Standard</option>
+                            <option value="1080p">1080p Cinematic</option>
+                          </select>
+                        </div>
+                      </div>
+                  </div>
                 )}
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Step 4: Execute Render */}
+            <div className="flex flex-col items-center gap-12 pt-20">
+              <button 
+                onClick={() => handleGenerate('image')} 
+                disabled={state !== AppState.READY || !productImage || !selectedModel || customPrompt.length < 5}
+                className={`px-40 py-10 rounded-full font-bold text-[14px] uppercase tracking-[0.6em] transition-all shadow-2xl ${
+                  state !== AppState.READY || !productImage || !selectedModel || customPrompt.length < 5
+                    ? 'bg-gray-50 text-gray-200 scale-95' 
+                    : 'bg-emerald-950 text-white hover:bg-gold hover:scale-105 active:scale-95 shadow-emerald-950/20'
+                }`}
+              >
+                {state === AppState.GENERATING ? loadingMsg : 'Step 4: Execute Render'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Result Phase */
+          <div className="space-y-32 animate-lux-in">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-start">
+              <div className="space-y-12">
+                <div className="space-y-4">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.5em] text-gold">Result 01</h3>
+                  <h2 className="text-4xl font-serif text-emerald-950 italic">Primary Render</h2>
+                </div>
+                <div className="aspect-[3/4] w-full rounded-[4rem] overflow-hidden shadow-2xl relative group bg-gray-50 border border-gray-100">
+                  <img src={output!} className="w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-105" />
+                  <div className="absolute top-12 right-12 flex flex-col gap-6 opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-x-4 group-hover:translate-x-0">
+                    <a href={output!} download className="p-8 bg-white/90 backdrop-blur-md text-emerald-950 rounded-[3rem] shadow-2xl hover:text-gold transition-all transform hover:scale-110">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-12">
+                <div className="space-y-4">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.5em] text-gold">Motion Synthesis</h3>
+                  <h2 className="text-4xl font-serif text-emerald-950 italic">Animate Campaign</h2>
+                </div>
+                
+                {!videoOutput ? (
+                  <div className="bg-white border border-gray-100 rounded-[4rem] p-16 soft-shadow space-y-12">
+                    <p className="text-lg text-emerald-950/60 leading-relaxed font-light italic">
+                      Bring this masterpiece to life. Our neural motion engine will synthesize a 100% faithful cinematic film based on your primary render.
+                    </p>
+                    
+                    <div className="space-y-6">
+                      <label className="text-[11px] font-bold text-emerald-950/20 uppercase tracking-widest block ml-6">Custom Motion Directive (Optional)</label>
+                      <textarea 
+                        value={videoDirective}
+                        onChange={(e) => setVideoDirective(e.target.value)}
+                        placeholder="e.g. 'Slow cinematic zoom into the embroidery'..."
+                        className="w-full bg-gray-50/50 border-none rounded-[3rem] p-10 text-xs font-serif italic min-h-[160px] focus:ring-1 focus:ring-gold/20 outline-none shadow-inner"
+                      />
+                    </div>
+
+                    <button 
+                      onClick={() => handleGenerate('video')}
+                      disabled={state === AppState.GENERATING || userCredits.videos <= 0}
+                      className={`w-full py-8 rounded-full font-bold text-[12px] uppercase tracking-[0.5em] transition-all shadow-2xl ${
+                        state === AppState.GENERATING || userCredits.videos <= 0
+                          ? 'bg-gray-100 text-gray-300'
+                          : 'bg-emerald-950 text-white hover:bg-gold shadow-emerald-950/20 active:scale-95'
+                      }`}
+                    >
+                      {state === AppState.GENERATING ? loadingMsg : 'Execute Video Synthesis'}
+                    </button>
+                    
+                    <div className="flex items-center justify-center gap-4 opacity-30">
+                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-950" />
+                       <span className="text-[9px] font-bold uppercase tracking-widest">Premium Rendering Protocol</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="aspect-[3/4] w-full rounded-[4rem] overflow-hidden shadow-2xl relative group bg-gray-50 border border-gray-100">
+                    <MediaAsset src={videoOutput} type="video" className="w-full h-full object-cover" />
+                    <div className="absolute top-12 right-12 flex flex-col gap-6 opacity-0 group-hover:opacity-100 transition-all duration-1000 translate-x-4 group-hover:translate-x-0">
+                      <a href={videoOutput} download className="p-8 bg-white/90 backdrop-blur-md text-emerald-950 rounded-[3rem] shadow-2xl hover:text-gold transition-all transform hover:scale-110">
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-center border-t border-gray-50 pt-24">
+               <button 
+                onClick={() => { setOutput(null); setVideoOutput(null); setCustomPrompt(''); setVideoDirective(''); setProductImage(null); setAnalysis(null); }}
+                className="text-[11px] font-bold text-emerald-950/20 uppercase tracking-[0.5em] hover:text-emerald-950 transition-colors"
+               >
+                 Initialize New Production Session
+               </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {productDetails.renderMode === 'on-model' && !selectedModel && productImage && currentStep === 2 && (
-        <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000">
-          <ModelShowcase onModelSelect={setSelectedModel} personalModel={null} />
-        </div>
-      )}
-
-      {showEditor && output && genType === 'image' && (
+      {showEditor && output && !videoOutput && (
         <ImageEditor 
           imageUrl={output} brandKit={brandKit}
           analysis={analysis || { type: 'Clothing', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] }} 

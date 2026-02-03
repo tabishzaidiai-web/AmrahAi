@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User } from '../types';
 
@@ -60,7 +61,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     if (code.length < 6) return;
     
     // Secret admin code for testing
-    if (code === '999999' && email === 'admin@amrah.ai') {
+    if (code === '999999' && email === 'contact@arabianailab.com') {
       mockUserLogin(email, 'Maison Commander', 'Admin');
     } else {
       mockUserLogin(email, email.split('@')[0].toUpperCase());
