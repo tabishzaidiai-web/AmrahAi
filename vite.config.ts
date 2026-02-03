@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       port: 4173,
       allowedHosts: ['amrahai-production.up.railway.app']
     },
+              },
 
       plugins: [react()],
       define: {
