@@ -8,9 +8,12 @@ export default defineConfig(({ mode }) => {
       server: {
   host: '0.0.0.0',
   port: 5173,
-  preview: {
-    allowedHosts: ['amrahai-production.up.railway.app']
-  }
+      preview: {
+      host: '0.0.0.0',
+      port: 4173,
+      allowedHosts: ['amrahai-production.up.railway.app']
+    }
+
 }
       plugins: [react()],
       define: {
