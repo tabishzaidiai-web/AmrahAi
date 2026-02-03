@@ -1,0 +1,17 @@
+{
+  "name": "amrah-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "@supabase/supabase-js": "^2.39.0",
+    "stripe": "^14.12.0",
+    "@paypal/checkout-server-sdk": "^1.0.3",
+    "@google/genai": "^1.35.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

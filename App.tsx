@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import PhotoStudio from './components/PhotoStudio';
 import Dashboard from './components/Dashboard';
@@ -9,32 +9,28 @@ import AmazonListingStudio from './components/AmazonListingStudio';
 import ModelShowcase from './components/ModelShowcase';
 import BrandKit from './components/BrandKit';
 import AdminDashboard from './components/AdminDashboard';
-import Auth from './components/Auth';
-import Pricing from './components/Pricing';
+import AuthModal from './components/AuthModal';
+import UpgradeModal from './components/UpgradeModal';
+import UsageMeter from './components/UsageMeter';
 import { 
   GenerationResult, 
   BrandKit as BrandKitType, 
   ModelPersona, 
   ProductCategory, 
-  User, 
   UsageLog 
 } from './types';
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
+  const { user, session, logout, refreshProfile } = useAuth();
   const [view, setView] = useState<'landing' | 'app'>('landing');
   const [activeTab, setActiveTab] = useState('shoot');
   const [history, setHistory] = useState<GenerationResult[]>([]);
   const [logs, setLogs] = useState<UsageLog[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelPersona | null>(null);
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(true);
   const [initialCategory, setInitialCategory] = useState<ProductCategory>('fashion');
-  const [showPricing, setShowPricing] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('amrah_user_session');
-    return saved ? JSON.parse(saved) : null;
-  });
-
   const [brandKit, setBrandKit] = useState<BrandKitType>(() => {
     const saved = localStorage.getItem('amrah_brand_dna');
     if (saved) return JSON.parse(saved);
@@ -49,7 +45,6 @@ const App: React.FC = () => {
     };
   });
 
-  // Handle cross-component tab switching (e.g., from Shoot to Models)
   useEffect(() => {
     const handleTabChange = (e: any) => {
       if (e.detail) setActiveTab(e.detail);
@@ -58,129 +53,29 @@ const App: React.FC = () => {
     return () => document.removeEventListener('changeTab', handleTabChange);
   }, []);
 
-  useEffect(() => {
-    const checkKeyStatus = async () => {
-      // @ts-ignore
-      if (window.aistudio) {
-        try {
-          // @ts-ignore
-          const selected = await window.aistudio.hasSelectedApiKey();
-          setIsKeySelected(selected);
-        } catch (e) {
-          setIsKeySelected(true);
-        }
-      }
-    };
-    checkKeyStatus();
-  }, []);
-
   const handleEnterApp = (tab: string = 'shoot', category?: ProductCategory) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
     setActiveTab(tab);
     if (category) setInitialCategory(category);
     setView('app');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleOpenKeySelection = async () => {
-    // @ts-ignore
-    if (window.aistudio) {
-      try {
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-        setIsKeySelected(true);
-      } catch (e) {
-        alert("Failed to initialize Key Selector.");
-      }
+  const handleApiError = useCallback((err: any) => {
+    if (err.code === 'quota_exceeded') {
+      setShowUpgradeModal(true);
     } else {
-      setIsKeySelected(true);
+      alert(err?.message || "An unexpected neural orchestration error occurred.");
     }
-  };
-
-  const handleResetKey = useCallback(() => {
-    setIsKeySelected(false);
   }, []);
 
   const addToHistory = (result: GenerationResult) => {
     setHistory(prev => [result, ...prev]);
-    
-    // Add to admin logs
-    if (user) {
-      const newLog: UsageLog = {
-        id: Math.random().toString(36).substr(2, 9),
-        userId: user.id,
-        userEmail: user.email,
-        type: result.type,
-        timestamp: Date.now(),
-        prompt: result.prompt
-      };
-      setLogs(prev => [newLog, ...prev]);
-
-      const updatedUser: User = {
-        ...user,
-        totalGenerated: (user.totalGenerated || 0) + 1,
-        credits: {
-          images: result.type === 'image' && user.credits.images !== -1 ? Math.max(0, user.credits.images - 1) : user.credits.images,
-          videos: result.type === 'video' && user.credits.videos !== -1 ? Math.max(0, user.credits.videos - 1) : user.credits.videos,
-        }
-      };
-      setUser(updatedUser);
-      localStorage.setItem('amrah_user_session', JSON.stringify(updatedUser));
-    }
+    refreshProfile(); // Update credits after generation
   };
-
-  const handleLogin = (newUser: User) => {
-    setUser(newUser);
-    localStorage.setItem('amrah_user_session', JSON.stringify(newUser));
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('amrah_user_session');
-    setView('landing');
-  };
-
-  const handleApiError = useCallback((err: any) => {
-    const errMsg = err?.message?.toLowerCase() || "";
-    if (
-      errMsg.includes("requested entity was not found") || 
-      errMsg.includes("authentication error") || 
-      errMsg.includes("unauthorized") ||
-      errMsg.includes("api key")
-    ) {
-      handleResetKey();
-      alert("Maison Session Expired or Authentication Failed. Please re-select your API key to continue.");
-    } else {
-      alert(err?.message || "An unexpected neural orchestration error occurred.");
-    }
-  }, [handleResetKey]);
-
-  if (view === 'landing') {
-    return <Dashboard onEnterApp={handleEnterApp} />;
-  }
-
-  if (!user) {
-    return <Auth onLogin={handleLogin} />;
-  }
-
-  if (!isKeySelected) {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 md:p-12 text-center space-y-12 animate-lux-in">
-        <div className="space-y-6">
-          <span className="text-[10px] font-bold text-gold uppercase tracking-[0.5em]">Authorization</span>
-          <h1 className="text-4xl md:text-5xl font-serif text-emerald-950 leading-tight">Maison Access Control</h1>
-          <p className="text-emerald-950/40 max-w-md mx-auto italic font-light leading-relaxed">
-            Your session requires a valid Gemini API Key from a paid project. Please authorize to resume rendering.
-          </p>
-        </div>
-        <button 
-          onClick={handleOpenKeySelection}
-          className="px-12 md:px-16 py-6 md:py-7 bg-emerald-950 text-white rounded-full font-bold text-[11px] uppercase tracking-[0.4em] hover:bg-gold transition-all shadow-2xl btn-luxury"
-        >
-          Select Maison API Key
-        </button>
-      </div>
-    );
-  }
 
   const tabs = [
     { id: 'shoot', label: 'Create Product Shoot' },
@@ -192,8 +87,17 @@ const App: React.FC = () => {
     { id: 'history', label: 'Archives' },
   ];
 
-  if (user.role === 'Admin') {
+  if (user?.role === 'Admin') {
     tabs.push({ id: 'admin', label: 'Command Center' });
+  }
+
+  if (view === 'landing') {
+    return (
+      <>
+        <Dashboard onEnterApp={handleEnterApp} />
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      </>
+    );
   }
 
   return (
@@ -202,14 +106,15 @@ const App: React.FC = () => {
         brandKit={brandKit} 
         onLogoClick={() => setView('landing')} 
         user={user} 
-        onUpgradeClick={() => setShowPricing(true)}
-        onLogout={handleLogout}
+        onUpgradeClick={() => setShowUpgradeModal(true)}
+        onLogout={logout}
       />
       
-      {showPricing && <Pricing onClose={() => setShowPricing(false)} onSelect={(pkg) => {}} />}
+      {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
-      <div className="bg-white px-4 md:px-16 flex items-center justify-center border-b border-gray-100 h-20 relative overflow-x-auto no-scrollbar">
-        <div className="flex gap-8 md:gap-12 whitespace-nowrap">
+      <div className="bg-white px-4 md:px-16 flex items-center justify-between border-b border-gray-100 h-20">
+        <div className="flex gap-8 md:gap-12 whitespace-nowrap overflow-x-auto no-scrollbar">
           {tabs.map((item) => (
             <button
               key={item.id}
@@ -225,6 +130,7 @@ const App: React.FC = () => {
             </button>
           ))}
         </div>
+        <UsageMeter />
       </div>
 
       <main className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-24 bg-white no-scrollbar">
@@ -233,13 +139,17 @@ const App: React.FC = () => {
             <CreateShoot 
               brandKit={brandKit} selectedModel={selectedModel} setSelectedModel={setSelectedModel}
               addToHistory={addToHistory} initialCategory={initialCategory}
-              userCredits={user.credits} onInsufficientCredits={() => setShowPricing(true)} onError={handleApiError}
+              userCredits={user?.credits || {images:0, videos:0}} 
+              onInsufficientCredits={() => setShowUpgradeModal(true)} 
+              onError={handleApiError}
             />
           )}
           {activeTab === 'quick' && (
             <PhotoStudio 
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
-              userCredits={user.credits} onInsufficientCredits={() => setShowPricing(true)} onError={handleApiError}
+              userCredits={user?.credits || {images:0, videos:0}} 
+              onInsufficientCredits={() => setShowUpgradeModal(true)} 
+              onError={handleApiError}
               selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             />
           )}
@@ -247,15 +157,17 @@ const App: React.FC = () => {
             <AmazonListingStudio 
               brandKit={brandKit}
               addToHistory={addToHistory}
-              userCredits={user.credits}
-              onInsufficientCredits={() => setShowPricing(true)}
+              userCredits={user?.credits || {images:0, videos:0}}
+              onInsufficientCredits={() => setShowUpgradeModal(true)}
               onError={handleApiError}
             />
           )}
           {activeTab === 'banners' && (
             <Campaigns 
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
-              userCredits={user.credits} onInsufficientCredits={() => setShowPricing(true)} onError={handleApiError}
+              userCredits={user?.credits || {images:0, videos:0}}
+              onInsufficientCredits={() => setShowUpgradeModal(true)} 
+              onError={handleApiError}
               selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             />
           )}
@@ -268,7 +180,7 @@ const App: React.FC = () => {
           {activeTab === 'brand' && (
             <BrandKit brandKit={brandKit} setBrandKit={setBrandKit} />
           )}
-          {activeTab === 'admin' && user.role === 'Admin' && (
+          {activeTab === 'admin' && user?.role === 'Admin' && (
             <AdminDashboard logs={logs} />
           )}
           {activeTab === 'history' && (
@@ -290,9 +202,6 @@ const App: React.FC = () => {
                   </div>
                 ))}
               </div>
-              {history.length === 0 && (
-                <div className="text-center py-40 opacity-20 italic">No artifacts stored in the Maison archives yet.</div>
-              )}
             </div>
           )}
         </div>
@@ -300,5 +209,11 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const App: React.FC = () => (
+  <AuthProvider>
+    <MainApp />
+  </AuthProvider>
+);
 
 export default App;

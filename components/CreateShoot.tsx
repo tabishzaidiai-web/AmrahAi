@@ -30,6 +30,8 @@ const CreateShoot: React.FC<CreateShootProps> = ({
   const [output, setOutput] = useState<string | null>(null);
   const [videoOutput, setVideoOutput] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'image' | 'video'>('image');
+  const [isRedefining, setIsRedefining] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   
   const [productDetails, setProductDetails] = useState<ProductDetails>({
     category: initialCategory || 'fashion', 
@@ -44,12 +46,12 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     videoAspectRatio: '9:16'
   });
 
-  // Sync video prompt with image prompt initially
+  // Sync video prompt with image prompt initially if empty
   useEffect(() => {
     if (customPrompt && !videoPrompt) {
-      setVideoPrompt(customPrompt);
+      setVideoPrompt(`Cinematic motion: ${customPrompt}, fabric moving realistically.`);
     }
-  }, [customPrompt]);
+  }, [customPrompt, videoPrompt]);
 
   const handleImageUpload = async (file: File) => {
     const reader = new FileReader();
@@ -74,15 +76,14 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     const promptToUse = type === 'image' ? customPrompt : videoPrompt;
     if (!promptToUse) return;
 
-    if (type === 'image' && userCredits.images <= 0) return onInsufficientCredits();
-    if (type === 'video' && userCredits.videos <= 0) return onInsufficientCredits();
+    if (type === 'image' && userCredits.images !== -1 && userCredits.images <= 0) return onInsufficientCredits();
+    if (type === 'video' && userCredits.videos !== -1 && userCredits.videos <= 0) return onInsufficientCredits();
     
     setState(AppState.GENERATING);
     setLoadingMsg(type === 'image' ? "Orchestrating Render..." : "Synthesizing Motion...");
     
     try {
-      // If converting to video from a generated image, we use the generated image as a reference if possible, 
-      // otherwise we use the original product asset.
+      // Use the output image as reference for video if it exists, otherwise use original product
       const referenceAsset = type === 'video' && output ? output : productImage;
 
       const resultUrl = await GeminiService.generatePhotoshoot({
@@ -94,9 +95,11 @@ const CreateShoot: React.FC<CreateShootProps> = ({
 
       if (type === 'image') {
         setOutput(resultUrl);
-        setVideoOutput(null); // Reset video if re-generating image
+        setVideoOutput(null); 
+        setIsRedefining(false);
       } else {
         setVideoOutput(resultUrl);
+        setIsAnimating(false);
       }
 
       addToHistory({ 
@@ -107,6 +110,24 @@ const CreateShoot: React.FC<CreateShootProps> = ({
         timestamp: Date.now() 
       });
     } catch (err: any) { onError(err); } finally { setState(AppState.READY); }
+  };
+
+  const toggleRedefine = () => {
+    setIsRedefining(!isRedefining);
+    setIsAnimating(false);
+    if (!isRedefining) {
+      setActiveTab('image');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const toggleAnimate = () => {
+    setIsAnimating(!isAnimating);
+    setIsRedefining(false);
+    if (!isAnimating) {
+      setActiveTab('video');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -134,7 +155,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
             </div>
           </div>
 
-          <div className="space-y-8 bg-white rounded-[3rem] p-10 border border-gray-100 shadow-sm">
+          <div className={`space-y-8 bg-white rounded-[3rem] p-10 border shadow-sm transition-all duration-500 ${isRedefining || isAnimating ? 'border-gold ring-1 ring-gold/20' : 'border-gray-100'}`}>
             <div className="flex border-b border-gray-50 pb-6 gap-8">
               <button 
                 onClick={() => setActiveTab('image')}
@@ -154,7 +175,10 @@ const CreateShoot: React.FC<CreateShootProps> = ({
 
             {activeTab === 'image' ? (
               <div className="space-y-6 animate-in fade-in duration-500">
-                <p className="text-[9px] text-black/30 font-bold uppercase tracking-widest">Atmosphere & Pose</p>
+                <div className="flex justify-between items-center">
+                   <p className="text-[9px] text-black/30 font-bold uppercase tracking-widest">Atmosphere & Pose</p>
+                   {isRedefining && <span className="text-[8px] font-bold text-gold uppercase tracking-widest animate-pulse">Redefining Active</span>}
+                </div>
                 <textarea 
                   value={customPrompt} 
                   onChange={(e) => setCustomPrompt(e.target.value)} 
@@ -164,7 +188,10 @@ const CreateShoot: React.FC<CreateShootProps> = ({
               </div>
             ) : (
               <div className="space-y-6 animate-in fade-in duration-500">
-                <p className="text-[9px] text-black/30 font-bold uppercase tracking-widest">Motion & Flow</p>
+                <div className="flex justify-between items-center">
+                   <p className="text-[9px] text-black/30 font-bold uppercase tracking-widest">Motion & Flow</p>
+                   {isAnimating && <span className="text-[8px] font-bold text-gold uppercase tracking-widest animate-pulse">Animation Active</span>}
+                </div>
                 <textarea 
                   value={videoPrompt} 
                   onChange={(e) => setVideoPrompt(e.target.value)} 
@@ -183,7 +210,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                   : 'bg-black text-white hover:bg-gold shadow-gold/20'
               }`}
             >
-              {state === AppState.GENERATING ? loadingMsg : `Execute ${activeTab === 'image' ? 'Synthesis' : 'Motion Flow'}`}
+              {state === AppState.GENERATING ? loadingMsg : (isRedefining || isAnimating) ? "Commit Re-Synthesis" : `Execute ${activeTab === 'image' ? 'Synthesis' : 'Motion Flow'}`}
             </button>
           </div>
         </div>
@@ -211,23 +238,23 @@ const CreateShoot: React.FC<CreateShootProps> = ({
            )}
 
            {(output || videoOutput) && (
-             <div className="space-y-8 pt-12 animate-lux-in">
+             <div className="space-y-8 pt-12 animate-lux-in" id="output-section">
                 <div className="flex items-center justify-between">
                    <h3 className="text-xl font-serif text-black italic">Maison Archives Output</h3>
                    <div className="flex gap-4">
-                      {output && !videoOutput && (
+                      {output && (
                         <button 
-                          onClick={() => { setActiveTab('video'); handleGenerate('video'); }}
-                          className="px-6 py-2 bg-gold/10 border border-gold/20 text-gold rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all"
+                          onClick={toggleAnimate}
+                          className={`px-6 py-2 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${isAnimating ? 'bg-gold text-white' : 'bg-gold/10 border border-gold/20 text-gold hover:bg-gold hover:text-white'}`}
                         >
-                          Animate Asset
+                          {videoOutput ? "Re-Animate" : "Animate Asset"}
                         </button>
                       )}
                       <button 
-                        onClick={() => { setActiveTab('image'); handleGenerate('image'); }}
-                        className="px-6 py-2 bg-black text-white rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold transition-all"
+                        onClick={toggleRedefine}
+                        className={`px-6 py-2 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${isRedefining ? 'bg-gold text-white' : 'bg-black text-white hover:bg-gold'}`}
                       >
-                        Redefine Render
+                        Redefine Image
                       </button>
                    </div>
                 </div>
@@ -244,7 +271,20 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     </a>
                   </div>
+
+                  {isRedefining && (
+                    <div className="absolute inset-0 bg-gold/10 backdrop-blur-[2px] pointer-events-none border-4 border-gold rounded-[3rem] animate-pulse" />
+                  )}
+                  {isAnimating && (
+                    <div className="absolute inset-0 bg-gold/5 backdrop-blur-[1px] pointer-events-none border-4 border-dashed border-gold rounded-[3rem] animate-pulse" />
+                  )}
                 </div>
+                
+                {(isRedefining || isAnimating) && (
+                  <div className="text-center animate-bounce">
+                    <p className="text-[10px] font-bold text-gold uppercase tracking-[0.3em]">Modify directive above to commit changes</p>
+                  </div>
+                )}
              </div>
            )}
         </div>
