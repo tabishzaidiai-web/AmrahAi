@@ -12,9 +12,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 4173,
       allowedHosts: ['amrahai-production.up.railway.app']
-    }
+    },
 
-}
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
