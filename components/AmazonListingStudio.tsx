@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { BrandKit, AmazonListingSuite, AmazonResult, AppState, AmazonListingPrompt } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -9,7 +8,6 @@ interface AmazonListingStudioProps {
   addToHistory: (res: any) => void;
   userCredits: { images: number; videos: number };
   onInsufficientCredits: () => void;
-  // Callback for handling errors from the parent component
   onError: (err: any) => void;
 }
 
@@ -64,12 +62,9 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
         role: img.role
       }));
 
-      // Step 1: Analyze and Generate Prompts
       const suite = await GeminiService.generateAmazonListingSuitePrompts(activeImages);
       setSuitePrompts(suite);
 
-      // Step 2: Generate 9 Images
-      // Cast Object.entries to correct type to fix property 'type'/'prompt' errors on unknown
       const slots = Object.entries(suite.amazon_suite) as [string, AmazonListingPrompt][];
       const generatedResults: AmazonResult[] = [];
 
@@ -77,7 +72,6 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
         const [slotKey, slotData] = slots[i];
         setLoadingMsg(`Rendering Slot ${i + 1}/9: ${slotData.type}...`);
         
-        // We use a mock product analysis for now
         const mockAnalysis = {
           type: suite.listing_metadata.product_identified,
           brand: brandKit.name,
@@ -170,10 +164,10 @@ const AmazonListingStudio: React.FC<AmazonListingStudioProps> = ({
             <div className="p-6 bg-gold/5 border border-gold/20 rounded-3xl space-y-2">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-gold rounded-full" />
-                <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Testing Mode Enabled</span>
+                <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Production Mode Active</span>
               </div>
               <p className="text-[10px] text-emerald-950/60 font-medium leading-relaxed">
-                A full 9-shot suite requires 9 credits. Your trail has been granted 10 credits to test this feature.
+                A full 9-shot suite requires 9 credits. Ensure your assets are clear for absolute fidelity.
               </p>
             </div>
 

@@ -56,10 +56,8 @@ export class GeminiService {
   private static async urlToBase64(url: string): Promise<string | null> {
     try {
       const response = await fetch(url).catch(() => null);
-      // Fixed: Change 'standardResponse' to 'response' to fix undefined variable errors.
       if (!response || !response.ok) return null;
       
-      // Fixed: Change 'standardResponse' to 'response' to fix undefined variable errors.
       const blob = await response.blob();
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -252,7 +250,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
 
       while (!operation.done) {
         onStatus("Synthesizing cinematic frames...");
-        await new Promise(r => setTimeout(r, 8000));
+        await new Promise(r => setTimeout(r, 10000));
         const pollAi = this.getAi();
         operation = await pollAi.operations.getVideosOperation({ operation: operation });
       }
@@ -379,7 +377,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
 
     while (!operation.done) {
       onStatus("Synthesizing cinematic motion...");
-      await new Promise(r => setTimeout(r, 8000));
+      await new Promise(r => setTimeout(r, 10000));
       const pollAi = this.getAi();
       operation = await pollAi.operations.getVideosOperation({ operation: operation });
     }

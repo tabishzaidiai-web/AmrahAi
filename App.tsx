@@ -5,14 +5,26 @@ import PhotoStudio from './components/PhotoStudio';
 import Dashboard from './components/Dashboard';
 import Campaigns from './components/Campaigns';
 import CreateShoot from './components/CreateShoot';
+import AmazonListingStudio from './components/AmazonListingStudio';
+import ModelShowcase from './components/ModelShowcase';
+import BrandKit from './components/BrandKit';
+import AdminDashboard from './components/AdminDashboard';
 import Auth from './components/Auth';
 import Pricing from './components/Pricing';
-import { GenerationResult, BrandKit as BrandKitType, ModelPersona, ProductCategory, User, SubscriptionPackage } from './types';
+import { 
+  GenerationResult, 
+  BrandKit as BrandKitType, 
+  ModelPersona, 
+  ProductCategory, 
+  User, 
+  UsageLog 
+} from './types';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'app'>('landing');
   const [activeTab, setActiveTab] = useState('shoot');
   const [history, setHistory] = useState<GenerationResult[]>([]);
+  const [logs, setLogs] = useState<UsageLog[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelPersona | null>(null);
   const [isKeySelected, setIsKeySelected] = useState<boolean>(true);
   const [initialCategory, setInitialCategory] = useState<ProductCategory>('fashion');
@@ -36,6 +48,15 @@ const App: React.FC = () => {
       fontWeight: '500'
     };
   });
+
+  // Handle cross-component tab switching (e.g., from Shoot to Models)
+  useEffect(() => {
+    const handleTabChange = (e: any) => {
+      if (e.detail) setActiveTab(e.detail);
+    };
+    document.addEventListener('changeTab', handleTabChange);
+    return () => document.removeEventListener('changeTab', handleTabChange);
+  }, []);
 
   useEffect(() => {
     const checkKeyStatus = async () => {
@@ -81,7 +102,19 @@ const App: React.FC = () => {
 
   const addToHistory = (result: GenerationResult) => {
     setHistory(prev => [result, ...prev]);
+    
+    // Add to admin logs
     if (user) {
+      const newLog: UsageLog = {
+        id: Math.random().toString(36).substr(2, 9),
+        userId: user.id,
+        userEmail: user.email,
+        type: result.type,
+        timestamp: Date.now(),
+        prompt: result.prompt
+      };
+      setLogs(prev => [newLog, ...prev]);
+
       const updatedUser: User = {
         ...user,
         totalGenerated: (user.totalGenerated || 0) + 1,
@@ -106,25 +139,8 @@ const App: React.FC = () => {
     setView('landing');
   };
 
-  const handleUpgrade = (pkg: SubscriptionPackage) => {
-    if (user) {
-      const updatedUser: User = {
-        ...user,
-        tier: pkg.name as User['tier'],
-        credits: {
-          images: pkg.imageCredits === -1 ? -1 : (user.credits.images + pkg.imageCredits),
-          videos: pkg.videoCredits === -1 ? -1 : (user.credits.videos + pkg.videoCredits)
-        }
-      };
-      setUser(updatedUser);
-      localStorage.setItem('amrah_user_session', JSON.stringify(updatedUser));
-      setShowPricing(false);
-    }
-  };
-
   const handleApiError = useCallback((err: any) => {
     const errMsg = err?.message?.toLowerCase() || "";
-    // Check for common auth or project-not-found errors
     if (
       errMsg.includes("requested entity was not found") || 
       errMsg.includes("authentication error") || 
@@ -162,11 +178,22 @@ const App: React.FC = () => {
         >
           Select Maison API Key
         </button>
-        <p className="text-[9px] text-emerald-950/20 uppercase tracking-widest">
-          Ensure billing is enabled at <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="underline">ai.google.dev/gemini-api/docs/billing</a>
-        </p>
       </div>
     );
+  }
+
+  const tabs = [
+    { id: 'shoot', label: 'Create Product Shoot' },
+    { id: 'quick', label: 'Quick Product Shot' },
+    { id: 'amazon', label: 'Amazon Studio' },
+    { id: 'banners', label: 'Campaign Banners' },
+    { id: 'models', label: 'Maison Models' },
+    { id: 'brand', label: 'Maison DNA' },
+    { id: 'history', label: 'Archives' },
+  ];
+
+  if (user.role === 'Admin') {
+    tabs.push({ id: 'admin', label: 'Command Center' });
   }
 
   return (
@@ -179,16 +206,11 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       />
       
-      {showPricing && <Pricing onClose={() => setShowPricing(false)} onSelect={handleUpgrade} />}
+      {showPricing && <Pricing onClose={() => setShowPricing(false)} onSelect={(pkg) => {}} />}
 
-      {/* Responsive Navigation */}
       <div className="bg-white px-4 md:px-16 flex items-center justify-center border-b border-gray-100 h-20 relative overflow-x-auto no-scrollbar">
-        <div className="flex gap-8 md:gap-16 whitespace-nowrap">
-          {[
-            { id: 'shoot', label: 'Create Product Shoot' },
-            { id: 'quick', label: 'Quick Product Shot' },
-            { id: 'banners', label: 'Campaign Banners' },
-          ].map((item) => (
+        <div className="flex gap-8 md:gap-12 whitespace-nowrap">
+          {tabs.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
@@ -203,21 +225,10 @@ const App: React.FC = () => {
             </button>
           ))}
         </div>
-        
-        <div className="hidden md:flex absolute right-16 items-center gap-8">
-           <button 
-             onClick={() => setActiveTab('history')} 
-             className={`px-8 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all ${
-               activeTab === 'history' ? 'bg-emerald-950 text-white' : 'bg-emerald-50/50 text-emerald-950/40 hover:text-emerald-950'
-             }`}
-           >
-             Archives
-           </button>
-        </div>
       </div>
 
       <main className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-24 bg-white no-scrollbar">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {activeTab === 'shoot' && (
             <CreateShoot 
               brandKit={brandKit} selectedModel={selectedModel} setSelectedModel={setSelectedModel}
@@ -232,6 +243,15 @@ const App: React.FC = () => {
               selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             />
           )}
+          {activeTab === 'amazon' && (
+            <AmazonListingStudio 
+              brandKit={brandKit}
+              addToHistory={addToHistory}
+              userCredits={user.credits}
+              onInsufficientCredits={() => setShowPricing(true)}
+              onError={handleApiError}
+            />
+          )}
           {activeTab === 'banners' && (
             <Campaigns 
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
@@ -239,33 +259,39 @@ const App: React.FC = () => {
               selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             />
           )}
+          {activeTab === 'models' && (
+            <ModelShowcase 
+              onModelSelect={(m) => { setSelectedModel(m); setActiveTab('shoot'); }}
+              selectedModelId={selectedModel?.id}
+            />
+          )}
+          {activeTab === 'brand' && (
+            <BrandKit brandKit={brandKit} setBrandKit={setBrandKit} />
+          )}
+          {activeTab === 'admin' && user.role === 'Admin' && (
+            <AdminDashboard logs={logs} />
+          )}
           {activeTab === 'history' && (
             <div className="space-y-16 animate-lux-in">
               <div className="text-center space-y-4">
                 <h2 className="text-4xl md:text-5xl font-serif text-emerald-950 italic">Maison Archives</h2>
                 <p className="text-[10px] font-bold text-emerald-950/20 uppercase tracking-[0.3em]">Curated Visual Exports</p>
               </div>
-              
-              {history.length === 0 ? (
-                <div className="py-60 text-center opacity-10 text-[11px] uppercase tracking-widest font-bold">No assets curated.</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-16">
-                  {history.map((item) => (
-                    <div key={item.id} className="group space-y-6">
-                      <div className="aspect-[4/5] bg-gray-50 relative overflow-hidden rounded-[2.5rem] border border-gray-50 transition-all duration-700 hover:shadow-2xl hover:-translate-y-1">
-                        {item.type === 'video' ? (
-                          <video src={item.url} className="w-full h-full object-cover" controls />
-                        ) : (
-                          <img src={item.url} className="w-full h-full object-cover" />
-                        )}
-                      </div>
-                      <div className="px-4 space-y-2">
-                        <p className="text-[9px] text-emerald-950/40 uppercase tracking-widest font-bold">{new Date(item.timestamp).toLocaleDateString()}</p>
-                        <p className="text-[10px] text-emerald-950/60 italic line-clamp-1">{item.prompt}</p>
-                      </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-16">
+                {history.map((item) => (
+                  <div key={item.id} className="group space-y-6">
+                    <div className="aspect-[4/5] bg-gray-50 relative overflow-hidden rounded-[2.5rem] border border-gray-50 transition-all duration-700 hover:shadow-2xl hover:-translate-y-1">
+                      {item.type === 'video' ? (
+                        <video src={item.url} className="w-full h-full object-cover" controls />
+                      ) : (
+                        <img src={item.url} className="w-full h-full object-cover" />
+                      )}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
+              {history.length === 0 && (
+                <div className="text-center py-40 opacity-20 italic">No artifacts stored in the Maison archives yet.</div>
               )}
             </div>
           )}
