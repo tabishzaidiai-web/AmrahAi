@@ -1,8 +1,33 @@
-import { createClient } from '@supabase/supabase-js';
+// AMRAH LOCAL MODE - SUPABASE STUB
+// This file provides a no-op mock of the Supabase client to prevent DNS errors 
+// when the project URL is missing or set to a placeholder.
 
-// Environment variables for Supabase - providing valid fallback strings to prevent initialization crashes
-const supabaseUrl = 'https://placeholder-url.supabase.co';
-const supabaseAnonKey = 'placeholder-anon-key';
+export const isSupabaseConfigured = false;
 
-// The app will initialize with these placeholders if actual keys are missing.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const noop = async () => ({ data: null, error: null });
+
+// Mock Supabase Client to keep the application running without a database connection
+export const supabase = {
+  auth: {
+    getSession: async () => ({ data: { session: { user: { id: 'local-guest' } } }, error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    signInWithPassword: async () => ({ error: new Error("Maison Local Mode Active") }),
+    signUp: async () => ({ error: new Error("Maison Local Mode Active") }),
+    signOut: async () => ({}),
+    signInWithOAuth: async () => ({}),
+    getUser: async () => ({ data: { user: { id: 'local-guest' } }, error: null })
+  },
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        single: noop,
+        maybeSingle: noop
+      }),
+      order: () => ({ limit: noop })
+    }),
+    insert: noop,
+    update: () => ({ eq: noop }),
+    upsert: noop,
+    delete: () => ({ eq: noop })
+  })
+} as any;

@@ -1,31 +1,12 @@
-import { supabase } from '../lib/supabaseClient';
-
+/**
+ * AMRAH API SERVICE (LOCAL MODE)
+ * This service is stubbed out to bypass backend dependencies.
+ * In production, this would call the /api endpoints.
+ */
 export class ApiService {
   static async generate(type: 'image' | 'video', params: any) {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) throw new Error('Authentication required');
-
-    const response = await fetch('/api/check-quota-and-generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ type, params })
-    });
-
-    if (response.status === 402) {
-      const error = new Error('Quota exceeded');
-      (error as any).code = 'quota_exceeded';
-      throw error;
-    }
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || 'Generation failed');
-    }
-
-    return await response.json();
+    console.log(`Local mode: Bypassing backend ${type} request. Handled by client-side GeminiService.`);
+    // In local mode, we return a mock success or rely directly on GeminiService inside components
+    return { status: 'success', local: true };
   }
 }

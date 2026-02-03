@@ -46,7 +46,8 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
     cameraMotion: 'Static',
     renderMode: 'product-only', 
     videoResolution: '720p',
-    videoAspectRatio: '1:1'
+    // Fixed: changed '1:1' to '16:9' to match the allowed union type for videoAspectRatio in ProductDetails
+    videoAspectRatio: '16:9'
   });
 
   const productTypes: ProductType[] = ['Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'];

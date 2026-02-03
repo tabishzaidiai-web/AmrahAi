@@ -7,7 +7,7 @@ import Campaigns from './components/Campaigns';
 import CreateShoot from './components/CreateShoot';
 import AmazonListingStudio from './components/AmazonListingStudio';
 import ModelShowcase from './components/ModelShowcase';
-import BrandKit from './components/BrandKit';
+import BrandMemory from './components/BrandMemory';
 import AdminDashboard from './components/AdminDashboard';
 import AuthModal from './components/AuthModal';
 import UpgradeModal from './components/UpgradeModal';
@@ -178,7 +178,7 @@ const MainApp: React.FC = () => {
             />
           )}
           {activeTab === 'brand' && (
-            <BrandKit brandKit={brandKit} setBrandKit={setBrandKit} />
+            <BrandMemory brandKit={brandKit} setBrandKit={setBrandKit} />
           )}
           {activeTab === 'admin' && user?.role === 'Admin' && (
             <AdminDashboard logs={logs} />

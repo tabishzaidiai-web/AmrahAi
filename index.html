@@ -5,69 +5,88 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AMRAH by Arabian AI – Hyper-Realistic Visuals for Luxury Brands</title>
     <meta name="description" content="Enterprise-ready AI engine for generating e-commerce product images and videos with 100% visual fidelity.">
+    
+    <!-- Scripts & Styles -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        emerald: {
-                            950: '#022c22',
-                        },
-                        gold: {
-                            DEFAULT: '#D4AF37',
-                            hover: '#C5A028'
-                        }
+                        emerald: { 950: '#022c22' },
+                        gold: { DEFAULT: '#D4AF37', hover: '#C5A028' },
+                        maison: { bg: '#fcfcfc' }
                     },
                     fontFamily: {
                         serif: ['Playfair Display', 'serif'],
                         sans: ['Inter', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        '4xl': '2.5rem',
+                        '5xl': '3rem',
                     }
                 }
             }
         }
     </script>
+
     <style>
         body {
             background-color: #ffffff;
             color: #022c22;
             scroll-behavior: smooth;
+            font-family: 'Inter', sans-serif;
         }
+        
+        /* Premium Soft UI */
         .glass {
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
+        
+        .soft-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05);
+        }
+
         .btn-luxury {
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-luxury:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 20px rgba(2, 44, 34, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(212, 175, 55, 0.15);
         }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-lux-in {
-            animation: fadeIn 0.8s ease-out forwards;
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
+
+        /* Scrollbar aesthetics */
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-track { background: #fdfdfd; }
         ::-webkit-scrollbar-thumb { background: #022c22; border-radius: 10px; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3"
-  }
-}
-</script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "react": "https://esm.sh/react@^19.2.3",
+        "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3"
+      }
+    }
+    </script>
 </head>
 <body>
     <div id="root"></div>

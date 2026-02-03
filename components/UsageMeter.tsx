@@ -6,7 +6,8 @@ const UsageMeter: React.FC = () => {
 
   if (!user) return null;
 
-  const isUnlimited = user.tier !== 'Free';
+  // In Local/Maison mode, we assume unlimited credits for full studio testing
+  const isUnlimited = true;
 
   return (
     <div className="flex items-center gap-6 px-6 py-2 bg-emerald-50/50 rounded-full border border-emerald-50">
