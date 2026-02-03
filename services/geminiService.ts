@@ -22,7 +22,14 @@ const PRODUCT_LOCK_PROTOCOL = `
 Use the uploaded product image as the ABSOLUTE SINGLE SOURCE OF TRUTH. 
 DO NOT ALTER, REDESIGN, OR SIMPLIFY ANY PRODUCT DETAILS. 
 Preserve exact colors (hex/RGB), fabric textures, material weight, prints, embroidery patterns, beadwork, lace details, logos, and silhouette. 
-If a human is visible in the reference image, IGNORE them completely. Treat the upload as a PRODUCT-ONLY reference.
+IGNORE any human or background in the original reference—extract the product only.
+
+[CINEMATIC LIGHTING & TEXTURE PROTOCOL]:
+Apply DRAMATIC, CINEMATIC studio lighting. 
+Focus on highlighting MICRO-TEXTURES, fabric weaves, and material depth.
+Use high-contrast shadows and volumetric highlights (e.g., Rembrandt lighting, Chiaroscuro) to define the product's 3D form. 
+Ensure metallic elements have sharp, realistic reflections and matte surfaces have soft, diffused gradients.
+Lighting must feel expensive, professional, and evocative.
 
 [NEGATIVE PROMPT - HARD CONSTRAINTS]:
 DO NOT change garment design, prints, embroidery, or logos. 
@@ -86,6 +93,7 @@ ${modeInstruction}
 [SCENE PROMPT]:
 ${userPrompt}. 
 Adjust only environment, lighting, and ${isProductOnly ? 'background' : 'model pose'}. 
+Lighting should be extremely dramatic and cinematic, focusing on the textures of the ${analysis.material}.
 ${modelContext}
 Maison Visual Tone: ${brandKit.tone}.
 
@@ -140,7 +148,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     
     TASK: Generate 4 unique, elite photoshoot narrative prompts.
     Concepts should sound like professional director cues for high-end campaigns.
-    Incorporate cinematic lighting (e.g., chiaroscuro, volumetric, Rembrandt), architectural textures (limestone, marble, silk drapes), and specific environments (Dubai Penthouse, Louvre Abu Dhabi, desert dunes at dusk).
+    Incorporate dramatic cinematic lighting (e.g., chiaroscuro, volumetric, Rembrandt) that emphasizes textures.
     Ensure results are MODEST, LUXURIOUS, and BRAND-SAFE.
     
     CRITICAL PROTECTION: Each prompt must conclude with: "Important: Keep the product 100% identical to the reference asset."
@@ -233,7 +241,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       Cinematic luxury film sequence. 
       [SCENE]: ${config.useCase}. ${identityLock} Camera: ${config.productDetails.cameraAngle}, Motion: ${config.productDetails.cameraMotion}.
       [PRESERVE]: Copy product EXACTLY: ${analysis.material}, ${analysis.type}, ${analysis.features.join(', ')}. 
-      Focus on hyper-realistic movement and cinematic lighting.
+      Focus on hyper-realistic movement, dramatic lighting, and deep texture highlighting.
       `;
       
       const ai = this.getAi();
@@ -360,7 +368,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     ${modeInstruction}
     ${prompt}. 
     [PRESERVE]: Absolute fidelity to reference. Material: ${analysis.material}. Features: ${analysis.features.join(', ')}. 
-    Cinematic luxury camera motion, professional film lighting.
+    Cinematic luxury camera motion, dramatic lighting focusing on textures, professional film lighting.
     `;
 
     const ai = this.getAi();
@@ -409,7 +417,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     if (!base64) throw new Error("Failed to process current image for editing.");
 
     const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only' };
-    return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}. Important: Keep the core product structure locked.`, brandKit, defaultDetails);
+    return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}. Important: Keep the core product structure locked. Use dramatic cinematic lighting to highlight textures.`, brandKit, defaultDetails);
   }
 
   static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
@@ -421,7 +429,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     
     Guidelines:
     1. Modesty: Respect Gulf and international modesty standards.
-    2. Luxury: Focus on rich textures, cinematic lighting (Golden Hour, Studio Noir, Dawn), and prestigious environments.
+    2. Luxury: Focus on rich textures, dramatic cinematic lighting (Golden Hour, Studio Noir, Dawn), and prestigious environments.
     3. Narrative: Suggestions should vary from "Minimalist Architectural" to "Opulent Heritage".
     4. FIDELITY: Always append a protection line: "Important: Keep the product identical to the reference photo. Do not alter any design details or colors."
     
@@ -483,6 +491,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     ${modelContext}
     
     TASK: Provide a professional photoshoot plan (human-readable) AND a specific AI prompt.
+    Ensure lighting is dramatic and cinematic, focusing on texture highlighting.
     Format your response as follows:
     [Human readable plan with headings for Lighting, Background, and Styling]
     ...
@@ -510,6 +519,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     parts.push({ text: `SYSTEM: AMAZON E-COMMERCE STRATEGIST.
     Analyze the uploaded product images. 
     Create a 9-slot cohesive listing suite following Amazon best practices.
+    Ensure dramatic cinematic lighting across all slots.
     
     Output JSON format only.` });
 

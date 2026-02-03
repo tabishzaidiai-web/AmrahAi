@@ -46,10 +46,18 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     videoAspectRatio: '9:16'
   });
 
+  // Neural Enhancement Chips
+  const enhancementChips = [
+    { label: 'Dramatic Lighting', prompt: 'Improve the lighting to be more dramatic and cinematic, using Rembrandt-style high-contrast shadows.' },
+    { label: 'Highlight Textures', prompt: 'Focus on highlighting the intricate textures, fabric weaves, and material depth with micro-lighting.' },
+    { label: 'Cinematic Glow', prompt: 'Apply a warm, ethereal cinematic glow with soft bloom and volumetric light shafts.' },
+    { label: 'Studio Noir', prompt: 'Transform scene into a moody Studio Noir setting with deep blacks and sharp rim lighting.' }
+  ];
+
   // Sync video prompt with image prompt initially if empty
   useEffect(() => {
     if (customPrompt && !videoPrompt) {
-      setVideoPrompt(`Cinematic motion: ${customPrompt}, fabric moving realistically.`);
+      setVideoPrompt(`Cinematic motion: ${customPrompt}, focusing on dramatic camera orbits and realistic fabric movement.`);
     }
   }, [customPrompt, videoPrompt]);
 
@@ -110,6 +118,14 @@ const CreateShoot: React.FC<CreateShootProps> = ({
         timestamp: Date.now() 
       });
     } catch (err: any) { onError(err); } finally { setState(AppState.READY); }
+  };
+
+  const applyEnhancement = (chipPrompt: string) => {
+    if (activeTab === 'image') {
+      setCustomPrompt(chipPrompt);
+    } else {
+      setVideoPrompt(chipPrompt);
+    }
   };
 
   const toggleRedefine = () => {
@@ -200,6 +216,19 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                 />
               </div>
             )}
+
+            {/* Enhancement Chips */}
+            <div className="flex flex-wrap gap-3">
+               {enhancementChips.map(chip => (
+                 <button 
+                  key={chip.label}
+                  onClick={() => applyEnhancement(chip.prompt)}
+                  className="px-4 py-2 bg-maison-bg border border-gray-100 rounded-full text-[8px] font-bold text-black/40 uppercase tracking-widest hover:border-gold hover:text-gold transition-all"
+                 >
+                   {chip.label}
+                 </button>
+               ))}
+            </div>
 
             <button 
               onClick={() => handleGenerate(activeTab)} 
