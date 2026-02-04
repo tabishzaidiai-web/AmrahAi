@@ -7,13 +7,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "vite preview --port $PORT --host 0.0.0.0"
+    "start": "serve -s dist -l $PORT"
   },
   "dependencies": {
     "react-dom": "^19.2.3",
     "react": "^19.2.3",
     "@google/genai": "^1.35.0",
-    "@supabase/supabase-js": "^2.93.3"
+    "@supabase/supabase-js": "^2.93.3",
+    "serve": "^14.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
