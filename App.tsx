@@ -1,31 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Header from './components/Header';
-import PhotoStudio from './components/PhotoStudio';
-import Dashboard from './components/Dashboard';
-import Campaigns from './components/Campaigns';
-import CreateShoot from './components/CreateShoot';
-import AmazonListingStudio from './components/AmazonListingStudio';
-import ModelShowcase from './components/ModelShowcase';
-import BrandMemory from './components/BrandMemory';
-import AdminDashboard from './components/AdminDashboard';
-import AuthModal from './components/AuthModal';
-import UpgradeModal from './components/UpgradeModal';
-import UsageMeter from './components/UsageMeter';
+import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
+import Header from './components/Header.tsx';
+import PhotoStudio from './components/PhotoStudio.tsx';
+import Campaigns from './components/Campaigns.tsx';
+import CreateShoot from './components/CreateShoot.tsx';
+import AuthModal from './components/AuthModal.tsx';
+import UpgradeModal from './components/UpgradeModal.tsx';
+import UsageMeter from './components/UsageMeter.tsx';
+import Dashboard from './components/Dashboard.tsx';
 import { 
   GenerationResult, 
   BrandKit as BrandKitType, 
   ModelPersona, 
-  ProductCategory, 
-  UsageLog 
-} from './types';
+  ProductCategory 
+} from './types.ts';
 
 const MainApp: React.FC = () => {
-  const { user, session, logout, refreshProfile } = useAuth();
+  const { user, logout, refreshProfile } = useAuth();
   const [view, setView] = useState<'landing' | 'app'>('landing');
   const [activeTab, setActiveTab] = useState('shoot');
-  const [history, setHistory] = useState<GenerationResult[]>([]);
-  const [logs, setLogs] = useState<UsageLog[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelPersona | null>(null);
   const [initialCategory, setInitialCategory] = useState<ProductCategory>('fashion');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -45,13 +38,12 @@ const MainApp: React.FC = () => {
     };
   });
 
-  useEffect(() => {
-    const handleTabChange = (e: any) => {
-      if (e.detail) setActiveTab(e.detail);
-    };
-    document.addEventListener('changeTab', handleTabChange);
-    return () => document.removeEventListener('changeTab', handleTabChange);
-  }, []);
+  const isOverLimit = (type: 'image' | 'video') => {
+    if (!user || user.tier !== 'Free') return false;
+    if (type === 'image' && user.credits.images >= 3) return true;
+    if (type === 'video' && user.credits.videos >= 1) return true;
+    return false;
+  };
 
   const handleEnterApp = (tab: string = 'shoot', category?: ProductCategory) => {
     if (!user) {
@@ -65,7 +57,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleApiError = useCallback((err: any) => {
-    if (err.code === 'quota_exceeded') {
+    if (err.code === 'quota_exceeded' || err.message?.includes('limit')) {
       setShowUpgradeModal(true);
     } else {
       alert(err?.message || "An unexpected neural orchestration error occurred.");
@@ -73,23 +65,14 @@ const MainApp: React.FC = () => {
   }, []);
 
   const addToHistory = (result: GenerationResult) => {
-    setHistory(prev => [result, ...prev]);
-    refreshProfile(); // Update credits after generation
+    refreshProfile(); 
   };
 
   const tabs = [
     { id: 'shoot', label: 'Create Product Shoot' },
     { id: 'quick', label: 'Quick Product Shot' },
-    { id: 'amazon', label: 'Amazon Studio' },
-    { id: 'banners', label: 'Campaign Banners' },
-    { id: 'models', label: 'Maison Models' },
-    { id: 'brand', label: 'Maison DNA' },
-    { id: 'history', label: 'Archives' },
+    { id: 'banners', label: 'Campaign Banners' }
   ];
-
-  if (user?.role === 'Admin') {
-    tabs.push({ id: 'admin', label: 'Command Center' });
-  }
 
   if (view === 'landing') {
     return (
@@ -101,7 +84,7 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-white text-emerald-950 font-sans">
+    <div className="flex flex-col h-screen overflow-hidden bg-white text-emerald-950 font-sans selection:bg-gold selection:text-white">
       <Header 
         brandKit={brandKit} 
         onLogoClick={() => setView('landing')} 
@@ -113,14 +96,14 @@ const MainApp: React.FC = () => {
       {showUpgradeModal && <UpgradeModal onClose={() => setShowUpgradeModal(false)} />}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
-      <div className="bg-white px-4 md:px-16 flex items-center justify-between border-b border-gray-100 h-20">
-        <div className="flex gap-8 md:gap-12 whitespace-nowrap overflow-x-auto no-scrollbar">
+      <div className="bg-white px-4 md:px-16 flex items-center justify-center border-b border-gray-50 h-28">
+        <div className="flex gap-16 md:gap-24 whitespace-nowrap overflow-x-auto no-scrollbar">
           {tabs.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`text-[9px] md:text-[10px] font-bold uppercase tracking-[0.3em] transition-all relative h-20 px-2 flex items-center ${
-                activeTab === item.id ? 'text-gold' : 'text-emerald-950/30 hover:text-emerald-950/60'
+              className={`text-[11px] font-bold uppercase tracking-[0.5em] transition-all relative h-28 px-4 flex items-center ${
+                activeTab === item.id ? 'text-gold' : 'text-emerald-950/20 hover:text-emerald-950/50'
               }`}
             >
               {item.label}
@@ -130,10 +113,12 @@ const MainApp: React.FC = () => {
             </button>
           ))}
         </div>
-        <UsageMeter />
+        <div className="absolute right-12 hidden lg:block opacity-60">
+           <UsageMeter />
+        </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-12 lg:p-24 bg-white no-scrollbar">
+      <main className="flex-1 overflow-y-auto p-8 md:p-16 lg:p-24 bg-white no-scrollbar">
         <div className="max-w-7xl mx-auto">
           {activeTab === 'shoot' && (
             <CreateShoot 
@@ -142,6 +127,7 @@ const MainApp: React.FC = () => {
               userCredits={user?.credits || {images:0, videos:0}} 
               onInsufficientCredits={() => setShowUpgradeModal(true)} 
               onError={handleApiError}
+              isLocked={isOverLimit('image')}
             />
           )}
           {activeTab === 'quick' && (
@@ -153,15 +139,6 @@ const MainApp: React.FC = () => {
               selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             />
           )}
-          {activeTab === 'amazon' && (
-            <AmazonListingStudio 
-              brandKit={brandKit}
-              addToHistory={addToHistory}
-              userCredits={user?.credits || {images:0, videos:0}}
-              onInsufficientCredits={() => setShowUpgradeModal(true)}
-              onError={handleApiError}
-            />
-          )}
           {activeTab === 'banners' && (
             <Campaigns 
               brandKit={brandKit} addToHistory={addToHistory} initialCategory={initialCategory} 
@@ -170,39 +147,6 @@ const MainApp: React.FC = () => {
               onError={handleApiError}
               selectedModel={selectedModel} setSelectedModel={setSelectedModel}
             />
-          )}
-          {activeTab === 'models' && (
-            <ModelShowcase 
-              onModelSelect={(m) => { setSelectedModel(m); setActiveTab('shoot'); }}
-              selectedModelId={selectedModel?.id}
-            />
-          )}
-          {activeTab === 'brand' && (
-            <BrandMemory brandKit={brandKit} setBrandKit={setBrandKit} />
-          )}
-          {activeTab === 'admin' && user?.role === 'Admin' && (
-            <AdminDashboard logs={logs} />
-          )}
-          {activeTab === 'history' && (
-            <div className="space-y-16 animate-lux-in">
-              <div className="text-center space-y-4">
-                <h2 className="text-4xl md:text-5xl font-serif text-emerald-950 italic">Maison Archives</h2>
-                <p className="text-[10px] font-bold text-emerald-950/20 uppercase tracking-[0.3em]">Curated Visual Exports</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-16">
-                {history.map((item) => (
-                  <div key={item.id} className="group space-y-6">
-                    <div className="aspect-[4/5] bg-gray-50 relative overflow-hidden rounded-[2.5rem] border border-gray-50 transition-all duration-700 hover:shadow-2xl hover:-translate-y-1">
-                      {item.type === 'video' ? (
-                        <video src={item.url} className="w-full h-full object-cover" controls />
-                      ) : (
-                        <img src={item.url} className="w-full h-full object-cover" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
         </div>
       </main>

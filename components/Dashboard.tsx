@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { ProductCategory } from '../types';
 
 interface DashboardProps {
@@ -6,10 +6,8 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
-  const [videoLoaded, setVideoLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const bgVideoUrl = "https://cdn.pixabay.com/video/2021/10/12/91645-629853316_tiny.mp4"; 
+  // Using the signature Amrah banner asset as the hero background
+  const heroImageUrl = "Amrah banner.png"; 
 
   return (
     <div className="min-h-screen bg-white text-emerald-950 font-sans selection:bg-gold selection:text-white overflow-x-hidden">
@@ -28,39 +26,54 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
       </nav>
 
       {/* Hero Section */}
-      <header className="relative w-full h-screen flex flex-col items-center justify-center text-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <video 
-            ref={videoRef}
-            src={bgVideoUrl}
-            autoPlay 
-            muted 
-            loop 
-            playsInline
-            onCanPlay={() => setVideoLoaded(true)}
-            className={`absolute top-1/2 left-1/2 w-full h-full object-cover -translate-x-1/2 -translate-y-1/2 grayscale-[0.2] transition-opacity duration-[2000ms] ${videoLoaded ? 'opacity-40' : 'opacity-0'}`}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-white" />
+      <header className="relative w-full h-[85vh] md:h-screen flex flex-col items-center justify-center text-center overflow-hidden">
+        {/* Background Image Container */}
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center transition-transform duration-1000"
+          style={{ 
+            backgroundImage: `url('${heroImageUrl}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        >
+          {/* Readability Overlays: Gradient for bottom, and a slight overall tint */}
+          <div className="absolute inset-0 bg-emerald-950/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/40 via-transparent to-white" />
         </div>
 
-        <div className="relative z-10 max-w-6xl px-8 space-y-12 md:space-y-16 animate-lux-in">
-          <h1 className="text-5xl md:text-[8rem] font-serif text-emerald-950 leading-[1] md:leading-[0.95] font-medium tracking-tighter">
-            Synthesize Your <br/><span className="italic text-gold">Campaign.</span>
-          </h1>
-          <p className="text-emerald-950/40 text-lg md:text-2xl font-light leading-relaxed max-w-3xl mx-auto font-serif italic">
-            Transform standard product photography into cinematic masterpieces with 100% visual fidelity.
-          </p>
-          <button 
-            onClick={() => onEnterApp('shoot')}
-            className="px-16 md:px-20 py-6 md:py-7 bg-emerald-950 text-white font-bold rounded-full text-[11px] md:text-[12px] uppercase tracking-[0.5em] hover:bg-gold transition-all btn-luxury shadow-2xl"
-          >
-            Start Rendering
-          </button>
+        {/* Content Overlay */}
+        <div className="relative z-10 max-w-6xl px-6 md:px-8 space-y-8 md:space-y-12 animate-lux-in">
+          <div className="space-y-4 md:space-y-6">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-[8rem] font-serif text-white leading-[1.1] md:leading-[0.95] font-medium tracking-tighter drop-shadow-2xl">
+              Synthesize Your <br/><span className="italic text-gold">Campaign.</span>
+            </h1>
+            <p className="text-white/90 text-base md:text-2xl font-light leading-relaxed max-w-3xl mx-auto font-serif italic drop-shadow-md px-4">
+              Transform standard product photography into cinematic masterpieces with 100% visual fidelity and Arabian AI elegance.
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-8 pt-4">
+            <button 
+              onClick={() => onEnterApp('shoot')}
+              className="w-full sm:w-auto px-12 md:px-20 py-5 md:py-7 bg-white text-emerald-950 font-bold rounded-full text-[10px] md:text-[12px] uppercase tracking-[0.5em] hover:bg-gold hover:text-white transition-all btn-luxury shadow-2xl"
+            >
+              Start Rendering
+            </button>
+            <button 
+              onClick={() => {
+                const el = document.getElementById('categories');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="w-full sm:w-auto px-10 py-5 md:py-7 bg-transparent border border-white/30 text-white font-bold rounded-full text-[10px] md:text-[11px] uppercase tracking-[0.5em] backdrop-blur-sm hover:bg-white/10 transition-all"
+            >
+              Explore Sectors
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Categories */}
-      <section className="bg-emerald-950 flex flex-col lg:flex-row min-h-[600px]">
+      <section id="categories" className="bg-emerald-950 flex flex-col lg:flex-row min-h-[600px]">
         {[
           { label: 'Fashion', title: 'Editorial Apparel', img: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=2000' },
           { label: 'Jewelry', title: 'Precision Macro', img: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=80&w=1200' },

@@ -6,16 +6,9 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-  host: '0.0.0.0',
-  port: 5173,
-                allowedHosts: ['amrahai-production.up.railway.app'],
-      preview: {
-      host: '0.0.0.0',
-      port: 4173,
-      allowedHosts: ['amrahai-production.up.railway.app']
-    },
-              },
-
+        port: 3000,
+        host: '0.0.0.0',
+      },
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

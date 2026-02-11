@@ -1,5 +1,6 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, LogoPlacement, ProductType, ProductPlacement, PromptLibraryItem, CameraAngle } from '../types';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, LogoPlacement, ProductType, ProductPlacement, CameraAngle } from '../types';
 import { GeminiService } from '../services/geminiService';
 
 interface StudioProps {
@@ -9,13 +10,15 @@ interface StudioProps {
 }
 
 const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory }) => {
-  const [state, setState] = useState<AppState>(AppState.UPLOADING);
+  const [state, setState] = useState<AppState>(AppState.READY);
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
   const [prompt, setPrompt] = useState('');
   const [genType, setGenType] = useState<'image' | 'video'>('image');
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [layers, setLayers] = useState<GenerationResult[]>([]);
+  const [suggestions, setSuggestions] = useState<{label: string, prompt: string}[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +31,37 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     logoPlacement: 'Top-right corner',
     renderMode: 'product-only', 
   });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setSourceImage(dataUrl);
+      setIsAnalyzing(true);
+      setState(AppState.ANALYZING);
+      setLoadingMsg("Performing Neural Analysis...");
+
+      try {
+        const base64 = dataUrl.split(',')[1];
+        const [prodAnalysis, aiSuggestions] = await Promise.all([
+          GeminiService.analyzeProduct(base64, file.type, brandKit),
+          GeminiService.suggestPhotoshootPrompts(base64, brandKit)
+        ]);
+        setAnalysis(prodAnalysis);
+        setSuggestions(aiSuggestions);
+      } catch (err) {
+        console.warn("Analysis failed, using defaults.");
+        setAnalysis({ type: 'Product', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] });
+      } finally {
+        setIsAnalyzing(false);
+        setState(AppState.READY);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleGenerate = async () => {
     if (!sourceImage || !prompt) return;
@@ -64,33 +98,53 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
               <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest block ml-2">Product DNA Asset</label>
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className={`aspect-square rounded-3xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden ${sourceImage ? 'border-transparent bg-gray-50' : 'border-gray-100 hover:border-gold/30'}`}
+                className={`aspect-square rounded-3xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative ${sourceImage ? 'border-transparent bg-gray-50' : 'border-gray-100 hover:border-gold/30'}`}
               >
+                {isAnalyzing && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center space-y-3">
+                    <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[8px] font-bold uppercase text-gold tracking-widest">Analyzing DNA</span>
+                  </div>
+                )}
                 {sourceImage ? <img src={sourceImage} className="w-full h-full object-cover" alt="Source" /> : (
                   <div className="text-center space-y-2">
                     <span className="text-[9px] font-bold text-gold uppercase tracking-widest block">Upload Product</span>
                   </div>
                 )}
-                <input type="file" ref={fileInputRef} onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if(f) {
-                    const r = new FileReader();
-                    r.onload = (ev) => setSourceImage(ev.target?.result as string);
-                    r.readAsDataURL(f);
-                  }
-                }} className="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
               </div>
             </div>
 
             <div className="space-y-6 pt-10 border-t border-gray-50">
-               <div className="space-y-2">
-                  <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest block ml-2">Atmosphere Blueprint</label>
+               <div className="space-y-4">
+                  <div className="flex items-center justify-between ml-2">
+                    <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest block">Atmosphere Blueprint</label>
+                    {analysis && <span className="text-[8px] font-bold text-gold uppercase tracking-widest">{analysis.type} Identified</span>}
+                  </div>
                   <textarea 
                     value={prompt} 
                     onChange={(e) => setPrompt(e.target.value)} 
                     placeholder="Describe the environment, lighting, and textures..." 
-                    className="w-full bg-maison-bg border-none rounded-2xl p-6 text-sm font-serif italic min-h-[140px] focus:ring-1 focus:ring-gold outline-none"
+                    className="w-full bg-maison-bg border-none rounded-2xl p-6 text-sm font-serif italic min-h-[140px] focus:ring-1 focus:ring-gold outline-none transition-all shadow-inner"
                   />
+                  
+                  {/* Dynamic Suggestion Chips */}
+                  {suggestions.length > 0 && (
+                    <div className="space-y-3">
+                      <span className="text-[8px] font-bold text-black/20 uppercase tracking-widest block ml-2">Maison Recommendations</span>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestions.map((item, idx) => (
+                          <button 
+                            key={idx}
+                            onClick={() => setPrompt(item.prompt)}
+                            className="px-4 py-2 bg-emerald-50/50 border border-emerald-50 rounded-full text-[8px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold hover:bg-white transition-all active:scale-95"
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                </div>
             </div>
 

@@ -1,15 +1,32 @@
-// Type definitions for the application
 
-export type LuxuryStyle = 
-  | 'Standard' 
-  | 'Signature Jewel Close-Up' 
-  | 'Editorial Portrait With Jewel' 
-  | 'Curated Display Board' 
-  | 'Precision Timepiece Focus';
+export interface MaisonFolder {
+  id: string;
+  name: string;
+  createdAt: number;
+}
 
-export type CameraAngle = 'Standard' | 'Low Angle' | 'High Angle' | 'Bird\'s Eye' | 'Side' | 'Close-up';
-export type CameraMotion = 'Static' | 'Pan Left' | 'Pan Right' | 'Tilt Up' | 'Tilt Down' | 'Zoom In' | 'Zoom Out';
-export type ProductPlacement = 'On ear' | 'On neck' | 'On wrist' | 'On finger' | 'On chest' | 'On shoulder' | 'Full body' | 'Handheld' | 'On table';
+export interface MaisonFile {
+  id: string;
+  name: string;
+  folderId?: string;
+  size: string;
+  type: 'image' | 'video' | 'reference' | 'other';
+  createdAt: number;
+}
+
+export interface MaisonNote {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface MaisonTeamMember {
+  id: string;
+  name: string;
+  role: string;
+  createdAt: number;
+}
 
 export interface User {
   id: string;
@@ -27,6 +44,17 @@ export interface User {
   totalGenerated: number;
 }
 
+export type LuxuryStyle = 
+  | 'Standard' 
+  | 'Signature Jewel Close-Up' 
+  | 'Editorial Portrait With Jewel' 
+  | 'Curated Display Board' 
+  | 'Precision Timepiece Focus';
+
+export type CameraAngle = 'Standard' | 'Low Angle' | 'High Angle' | 'Bird\'s Eye' | 'Side' | 'Close-up';
+export type CameraMotion = 'Static' | 'Pan Left' | 'Pan Right' | 'Tilt Up' | 'Tilt Down' | 'Zoom In' | 'Zoom Out' | 'Orbit';
+export type ProductPlacement = 'On ear' | 'On neck' | 'On wrist' | 'On finger' | 'On chest' | 'On shoulder' | 'Full body' | 'Handheld' | 'On table';
+
 export interface UsageLog {
   id: string;
   userId: string;
@@ -40,7 +68,7 @@ export interface SubscriptionPackage {
   id: string;
   name: string;
   price: number;
-  imageCredits: number; // -1 for unlimited
+  imageCredits: number;
   videoCredits: number;
   features: string[];
 }
@@ -99,6 +127,23 @@ export interface ModelPersona {
   isPersonal?: boolean;
 }
 
+// Added PersonalModelConfig for AI identity creation features
+export interface PersonalModelConfig {
+  id: string;
+  representativePortrait: string;
+  dataset: string[];
+  createdAt: number;
+}
+
+// Added PromptTemplate for AI-driven directive suggestions
+export interface PromptTemplate {
+  id: string;
+  category: string;
+  label: string;
+  promptTemplate: string;
+  supportsLogo: boolean;
+}
+
 export type ProductType = 
   | 'Jewelry' 
   | 'Watch' 
@@ -148,51 +193,6 @@ export interface ShootConfig {
   productDetails: ProductDetails;
 }
 
-export interface PromptLibraryItem {
-  id: string;
-  category: string;
-  title: string;
-  description: string;
-  template: string;
-}
-
-export interface PersonalModelConfig {
-  id: string;
-  representativePortrait: string;
-  dataset: string[];
-  createdAt: number;
-}
-
-export interface PromptTemplate {
-  id: string;
-  category: string;
-  label: string;
-  promptTemplate: string;
-  supportsLogo: boolean;
-}
-
-// Luxury Photoshoot Planner Types
-export interface PhotoshootShot {
-  id: string;
-  angle: string;
-  cameraFraming: string;
-  background: string;
-  lighting: string;
-  modelUsage: string;
-  notes: string;
-}
-
-export interface LuxuryPhotoshootConfig {
-  productSummary: {
-    type: string;
-    materials: string;
-    keyDetails: string;
-  };
-  shootStyle: string;
-  shots: PhotoshootShot[];
-}
-
-// Amazon Listing Studio Types
 export interface AmazonListingPrompt {
   prompt: string;
   type: string;

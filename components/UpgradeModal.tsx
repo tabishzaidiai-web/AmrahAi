@@ -1,39 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+
+// Replace these with your actual Stripe Price IDs from your dashboard
+const STRIPE_PRICES = {
+  starter: 'price_starter_123',
+  pro: 'price_pro_456',
+  enterprise: 'price_enterprise_789'
+};
 
 interface UpgradeModalProps {
   onClose: () => void;
 }
 
 const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose }) => {
-  const { session } = useAuth();
+  const { user, session } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  const handleStripe = async (planId: string) => {
+  const handleStripeCheckout = async (planId: keyof typeof STRIPE_PRICES) => {
+    if (!user) return alert("Please sign in first");
+    
+    setLoadingPlan(planId);
     try {
-      const res = await fetch('/api/stripe/create-checkout', {
+      // In a production environment with the Firebase Stripe Extension,
+      // you add a document to the checkout_sessions collection.
+      // Here, we simulate a fetch to your Cloud Function.
+      const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ planId })
+        body: JSON.stringify({ 
+          priceId: STRIPE_PRICES[planId],
+          success_url: window.location.origin,
+          cancel_url: window.location.origin
+        })
       });
-      const { url } = await res.json();
-      window.location.href = url;
-    } catch (err) {
-      alert('Checkout failed');
+
+      const { url, error } = await response.json();
+      
+      if (error) throw new Error(error);
+      if (url) {
+        window.location.href = url; // Redirect to Stripe Hosted Checkout
+      }
+    } catch (err: any) {
+      console.error("Stripe Error:", err);
+      alert("Failed to initiate payment. Please try again.");
+    } finally {
+      setLoadingPlan(null);
     }
   };
 
-  const handlePayPal = async (planId: string) => {
-    // PayPal integration logic
-    alert('PayPal integration coming soon');
-  };
-
   const plans = [
-    { id: 'starter', name: 'Starter', price: '$9.99', features: ['Unlimited Images', '10 Video Credits', '4K Resolution'] },
-    { id: 'pro', name: 'Pro', price: '$29.99', features: ['Unlimited Images', 'Unlimited Videos', 'Priority Queue', '8K Upscaling'] },
-    { id: 'enterprise', name: 'Enterprise', price: '$99.99', features: ['API Access', 'Custom Model Training', '24/7 Concierge'] }
+    { id: 'starter', name: 'Starter', price: '$9.99', features: ['3 High-Res Images Included', '1 Video Credit', 'Standard Support'] },
+    { id: 'pro', name: 'Pro', price: '$29.99', features: ['Unlimited Images', '20 Video Credits', 'Priority Queue', '8K Upscaling'] },
+    { id: 'enterprise', name: 'Enterprise', price: '$99.99', features: ['Unlimited Everything', 'Custom Model Training', 'API Access', '24/7 Concierge'] }
   ];
 
   return (
@@ -64,8 +85,13 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose }) => {
               </ul>
 
               <div className="w-full space-y-4 pt-8">
-                <button onClick={() => handleStripe(plan.id)} className="w-full py-4 bg-emerald-950 text-white rounded-full text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all">Pay with Stripe</button>
-                <button onClick={() => handlePayPal(plan.id)} className="w-full py-4 border border-emerald-50 text-emerald-950 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-emerald-50 transition-all">Pay with PayPal</button>
+                <button 
+                  onClick={() => handleStripeCheckout(plan.id as any)} 
+                  disabled={loadingPlan !== null}
+                  className="w-full py-4 bg-emerald-950 text-white rounded-full text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all disabled:opacity-50"
+                >
+                  {loadingPlan === plan.id ? 'Connecting...' : 'Pay with Stripe'}
+                </button>
               </div>
             </div>
           ))}

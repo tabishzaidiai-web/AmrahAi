@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory, LuxuryPhotoshootConfig, AmazonListingSuite } from "../types";
+import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory, AmazonListingSuite } from "../types";
 
 const SAFETY_BLOCKLIST = [
   'naked', 'nude', 'lingerie', 'underwear', 'bikini', 'swimsuit', 'explicit', 
@@ -11,8 +12,6 @@ const MODESTY_SYSTEM_INSTRUCTION = `
 MODESTY & REFINEMENT STANDARD:
 Always render human models as attractive, well-presented, and modest. 
 Clothing must be respectful, with covered shoulders and legs, no transparent or skin-tight garments, and no explicit or suggestive styling.
-For Emirati and Gulf female models, use abayas and headscarves with contemporary but modest silhouettes. 
-For Emirati and Gulf male models, use traditional Gulf attire such as kandura/thobe and appropriate headwear (Ghutra/Egal).
 Ensure diversity across regions, skin tones, and body types while keeping every look within a refined, luxury and modest fashion standard. 
 Avoid sexualized poses, exaggerated body features, or provocative expressions.
 `;
@@ -23,26 +22,6 @@ Use the uploaded product image as the ABSOLUTE SINGLE SOURCE OF TRUTH.
 DO NOT ALTER, REDESIGN, OR SIMPLIFY ANY PRODUCT DETAILS. 
 Preserve exact colors (hex/RGB), fabric textures, material weight, prints, embroidery patterns, beadwork, lace details, logos, and silhouette. 
 IGNORE any human or background in the original reference—extract the product only.
-
-[CINEMATIC LIGHTING & TEXTURE PROTOCOL]:
-Apply DRAMATIC, CINEMATIC studio lighting. 
-Focus on highlighting MICRO-TEXTURES, fabric weaves, and material depth.
-Use high-contrast shadows and volumetric highlights (e.g., Rembrandt lighting, Chiaroscuro) to define the product's 3D form. 
-Ensure metallic elements have sharp, realistic reflections and matte surfaces have soft, diffused gradients.
-Lighting must feel expensive, professional, and evocative.
-
-[NEGATIVE PROMPT - HARD CONSTRAINTS]:
-DO NOT change garment design, prints, embroidery, or logos. 
-DO NOT add or remove patterns, trims, or motifs. 
-DO NOT modify color, silhouette, or fabric type. 
-NO redesigning, NO artistic liberties, NO simplification of the product.
-`;
-
-const PRODUCT_ONLY_CONSTRAINT = `
-STRICT PRODUCT-ONLY MODE: 
-- Do NOT generate human models, people, hands, faces, or any human presence.
-- The product must exist purely as a standalone object in the environment.
-- Focus entirely on the background, lighting, and product details.
 `;
 
 export class GeminiService {
@@ -76,24 +55,21 @@ export class GeminiService {
         reader.readAsDataURL(blob);
       });
     } catch (e) {
-      console.warn("Could not convert image to base64, likely CORS:", url);
       return null;
     }
   }
 
   private static buildFidelityPrompt(userPrompt: string, analysis: ProductAnalysis, productDetails: ProductDetails, brandKit: BrandKit, modelContext: string = ""): string {
     const isProductOnly = productDetails.renderMode === 'product-only';
-    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
     const analysisKeys = `PRESERVE KEYS: Type: ${analysis.type}, Material: ${analysis.material}, Color Palette: ${analysis.colorPalette.join(', ')}, Key Features: ${analysis.features.join(', ')}.`;
 
     return `
 ${PRODUCT_LOCK_PROTOCOL}
-${modeInstruction}
+${isProductOnly ? 'MODE: PRODUCT ONLY. NO HUMANS.' : MODESTY_SYSTEM_INSTRUCTION}
 
 [SCENE PROMPT]:
 ${userPrompt}. 
-Adjust only environment, lighting, and ${isProductOnly ? 'background' : 'model pose'}. 
-Lighting should be extremely dramatic and cinematic, focusing on the textures of the ${analysis.material}.
+Adjust only environment and lighting. 
 ${modelContext}
 Maison Visual Tone: ${brandKit.tone}.
 
@@ -109,13 +85,16 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
   static async analyzeProduct(imageBase64: string, mimeType: string, brandKit?: BrandKit): Promise<ProductAnalysis> {
     const ai = this.getAi();
     const cleanB64 = this.cleanBase64(imageBase64);
-    const parts: any[] = [{ inlineData: { data: cleanB64, mimeType: mimeType || 'image/png' } }];
-    const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. TASK: Analyze this product for high-fidelity rendering. IGNORE any people or backgrounds in the image—isolate the product mentally. OUTPUT: JSON format only.`;
-    parts.push({ text: prompt });
+    const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. Analyze this product for high-fidelity rendering. Output JSON format only.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: { parts },
+      contents: { 
+        parts: [
+          { inlineData: { data: cleanB64, mimeType: mimeType || 'image/png' } },
+          { text: prompt }
+        ] 
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -132,28 +111,13 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
         }
       }
     });
-    try {
-      return JSON.parse(response.text || '{}');
-    } catch (e) {
-      return { type: 'Product', brand: 'Unknown', material: 'Standard', colorPalette: [], features: [], visualFidelityKeys: [] };
-    }
+    return JSON.parse(response.text || '{}');
   }
 
   static async suggestPhotoshootPrompts(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
     const ai = this.getAi();
     const cleanB64 = this.cleanBase64(imageBase64);
-    const prompt = `SYSTEM: LUXURY CREATIVE DIRECTOR AI.
-    Analyze the product in the image.
-    Maison Name: ${brandKit.name}, Tone: ${brandKit.tone}.
-    
-    TASK: Generate 4 unique, elite photoshoot narrative prompts.
-    Concepts should sound like professional director cues for high-end campaigns.
-    Incorporate dramatic cinematic lighting (e.g., chiaroscuro, volumetric, Rembrandt) that emphasizes textures.
-    Ensure results are MODEST, LUXURIOUS, and BRAND-SAFE.
-    
-    CRITICAL PROTECTION: Each prompt must conclude with: "Important: Keep the product 100% identical to the reference asset."
-    
-    Output JSON format: Array of objects with 'label' (short title) and 'prompt' (detailed cue).`;
+    const prompt = `SYSTEM: LUXURY CREATIVE DIRECTOR AI. Analyze the product. Maison Tone: ${brandKit.tone}. Generate 4 photoshoot concepts. Output JSON array.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -178,12 +142,7 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
         }
       }
     });
-    
-    try {
-      return JSON.parse(response.text || '[]');
-    } catch (e) {
-      return [];
-    }
+    return JSON.parse(response.text || '[]');
   }
 
   static async generatePhotoshoot(
@@ -192,8 +151,6 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     type: 'image' | 'video' = 'image',
     onStatus: (msg: string) => void
   ): Promise<string> {
-    if (!this.validatePrompt(config.useCase)) throw new Error("AMRAH only supports modest, respectful fashion.");
-
     const cleanProductB64 = this.cleanBase64(config.productImage);
     const analysis = await this.analyzeProduct(cleanProductB64, 'image/png', brandKit);
     
@@ -201,16 +158,16 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       const ai = this.getAi();
       const parts: any[] = [
         { inlineData: { data: cleanProductB64, mimeType: 'image/png' } },
-        { text: "PRODUCT ASSET - IGNORE ALL HUMAN SUBJECTS/BACKGROUNDS HERE" }
+        { text: "REFERENCE" }
       ];
 
       let modelContext = "";
       if (config.model) {
         const modelBase64 = await this.urlToBase64(config.model.mainUrl);
         if (modelBase64) {
-          parts.push({ inlineData: { data: modelBase64, mimeType: 'image/png' } }, { text: "LOCKED MODEL IDENTITY SOURCE" });
+          parts.push({ inlineData: { data: modelBase64, mimeType: 'image/png' } }, { text: "MODEL" });
         }
-        modelContext = `Use model_id ${config.model.id}. Identity Locked: ${config.model.defaultPromptFragment}. Features: ${config.model.features}. Nationality: ${config.model.nationality}.`;
+        modelContext = `Model Identity: ${config.model.name}.`;
       }
 
       const finalStructuredPrompt = this.buildFidelityPrompt(config.useCase, analysis, config.productDetails, brandKit, modelContext);
@@ -222,32 +179,15 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
         config: { imageConfig: { aspectRatio: '3:4' } }
       });
       
-      const candidate = response.candidates?.[0];
-      if (candidate?.content?.parts) {
-        for (const part of candidate.content.parts) {
-          if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-      throw new Error("Shoot generation failed.");
+      const part = response.candidates[0].content.parts.find(p => p.inlineData);
+      if (part) return `data:image/png;base64,${part.inlineData.data}`;
+      throw new Error("Generation failed.");
     } else {
-      onStatus("Initializing Motion Flow...");
-      const isProductOnly = config.productDetails.renderMode === 'product-only';
-      const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
-      const identityLock = config.model && !isProductOnly ? `Model: ${config.model.name}, ${config.model.nationality} ${config.model.gender}. Features: ${config.model.features}. Identity locked.` : "";
-      
-      const videoPrompt = `
-      ${PRODUCT_LOCK_PROTOCOL}
-      ${modeInstruction}
-      Cinematic luxury film sequence. 
-      [SCENE]: ${config.useCase}. ${identityLock} Camera: ${config.productDetails.cameraAngle}, Motion: ${config.productDetails.cameraMotion}.
-      [PRESERVE]: Copy product EXACTLY: ${analysis.material}, ${analysis.type}, ${analysis.features.join(', ')}. 
-      Focus on hyper-realistic movement, dramatic lighting, and deep texture highlighting.
-      `;
-      
+      onStatus("Initializing Motion...");
       const ai = this.getAi();
       let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
-        prompt: videoPrompt,
+        prompt: config.useCase,
         image: { imageBytes: cleanProductB64, mimeType: 'image/png' },
         config: { 
           numberOfVideos: 1, 
@@ -257,21 +197,18 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
       });
 
       while (!operation.done) {
-        onStatus("Synthesizing cinematic frames...");
+        onStatus("Synthesizing frames...");
         await new Promise(r => setTimeout(r, 10000));
-        const pollAi = this.getAi();
-        operation = await pollAi.operations.getVideosOperation({ operation: operation });
+        operation = await this.getAi().operations.getVideosOperation({ operation: operation });
       }
 
-      if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-        const link = operation.response.generatedVideos[0].video.uri;
-        const separator = link.includes('?') ? '&' : '?';
-        const res = await fetch(`${link}${separator}key=${process.env.API_KEY}`);
-        if (!res.ok) throw new Error(`Failed to fetch video: ${res.statusText}`);
+      const link = operation.response?.generatedVideos?.[0]?.video?.uri;
+      if (link) {
+        const res = await fetch(`${link}&key=${process.env.API_KEY}`);
         const blob = await res.blob();
         return URL.createObjectURL(blob);
       }
-      throw new Error("Video synthesis failed.");
+      throw new Error("Video failed.");
     }
   }
 
@@ -283,30 +220,23 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     productDetails: ProductDetails,
     aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "1:1"
   ): Promise<string> {
-    if (!this.validatePrompt(customPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
-
     const ai = this.getAi();
     const cleanBaseB64 = this.cleanBase64(baseImage);
-    const parts: any[] = [
-      { inlineData: { data: cleanBaseB64, mimeType: 'image/png' } },
-      { text: "PRODUCT GROUND TRUTH - IGNORE ALL HUMANS/BACKGROUNDS IN THIS IMAGE." }
-    ];
-    
     const finalStructuredPrompt = this.buildFidelityPrompt(customPrompt, analysis, productDetails, brandKit);
-    parts.push({ text: finalStructuredPrompt });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
-      contents: { parts },
+      contents: { 
+        parts: [
+          { inlineData: { data: cleanBaseB64, mimeType: 'image/png' } },
+          { text: finalStructuredPrompt }
+        ] 
+      },
       config: { imageConfig: { aspectRatio } }
     });
 
-    const candidate = response.candidates?.[0];
-    if (candidate?.content?.parts) {
-      for (const part of candidate.content.parts) {
-        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
+    const part = response.candidates[0].content.parts.find(p => p.inlineData);
+    if (part) return `data:image/png;base64,${part.inlineData.data}`;
     throw new Error("Render failed.");
   }
 
@@ -318,35 +248,23 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     aspectRatio: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" = "16:9",
     imageSize: "1K" | "2K" | "4K" = "1K"
   ): Promise<string> {
-    if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const ai = this.getAi();
-    const parts: any[] = [];
-    
-    productB64s.forEach((b64, idx) => {
-      if (b64) {
-        const cleanB64 = this.cleanBase64(b64);
-        const role = idx === 0 ? "PRIMARY FRONT VIEW" : idx === 1 ? "BACK SIDE VIEW" : "DETAIL MACRO REFERENCE";
-        parts.push({ inlineData: { data: cleanB64, mimeType: 'image/png' } }, { text: `MASTER PRODUCT ${role}` });
-      }
-    });
-
     const firstProductB64 = this.cleanBase64(productB64s[0]!);
     const analysis = await this.analyzeProduct(firstProductB64, 'image/png', brandKit);
     const finalStructuredPrompt = this.buildFidelityPrompt(prompt, analysis, productDetails, brandKit);
-    parts.push({ text: finalStructuredPrompt });
     
+    // Explicitly type parts as any[] to allow pushing mixed text and image parts
+    const parts: any[] = productB64s.filter(b => b).map(b => ({ inlineData: { data: this.cleanBase64(b!), mimeType: 'image/png' } }));
+    parts.push({ text: finalStructuredPrompt });
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: { parts },
       config: { imageConfig: { aspectRatio, imageSize } }
     });
     
-    const candidate = response.candidates?.[0];
-    if (candidate?.content?.parts) {
-      for (const part of candidate.content.parts) {
-        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
+    const part = response.candidates[0].content.parts.find(p => p.inlineData);
+    if (part) return `data:image/png;base64,${part.inlineData.data}`;
     throw new Error("Campaign failed.");
   }
 
@@ -358,23 +276,11 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     productDetails: ProductDetails,
     onStatus: (msg: string) => void
   ): Promise<string> {
-    if (!this.validatePrompt(prompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
     const cleanB64 = this.cleanBase64(base64);
-    const isProductOnly = productDetails.renderMode === 'product-only';
-    const modeInstruction = isProductOnly ? PRODUCT_ONLY_CONSTRAINT : MODESTY_SYSTEM_INSTRUCTION;
-
-    const videoPrompt = `
-    ${PRODUCT_LOCK_PROTOCOL}
-    ${modeInstruction}
-    ${prompt}. 
-    [PRESERVE]: Absolute fidelity to reference. Material: ${analysis.material}. Features: ${analysis.features.join(', ')}. 
-    Cinematic luxury camera motion, dramatic lighting focusing on textures, professional film lighting.
-    `;
-
     const ai = this.getAi();
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
-      prompt: videoPrompt,
+      prompt: prompt,
       image: { imageBytes: cleanB64, mimeType: 'image/png' },
       config: { 
         numberOfVideos: 1, 
@@ -384,144 +290,25 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     });
 
     while (!operation.done) {
-      onStatus("Synthesizing cinematic motion...");
+      onStatus("Synthesizing motion...");
       await new Promise(r => setTimeout(r, 10000));
-      const pollAi = this.getAi();
-      operation = await pollAi.operations.getVideosOperation({ operation: operation });
+      operation = await this.getAi().operations.getVideosOperation({ operation: operation });
     }
 
-    if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-      const link = operation.response.generatedVideos[0].video.uri;
-      const separator = link.includes('?') ? '&' : '?';
-      const res = await fetch(`${link}${separator}key=${process.env.API_KEY}`);
-      if (!res.ok) throw new Error(`Failed to fetch video: ${res.statusText}`);
+    const link = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (link) {
+      const res = await fetch(`${link}&key=${process.env.API_KEY}`);
       const blob = await res.blob();
       return URL.createObjectURL(blob);
     }
     throw new Error("Video synthesis failed.");
   }
 
-  static async editProductImage(
-    currentImageUrl: string,
-    analysis: ProductAnalysis,
-    editPrompt: string,
-    brandKit: BrandKit
-  ): Promise<string> {
-    if (!this.validatePrompt(editPrompt)) throw new Error("AMRAH only supports modest, respectful fashion.");
-    let base64: string | null = "";
-    if (currentImageUrl.includes('base64,')) {
-      base64 = this.cleanBase64(currentImageUrl);
-    } else {
-      base64 = await this.urlToBase64(currentImageUrl);
-    }
-    if (!base64) throw new Error("Failed to process current image for editing.");
-
-    const defaultDetails: ProductDetails = { category: 'other', type: 'Other', approxSize: 'Standard', placement: 'Full body', addLogo: false, logoPlacement: 'Chest', renderMode: 'product-only' };
-    return this.generateProductImage(base64, analysis, `REDEFINE: ${editPrompt}. Important: Keep the core product structure locked. Use dramatic cinematic lighting to highlight textures.`, brandKit, defaultDetails);
-  }
-
-  static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
-    const ai = this.getAi();
-    const cleanB64 = this.cleanBase64(imageBase64);
-    const prompt = `SYSTEM: LUXURY CAMPAIGN STRATEGIST.
-    Analyze the uploaded product image and the brand profile (Maison Name: ${brandKit.name}, Tone: ${brandKit.tone}).
-    Provide 4 distinct, high-end campaign narrative suggestions for luxury marketing.
-    
-    Guidelines:
-    1. Modesty: Respect Gulf and international modesty standards.
-    2. Luxury: Focus on rich textures, dramatic cinematic lighting (Golden Hour, Studio Noir, Dawn), and prestigious environments.
-    3. Narrative: Suggestions should vary from "Minimalist Architectural" to "Opulent Heritage".
-    4. FIDELITY: Always append a protection line: "Important: Keep the product identical to the reference photo. Do not alter any design details or colors."
-    
-    Output JSON format only: an array of objects with 'label' and 'prompt'.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: { 
-        parts: [
-          { inlineData: { data: cleanB64, mimeType: 'image/png' } },
-          { text: prompt }
-        ] 
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              label: { type: Type.STRING },
-              prompt: { type: Type.STRING }
-            },
-            required: ["label", "prompt"]
-          }
-        }
-      }
-    });
-    
-    try {
-      return JSON.parse(response.text || '[]');
-    } catch (e) {
-      return [];
-    }
-  }
-
-  static async trainPersonalModel(dataset: string[]): Promise<string> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(`twin-${Math.random().toString(36).substring(2, 9)}`);
-      }, 3000);
-    });
-  }
-
-  static async generatePhotoshootBrief(
-    base64: string,
-    mimeType: string,
-    userBrief: string,
-    brandKit: BrandKit,
-    selectedModel: ModelPersona | null
-  ): Promise<string> {
-    const ai = this.getAi();
-    const cleanB64 = this.cleanBase64(base64);
-    const modelContext = selectedModel ? `Model: ${selectedModel.name}, Features: ${selectedModel.features}.` : "No specific model.";
-    
-    const prompt = `SYSTEM: LUXURY PHOTOSHOOT PLANNER.
-    Brand: ${brandKit.name}, Tone: ${brandKit.tone}.
-    User Directive: ${userBrief}
-    ${modelContext}
-    
-    TASK: Provide a professional photoshoot plan (human-readable) AND a specific AI prompt.
-    Ensure lighting is dramatic and cinematic, focusing on texture highlighting.
-    Format your response as follows:
-    [Human readable plan with headings for Lighting, Background, and Styling]
-    ...
-    GENERATION BRIEF:
-    [A single, dense, high-fidelity AI prompt for generating the image]`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          { inlineData: { data: cleanB64, mimeType: mimeType || 'image/png' } },
-          { text: prompt }
-        ]
-      }
-    });
-    return response.text || "";
-  }
-
   static async generateAmazonListingSuitePrompts(activeImages: { b64: string, mimeType: string, role: string }[]): Promise<AmazonListingSuite> {
     const ai = this.getAi();
-    const parts: any[] = activeImages.map(img => ({
-      inlineData: { data: this.cleanBase64(img.b64), mimeType: img.mimeType || 'image/png' }
-    }));
-    
-    parts.push({ text: `SYSTEM: AMAZON E-COMMERCE STRATEGIST.
-    Analyze the uploaded product images. 
-    Create a 9-slot cohesive listing suite following Amazon best practices.
-    Ensure dramatic cinematic lighting across all slots.
-    
-    Output JSON format only.` });
+    // Explicitly type parts as any[] to allow pushing mixed text and image parts
+    const parts: any[] = activeImages.map(img => ({ inlineData: { data: this.cleanBase64(img.b64), mimeType: img.mimeType || 'image/png' } }));
+    parts.push({ text: `SYSTEM: AMAZON STRATEGIST. Analyze product and create 9 listing prompts. JSON output.` });
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -537,38 +324,108 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
                 product_identified: { type: Type.STRING },
                 primary_materials: { type: Type.STRING },
                 brand_color_palette: { type: Type.STRING }
-              },
-              required: ["product_identified", "primary_materials", "brand_color_palette"]
+              }
             },
             amazon_suite: {
               type: Type.OBJECT,
               properties: {
-                slot_1_main: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_2_dimensions: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_3_isometric: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_4_back_view: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_5_material_detail: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_6_lifestyle_1: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_7_lifestyle_2: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_8_infographic: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] },
-                slot_9_brand_trust: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } }, required: ["prompt", "type"] }
-              },
-              required: [
-                "slot_1_main", "slot_2_dimensions", "slot_3_isometric", "slot_4_back_view", 
-                "slot_5_material_detail", "slot_6_lifestyle_1", "slot_7_lifestyle_2", 
-                "slot_8_infographic", "slot_9_brand_trust"
-              ]
+                slot_1_main: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_2_dimensions: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_3_isometric: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_4_back_view: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_5_material_detail: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_6_lifestyle_1: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_7_lifestyle_2: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_8_infographic: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } },
+                slot_9_brand_trust: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING }, type: { type: Type.STRING } } }
+              }
             }
-          },
-          required: ["listing_metadata", "amazon_suite"]
+          }
         }
       }
     });
+    return JSON.parse(response.text || '{}');
+  }
 
-    try {
-      return JSON.parse(response.text || '{}');
-    } catch (e) {
-      throw new Error("Failed to parse Amazon Suite JSON.");
+  // Added suggestCampaignStories for campaign orchestrator logic
+  static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
+    const ai = this.getAi();
+    const cleanB64 = this.cleanBase64(imageBase64);
+    const prompt = `SYSTEM: CAMPAIGN STRATEGIST AI. Analyze product for campaign narratives. Maison Tone: ${brandKit.tone}. Generate 4 campaign concepts. JSON array output.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { 
+        parts: [
+          { inlineData: { data: cleanB64, mimeType: 'image/png' } },
+          { text: prompt }
+        ] 
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              label: { type: Type.STRING },
+              prompt: { type: Type.STRING }
+            },
+            required: ["label", "prompt"]
+          }
+        }
+      }
+    });
+    return JSON.parse(response.text || '[]');
+  }
+
+  // Added editProductImage for neural redefinition and AI refining
+  static async editProductImage(imageSource: string, analysis: ProductAnalysis, prompt: string, brandKit: BrandKit): Promise<string> {
+    const ai = this.getAi();
+    let cleanB64 = "";
+    if (imageSource.startsWith('http')) {
+      cleanB64 = await this.urlToBase64(imageSource) || "";
+    } else {
+      cleanB64 = this.cleanBase64(imageSource);
     }
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { inlineData: { data: cleanB64, mimeType: 'image/png' } },
+          { text: prompt }
+        ]
+      }
+    });
+    
+    const part = response.candidates[0].content.parts.find(p => p.inlineData);
+    if (part) return `data:image/png;base64,${part.inlineData.data}`;
+    throw new Error("Neural edit failed.");
+  }
+
+  // Added trainPersonalModel to simulate user identity calibration
+  static async trainPersonalModel(dataset: string[]): Promise<string> {
+    // Conceptual identity training for high-fidelity Maison twins
+    return "identity-" + Math.random().toString(36).substr(2, 9);
+  }
+
+  // Added generatePhotoshootBrief for the Photoshoot Planner component
+  static async generatePhotoshootBrief(imageBase64: string, mimeType: string, userBrief: string, brandKit: BrandKit, model?: ModelPersona | null): Promise<string> {
+    const ai = this.getAi();
+    const cleanB64 = this.cleanBase64(imageBase64);
+    const modelContext = model ? `Selected Model identity: ${model.name}, features: ${model.features}.` : "No specific model casting.";
+    const prompt = `SYSTEM: LUXURY PHOTOSHOOT PLANNER. Analyze product and user vision. Maison Tone: ${brandKit.tone}. ${modelContext} User Vision: ${userBrief}. Generate a professional production plan and a detailed technical AI GENERATION BRIEF.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { 
+        parts: [
+          { inlineData: { data: cleanB64, mimeType: mimeType || 'image/png' } },
+          { text: prompt }
+        ] 
+      }
+    });
+    return response.text || "Assistant brief synthesis failed.";
   }
 }
