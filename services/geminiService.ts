@@ -86,7 +86,9 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
   static async analyzeProduct(imageBase64: string, mimeType: string, brandKit?: BrandKit): Promise<ProductAnalysis> {
     const ai = this.getAi();
     const cleanB64 = this.cleanBase64(imageBase64);
-    const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. Analyze this product for high-fidelity rendering. Output JSON format only.`;
+    const prompt = `SYSTEM: PRODUCT-INTELLIGENT AI. Analyze this product for high-fidelity e-commerce rendering. 
+    Focus on material texture (e.g., grain of leather, weave of silk), metallic finish (matte vs polished), and specific decorative details.
+    Output JSON format only.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -120,33 +122,34 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     const cleanB64 = this.cleanBase64(imageBase64);
     
     const contextStr = analysis ? `
-      PRODUCT CONTEXT:
+      PRODUCT DNA:
       Type: ${analysis.type}
       Material: ${analysis.material}
-      Colors: ${analysis.colorPalette.join(', ')}
       Features: ${analysis.features.join(', ')}
+      Colors: ${analysis.colorPalette.join(', ')}
     ` : "";
 
     const prompt = `
-      SYSTEM: LUXURY CREATIVE DIRECTOR AI. 
-      Analyze the product DNA (texture, material, shape) and any provided product analysis.
-      ${contextStr}
-      Generate 10 distinct photoshoot concepts in a JSON array. 
-      Ensure coverage of these specific aesthetics:
-      1. Minimalist (Clean, white-space, high-key)
-      2. Opulent Arabian (Rich textures, heritage patterns, warm gold lighting)
-      3. Desert Cinematic (Golden hour, soft dunes, orange/purple sky)
-      4. Modern GCC Urban (Sleek architecture, Dubai skyline, glass/steel)
-      5. Heritage Atelier (Dark wood, oil paintings, vintage luxury)
-      6. Soft Editorial (Pastel tones, natural window light, floral hints)
-      7. High Jewelry Macro (Black velvet, dramatic spotlight, precision focus)
-      8. Evening Noir (High contrast, deep shadows, cinematic spotlights)
-      9. Coastal Breezy (Soft blue tones, sea salt lighting, Mediterranean vibe)
-      10. Royal Portrait (Regal posture, silk backdrops, museum lighting)
+      SYSTEM: CREATIVE DIRECTOR for AMRAH Luxury Maison.
+      TASK: Generate 10 distinct, high-fidelity creative concepts for a photoshoot based on the provided product image and DNA.
       
-      Maison Brand Tone: ${brandKit.tone}. 
-      Each concept must focus on highlighting the product's specific materials and colors.
-      Ensure the prompt specifically mentions how the background lighting interacts with the ${analysis?.material || 'product materials'}.
+      PRODUCT CONTEXT:
+      ${contextStr}
+      Maison Brand: ${brandKit.name}
+      Maison Tone: ${brandKit.tone}
+
+      DIRECTIVES:
+      - Prompts must be technical, descriptive, and optimized for high-end AI rendering.
+      - Each prompt should explicitly mention how lighting interacts with the ${analysis?.material || 'product materials'}.
+      - Mandatory Aesthetics to include:
+        1. "Editorial Minimalist" (Pure white or grey backdrops, soft shadows, high-end simplicity).
+        2. "Opulent Arabian Heritage" (Intricate textures, warm gold lighting, marble, arches, desert luxury).
+        3. "Cinematic Golden Hour" (Warm, high-contrast, directional sun lighting).
+        4. "Urban Modernity" (Sleek architectural backgrounds, Dubai skyline silhouettes).
+        5. "Studio Noir" (Dark, moody, spotlight focused, high contrast).
+        6. "Nature Sanctuary" (Organic elements like stone, linen, soft diffused daylight).
+      
+      Output 10 concepts in JSON array format: [{label: "Short Name", prompt: "Full Prompt"}].
     `;
 
     const response = await ai.models.generateContent({
@@ -164,8 +167,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
           items: {
             type: Type.OBJECT,
             properties: {
-              label: { type: Type.STRING, description: "The aesthetic name (e.g., 'Opulent Arabian')" },
-              prompt: { type: Type.STRING, description: "The full technical AI generation prompt" }
+              label: { type: Type.STRING },
+              prompt: { type: Type.STRING }
             },
             required: ["label", "prompt"]
           }
@@ -283,7 +286,6 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     const analysis = await this.analyzeProduct(firstProductB64, 'image/png', brandKit);
     const finalStructuredPrompt = this.buildFidelityPrompt(prompt, analysis, productDetails, brandKit);
     
-    // Explicitly type parts as any[] to allow pushing mixed text and image parts
     const parts: any[] = productB64s.filter(b => b).map(b => ({ inlineData: { data: this.cleanBase64(b!), mimeType: 'image/png' } }));
     parts.push({ text: finalStructuredPrompt });
 
@@ -336,7 +338,6 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
 
   static async generateAmazonListingSuitePrompts(activeImages: { b64: string, mimeType: string, role: string }[]): Promise<AmazonListingSuite> {
     const ai = this.getAi();
-    // Explicitly type parts as any[] to allow pushing mixed text and image parts
     const parts: any[] = activeImages.map(img => ({ inlineData: { data: this.cleanBase64(img.b64), mimeType: img.mimeType || 'image/png' } }));
     parts.push({ text: `SYSTEM: AMAZON STRATEGIST. Analyze product and create 9 listing prompts. JSON output.` });
 
@@ -377,7 +378,6 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     return JSON.parse(response.text || '{}');
   }
 
-  // Added suggestCampaignStories for campaign orchestrator logic
   static async suggestCampaignStories(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
     const ai = this.getAi();
     const cleanB64 = this.cleanBase64(imageBase64);
@@ -409,7 +409,6 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     return JSON.parse(response.text || '[]');
   }
 
-  // Added editProductImage for neural redefinition and AI refining
   static async editProductImage(imageSource: string, analysis: ProductAnalysis, prompt: string, brandKit: BrandKit): Promise<string> {
     const ai = this.getAi();
     let cleanB64 = "";
@@ -449,13 +448,10 @@ DO NOT change the core structure of the product. ONLY add requested embellishmen
     throw new Error("Neural edit failed.");
   }
 
-  // Added trainPersonalModel to simulate user identity calibration
   static async trainPersonalModel(dataset: string[]): Promise<string> {
-    // Conceptual identity training for high-fidelity Maison twins
     return "identity-" + Math.random().toString(36).substr(2, 9);
   }
 
-  // Added generatePhotoshootBrief for the Photoshoot Planner component
   static async generatePhotoshootBrief(imageBase64: string, mimeType: string, userBrief: string, brandKit: BrandKit, model?: ModelPersona | null): Promise<string> {
     const ai = this.getAi();
     const cleanB64 = this.cleanBase64(imageBase64);

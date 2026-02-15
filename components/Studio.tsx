@@ -55,6 +55,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
       setIsAnalyzing(true);
       setState(AppState.ANALYZING);
       setLoadingMsg("Performing Neural Analysis...");
+      setSuggestions([]); // Clear old suggestions
 
       try {
         const base64 = dataUrl.split(',')[1];
@@ -77,6 +78,20 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleRefreshSuggestions = async () => {
+    if (!sourceImage || !analysis) return;
+    setIsSuggesting(true);
+    try {
+      const base64 = sourceImage.split(',')[1];
+      const aiSuggestions = await GeminiService.suggestPhotoshootPrompts(base64, brandKit, analysis);
+      setSuggestions(aiSuggestions);
+    } catch (err) {
+      console.error("Refresh failed", err);
+    } finally {
+      setIsSuggesting(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -133,11 +148,24 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
               </div>
             </div>
 
+            {/* Product DNA Tags Section */}
+            {analysis && (
+              <div className="space-y-4 animate-lux-in">
+                <span className="text-[8px] font-bold text-black/30 uppercase tracking-[0.3em] block ml-2">Verified DNA Keys</span>
+                <div className="flex flex-wrap gap-2">
+                  <div className="px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100 text-[8px] font-bold text-emerald-800 uppercase tracking-widest">{analysis.type}</div>
+                  <div className="px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100 text-[8px] font-bold text-emerald-800 uppercase tracking-widest">{analysis.material}</div>
+                  {analysis.features.slice(0, 3).map((f, i) => (
+                    <div key={i} className="px-3 py-1.5 bg-gold/5 rounded-lg border border-gold/10 text-[8px] font-bold text-gold uppercase tracking-widest">{f}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-6 pt-10 border-t border-gray-50">
                <div className="space-y-6">
                   <div className="flex items-center justify-between ml-2">
                     <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest block">Atmosphere Blueprint</label>
-                    {analysis && <span className="text-[8px] font-bold text-gold uppercase tracking-widest">{analysis.type} Identified</span>}
                   </div>
                   <textarea 
                     value={prompt} 
@@ -146,27 +174,40 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                     className="w-full bg-maison-bg border-none rounded-2xl p-6 text-sm font-serif italic min-h-[140px] focus:ring-1 focus:ring-gold outline-none transition-all shadow-inner"
                   />
                   
-                  {/* Dynamic Suggestion Chips */}
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center ml-2">
-                      <span className="text-[8px] font-bold text-black/20 uppercase tracking-widest block">Maison Aesthetic Cues</span>
-                      {isSuggesting && <div className="w-3 h-3 border border-gold/30 border-t-gold rounded-full animate-spin" />}
+                  {/* Enhanced Dynamic Suggestion Chips */}
+                  <div className="space-y-4 bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100">
+                    <div className="flex justify-between items-center px-1">
+                      <span className="text-[9px] font-bold text-black/30 uppercase tracking-widest block">Maison Creative Blueprints</span>
+                      <button 
+                        onClick={handleRefreshSuggestions}
+                        disabled={isSuggesting || !sourceImage}
+                        className="text-[8px] font-bold text-gold uppercase tracking-widest hover:text-gold/70 transition-colors disabled:opacity-30"
+                      >
+                        {isSuggesting ? 'Orchestrating...' : 'Refresh Ideas'}
+                      </button>
                     </div>
+                    
                     {suggestions.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-3">
                         {suggestions.map((item, idx) => (
                           <button 
                             key={idx}
                             onClick={() => setPrompt(item.prompt)}
-                            className={`px-3 py-2.5 bg-emerald-50/50 border border-emerald-50/50 rounded-xl text-[8px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold hover:bg-white transition-all active:scale-95 text-center truncate ${prompt === item.prompt ? 'border-gold text-gold bg-white ring-1 ring-gold/20' : ''}`}
+                            className={`px-4 py-4 rounded-2xl text-[9px] font-bold uppercase tracking-widest transition-all active:scale-95 text-center leading-tight shadow-sm border ${
+                              prompt === item.prompt 
+                                ? 'bg-emerald-950 text-white border-emerald-950 shadow-emerald-950/20' 
+                                : 'bg-white text-emerald-950/60 border-emerald-100 hover:border-gold hover:text-gold hover:shadow-lg'
+                            }`}
                             title={item.label}
                           >
                             {item.label}
                           </button>
                         ))}
                       </div>
-                    ) : sourceImage && !isAnalyzing && !isSuggesting && (
-                       <button onClick={() => handleFileChange({ target: { files: [] } } as any)} className="w-full py-2 border border-dashed border-emerald-100 rounded-xl text-[7px] font-bold text-emerald-950/20 uppercase tracking-widest">Reload AI Blueprinting</button>
+                    ) : (
+                       <div className="text-center py-10">
+                          <p className="text-[9px] text-emerald-950/20 font-bold uppercase tracking-[0.2em] italic">Blueprints materialize <br/>after asset ingestion</p>
+                       </div>
                     )}
                   </div>
                </div>
@@ -177,14 +218,14 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                     onClick={() => setShowAdvanced(!showAdvanced)}
                     className="w-full flex items-center justify-between py-2 group"
                   >
-                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-[0.4em] group-hover:text-gold transition-colors">Product Details</span>
+                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-[0.4em] group-hover:text-gold transition-colors">Product Specifications</span>
                     <svg className={`w-5 h-5 text-black/20 transition-transform duration-500 ${showAdvanced ? 'rotate-180 text-gold' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
                   </button>
                   {showAdvanced && (
                     <div className="pt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
                       <div className="space-y-2">
                          <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Product Type</label>
-                         <select value={productDetails.type} onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                         <select value={productDetails.type} onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none border border-emerald-50">
                             {productTypes.map(type => (
                               <option key={type} value={type}>{type}</option>
                             ))}
@@ -197,12 +238,12 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                             value={productDetails.approxSize} 
                             onChange={(e) => setProductDetails({...productDetails, approxSize: e.target.value})} 
                             placeholder="e.g. 15cm height, 2.5 carats"
-                            className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none"
+                            className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none border border-emerald-50"
                          />
                       </div>
                       <div className="space-y-2">
                          <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Placement</label>
-                         <select value={productDetails.placement} onChange={(e) => setProductDetails({...productDetails, placement: e.target.value as ProductPlacement})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                         <select value={productDetails.placement} onChange={(e) => setProductDetails({...productDetails, placement: e.target.value as ProductPlacement})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none border border-emerald-50">
                             {placementOptions.map(option => (
                               <option key={option} value={option}>{option}</option>
                             ))}
@@ -210,7 +251,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                       </div>
                       <div className="space-y-2">
                          <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Camera Angle</label>
-                         <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                         <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none border border-emerald-50">
                             {cameraAngles.map(angle => (
                               <option key={angle} value={angle}>{angle}</option>
                             ))}

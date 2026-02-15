@@ -129,15 +129,32 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
             key={model.id} 
             onClick={() => onModelSelect?.(model)}
             className={`group bg-white rounded-[3.5rem] overflow-hidden soft-shadow transition-all border relative flex flex-col h-full ${
-              selectedModelId === model.id ? 'border-gold shadow-2xl scale-[0.98]' : 'border-emerald-50 hover:border-gold/30'
+              selectedModelId === model.id ? 'border-gold shadow-2xl scale-[1.01] ring-1 ring-gold/20' : 'border-emerald-50 hover:border-gold/30'
             } cursor-pointer hover:shadow-2xl transition-all duration-500`}
           >
+            {/* Tooltip implementation via absolute positioning & peer/group hover */}
             <div className="aspect-[3/4] overflow-hidden relative bg-emerald-50/10">
               <MediaAsset 
                 src={model.mainUrl} 
                 className="w-full h-full object-cover transition-transform duration-[4s] group-hover:scale-105" 
                 alt={model.name}
               />
+              
+              {/* Beauty Intelligence Icon & Tooltip */}
+              <div className="absolute top-6 right-6 z-20">
+                <div className="relative group/tooltip">
+                  <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 hover:bg-gold hover:border-gold transition-all duration-300">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <div className="absolute top-0 right-10 w-48 opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-all duration-500 translate-x-4 group-hover/tooltip:translate-x-0 z-[100]">
+                    <div className="bg-emerald-950/90 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl">
+                      <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-2">Beauty Intelligence</p>
+                      <p className="text-[11px] text-white/80 font-serif italic leading-relaxed">{model.beautyNotes}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {selectedModelId === model.id && (
                 <div className="absolute top-8 left-8 bg-gold text-white px-6 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-2xl animate-pulse z-10">
                   Identity Locked
@@ -151,16 +168,22 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
             </div>
 
             <div className="p-10 space-y-6 flex-1 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <p className="text-[13px] text-emerald-950/60 leading-relaxed font-serif italic line-clamp-2">
-                    "{model.features}"
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {model.style.slice(0, 3).map(s => (
-                      <span key={s} className="text-[7px] text-emerald-950/50 font-bold uppercase tracking-widest bg-emerald-50/50 px-3 py-1.5 rounded-full border border-emerald-50/50">
-                        {s}
-                      </span>
-                    ))}
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <p className="text-[13px] text-emerald-950/70 leading-relaxed font-serif italic line-clamp-2">
+                      "{model.features}"
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <span className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-[0.3em] block">Casting Fit</span>
+                    <div className="flex flex-wrap gap-2">
+                      {model.style.slice(0, 3).map(s => (
+                        <span key={s} className="text-[7px] text-emerald-950/60 font-bold uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 transition-colors group-hover:bg-gold/5 group-hover:border-gold/20">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 
@@ -170,7 +193,7 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
                       onClick={(e) => { e.stopPropagation(); onModelSelect?.(model); }}
                       className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] transition-all active:scale-95 ${
                       selectedModelId === model.id 
-                        ? 'bg-gold text-white' 
+                        ? 'bg-gold text-white shadow-xl shadow-gold/20' 
                         : 'bg-emerald-950 text-white hover:bg-gold shadow-emerald-950/10'
                     }`}>
                         {selectedModelId === model.id ? 'Identity Confirmed' : 'Cast Persona'}

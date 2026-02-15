@@ -10,27 +10,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
 
   const slides = [
     {
-      title: "Master the Art of",
-      highlight: "Absolute Fidelity.",
-      description: "Amrah preserves every stitch, every facet, and every detail. The world's first neural engine built exclusively for luxury heritage.",
-      image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
-      category: "Neural Haute Couture",
-      hook: "100% VISUAL FIDELITY GUARANTEED"
-    },
-    {
-      title: "Brilliance Without",
-      highlight: "Compromise.",
-      description: "From the luster of a diamond to the depth of a gem. Capture the exact light physics of your finest creations with zero pixel distortion.",
+      title: "Stop taking bad",
+      highlight: "product photos.",
+      description: "AMRAH by Arabian AI turns your product images into hyper-realistic, cinematic visuals for luxury fashion, jewelry, and watches — without a studio or photographer.",
       image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=2070&auto=format&fit=crop",
-      category: "High Jewelry Synthesis",
-      hook: "EXACT METALLIC REFLECTION LOCK"
+      hook: "STUDIO-GRADE 4K SYNTHESIS"
     },
     {
-      title: "Where Tradition Meets",
-      highlight: "Intelligence.",
-      description: "Automate your global campaigns while protecting your brand's DNA. Scale editorial excellence with a single master asset.",
-      image: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?q=80&w=2070&auto=format&fit=crop",
-      category: "Maison Strategy",
+      title: "From simple photos to",
+      highlight: "cinematic campaigns.",
+      description: "Generate 100+ ready-to-use visuals for your website, ads, and social media in seconds. Calibrated for 100% brand fidelity and modest fashion standards.",
+      image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
       hook: "ENTERPRISE-READY NEURAL CORE"
     }
   ];
@@ -38,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
@@ -66,32 +56,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
         </div>
       </nav>
 
-      {/* Hero Section Carousel */}
+      {/* Hero Section */}
       <header className="relative w-full h-[100vh] flex flex-col items-center justify-center text-center overflow-hidden bg-emerald-950">
         {slides.map((slide, index) => (
           <div 
             key={index}
-            className={`absolute inset-0 z-0 transition-all duration-[2500ms] ease-in-out ${activeSlide === index ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-110 invisible'}`}
+            className={`absolute inset-0 z-0 transition-all duration-[2000ms] ease-in-out ${activeSlide === index ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-105 invisible'}`}
           >
             <div 
               className="absolute inset-0 bg-cover bg-center transition-transform duration-[12000ms] ease-linear"
               style={{ 
                 backgroundImage: `url('${slide.image}')`,
-                transform: activeSlide === index ? 'scale(1.15)' : 'scale(1.0)'
+                transform: activeSlide === index ? 'scale(1.1)' : 'scale(1.0)'
               }}
             />
-            {/* Readability Overlays */}
-            <div className="absolute inset-0 bg-emerald-950/50" />
-            <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/20 via-transparent to-white/5" />
+            {/* 
+              VISUAL SUGGESTION: 
+              Replace static image with a before/after split screen showing a raw product photo 
+              transitioning into a high-end cinematic campaign render.
+            */}
+            <div className="absolute inset-0 bg-emerald-950/40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/30 via-transparent to-white/10" />
           </div>
         ))}
 
         {/* Content Overlay */}
-        <div className="relative z-10 max-w-6xl px-6 md:px-8 space-y-8 md:space-y-12">
+        <div className="relative z-10 max-w-6xl px-6 md:px-8 space-y-12">
           {slides.map((slide, index) => (
             <div 
               key={index}
-              className={`transition-all duration-1000 delay-300 ${activeSlide === index ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95 pointer-events-none absolute inset-x-0'}`}
+              className={`transition-all duration-1000 delay-300 ${activeSlide === index ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12 absolute inset-x-0'}`}
             >
               <div className="space-y-6 md:space-y-8">
                 <div className="flex items-center justify-center gap-4 mb-4">
@@ -102,47 +96,48 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
                   <div className="h-[1px] w-8 bg-gold/50" />
                 </div>
                 
-                <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-[8rem] font-serif text-white leading-[0.9] font-medium tracking-tight drop-shadow-2xl">
+                <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-[7rem] font-serif text-white leading-[1] font-medium tracking-tight drop-shadow-2xl">
                   {slide.title} <br/>
                   <span className="italic text-gold block mt-2">{slide.highlight}</span>
                 </h1>
                 
-                <p className="text-white/80 text-lg md:text-2xl font-light leading-relaxed max-w-2xl mx-auto font-serif italic drop-shadow-md px-4 mt-8">
+                <p className="text-white/90 text-lg md:text-xl font-light leading-relaxed max-w-3xl mx-auto font-serif italic drop-shadow-md px-4 mt-8">
                   {slide.description}
                 </p>
               </div>
             </div>
           ))}
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 md:gap-10 pt-12">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 md:gap-10 pt-4">
             <button 
               onClick={() => onEnterApp('shoot')}
-              className="w-full sm:w-auto px-16 md:px-24 py-6 md:py-8 bg-white text-emerald-950 font-bold rounded-full text-[11px] md:text-[13px] uppercase tracking-[0.6em] hover:bg-gold hover:text-white transition-all btn-luxury shadow-2xl active:scale-95"
+              className="w-full sm:w-auto px-16 md:px-24 py-6 md:py-7 bg-white text-emerald-950 font-bold rounded-full text-[11px] md:text-[12px] uppercase tracking-[0.6em] hover:bg-gold hover:text-white transition-all btn-luxury shadow-2xl active:scale-95"
             >
-              Start Synthesis
+              Start Your AI Photoshoot
             </button>
             <button 
               onClick={() => {
                 const el = document.getElementById('categories');
                 el?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="w-full sm:w-auto px-12 py-6 md:py-8 bg-transparent border border-white/20 text-white font-bold rounded-full text-[11px] md:text-[12px] uppercase tracking-[0.6em] backdrop-blur-sm hover:bg-white/5 transition-all active:scale-95"
+              className="w-full sm:w-auto px-12 py-6 md:py-7 bg-transparent border border-white/30 text-white font-bold rounded-full text-[11px] md:text-[12px] uppercase tracking-[0.6em] backdrop-blur-sm hover:bg-white/10 transition-all active:scale-95"
             >
-              Browse Sectors
+              Browse Maison Sectors
             </button>
           </div>
 
-          {/* Slider Indicators */}
-          <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-6">
-            {slides.map((_, i) => (
-              <button 
-                key={i}
-                onClick={() => setActiveSlide(i)}
-                className="group p-2"
-              >
-                <div className={`h-1 rounded-full transition-all duration-700 ${activeSlide === i ? 'bg-gold w-16' : 'bg-white/20 w-8 group-hover:bg-white/40'}`} />
-              </button>
-            ))}
+          {/* Trust Bullets Bar */}
+          <div className="pt-20 flex flex-wrap justify-center gap-x-16 gap-y-6 opacity-60">
+             {[
+               "No studio. No photographer. No editing.",
+               "Generate 100+ visuals in minutes.",
+               "Perfect for Shopify, Amazon & Etsy."
+             ].map((text, i) => (
+               <div key={i} className="flex items-center gap-3">
+                 <div className="w-1.5 h-1.5 rounded-full bg-gold" />
+                 <span className="text-[9px] font-bold text-white uppercase tracking-widest">{text}</span>
+               </div>
+             ))}
           </div>
         </div>
       </header>
