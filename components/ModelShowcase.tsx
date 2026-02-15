@@ -129,10 +129,10 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
             key={model.id} 
             onClick={() => onModelSelect?.(model)}
             className={`group bg-white rounded-[3.5rem] overflow-hidden soft-shadow transition-all border relative flex flex-col h-full ${
-              selectedModelId === model.id ? 'border-gold shadow-2xl scale-[1.01] ring-1 ring-gold/20' : 'border-emerald-50 hover:border-gold/30'
+              selectedModelId === model.id ? 'border-gold shadow-2xl scale-[1.01] ring-2 ring-gold/40' : 'border-emerald-50 hover:border-gold/30 hover:scale-[1.005]'
             } cursor-pointer hover:shadow-2xl transition-all duration-500`}
           >
-            {/* Tooltip implementation via absolute positioning & peer/group hover */}
+            {/* Dossier Image Section */}
             <div className="aspect-[3/4] overflow-hidden relative bg-emerald-50/10">
               <MediaAsset 
                 src={model.mainUrl} 
@@ -140,46 +140,86 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
                 alt={model.name}
               />
               
-              {/* Beauty Intelligence Icon & Tooltip */}
+              {/* Intelligence Dossier Tooltip */}
               <div className="absolute top-6 right-6 z-20">
                 <div className="relative group/tooltip">
-                  <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 hover:bg-gold hover:border-gold transition-all duration-300">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <div className="w-10 h-10 bg-emerald-950/30 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/20 hover:bg-gold hover:border-gold transition-all duration-300 shadow-xl">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   </div>
-                  <div className="absolute top-0 right-10 w-48 opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-all duration-500 translate-x-4 group-hover/tooltip:translate-x-0 z-[100]">
-                    <div className="bg-emerald-950/90 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl">
-                      <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-2">Beauty Intelligence</p>
-                      <p className="text-[11px] text-white/80 font-serif italic leading-relaxed">{model.beautyNotes}</p>
+                  <div className="absolute top-0 right-14 w-64 opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-all duration-500 translate-x-4 group-hover/tooltip:translate-x-0 z-[100] shadow-2xl">
+                    <div className="bg-emerald-950 rounded-[2rem] border border-white/10 overflow-hidden">
+                      <div className="bg-gold/10 px-6 py-3 border-b border-white/5">
+                        <p className="text-[10px] font-bold text-gold uppercase tracking-[0.3em]">Neural Dossier</p>
+                      </div>
+                      <div className="p-6 space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Calibration Notes</p>
+                          <p className="text-[12px] text-white/90 font-serif italic leading-relaxed">{model.beautyNotes}</p>
+                        </div>
+                        <div className="pt-4 border-t border-white/5 grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Age Range</p>
+                            <p className="text-[10px] text-gold font-bold">{model.ageRange}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Region</p>
+                            <p className="text-[10px] text-gold font-bold">{model.region}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Status Badges */}
               {selectedModelId === model.id && (
                 <div className="absolute top-8 left-8 bg-gold text-white px-6 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-2xl animate-pulse z-10">
                   Identity Locked
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+              
+              {/* Prominent Casting Fit Tag */}
+              <div className="absolute top-8 left-8 z-10 flex flex-col gap-2">
+                 {!selectedModelId && (
+                   <div className="bg-emerald-950/80 backdrop-blur-sm text-white px-5 py-2 rounded-full text-[8px] font-bold uppercase tracking-[0.2em] border border-white/10 shadow-lg">
+                      Fit: {model.style[0]}
+                   </div>
+                 )}
+              </div>
+
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-emerald-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
               <div className="absolute bottom-10 left-10 right-10 text-white">
                  <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-gold/90 mb-2 block">{model.nationality}</span>
                  <h3 className="text-3xl font-serif italic tracking-tight">{model.name}</h3>
               </div>
             </div>
 
-            <div className="p-10 space-y-6 flex-1 flex flex-col justify-between">
+            {/* Information Section */}
+            <div className="p-10 space-y-8 flex-1 flex flex-col justify-between">
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <p className="text-[13px] text-emerald-950/70 leading-relaxed font-serif italic line-clamp-2">
+                    <p className="text-[13px] text-emerald-950/70 leading-relaxed font-serif italic line-clamp-3">
                       "{model.features}"
                     </p>
                   </div>
                   
-                  <div className="space-y-3">
-                    <span className="text-[8px] font-bold text-emerald-950/30 uppercase tracking-[0.3em] block">Casting Fit</span>
+                  {/* Visual Style Tags */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-[1px] w-4 bg-gold/30" />
+                      <span className="text-[9px] font-bold text-emerald-950/30 uppercase tracking-[0.4em] block">Casting Fit</span>
+                    </div>
                     <div className="flex flex-wrap gap-2">
-                      {model.style.slice(0, 3).map(s => (
-                        <span key={s} className="text-[7px] text-emerald-950/60 font-bold uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 transition-colors group-hover:bg-gold/5 group-hover:border-gold/20">
+                      {model.style.map((s, idx) => (
+                        <span 
+                          key={s} 
+                          className={`text-[8px] font-bold uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${
+                            idx === 0 
+                            ? 'bg-gold/5 border-gold/40 text-gold shadow-sm' 
+                            : 'bg-emerald-50 border-emerald-100 text-emerald-950/40 group-hover:text-emerald-950/60'
+                          }`}
+                        >
                           {s}
                         </span>
                       ))}
@@ -191,9 +231,9 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
                   <div className="pt-6 border-t border-emerald-50/50 mt-4">
                     <button 
                       onClick={(e) => { e.stopPropagation(); onModelSelect?.(model); }}
-                      className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] transition-all active:scale-95 ${
+                      className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] transition-all active:scale-95 shadow-xl ${
                       selectedModelId === model.id 
-                        ? 'bg-gold text-white shadow-xl shadow-gold/20' 
+                        ? 'bg-gold text-white shadow-gold/30' 
                         : 'bg-emerald-950 text-white hover:bg-gold shadow-emerald-950/10'
                     }`}>
                         {selectedModelId === model.id ? 'Identity Confirmed' : 'Cast Persona'}
