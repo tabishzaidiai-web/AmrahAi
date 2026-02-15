@@ -32,25 +32,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCloudRestricted, setIsCloudRestricted] = useState(false);
 
   useEffect(() => {
+    // Proactive domain check for restricted environments (e.g., AI Studio previews)
+    const hostname = window.location.hostname;
+    if (hostname.includes('googleusercontent.com') || hostname.includes('webcontainer.io')) {
+      console.info("AMRAH: Restricted environment detected. Cloud Sync may be limited.");
+      setIsCloudRestricted(true);
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const token = await firebaseUser.getIdToken();
-        setSession({ access_token: token });
+        try {
+          const token = await firebaseUser.getIdToken();
+          setSession({ access_token: token });
 
-        const mappedUser: User = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          name: firebaseUser.displayName || 'Maison User',
-          role: 'User',
-          tier: 'Free',
-          registrationDate: Date.now(),
-          lastLogin: Date.now(),
-          credits: { images: 3, videos: 1 },
-          totalGenerated: 0
-        };
-        setUser(mappedUser);
+          const mappedUser: User = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            name: firebaseUser.displayName || 'Maison User',
+            role: 'User',
+            tier: 'Free',
+            registrationDate: Date.now(),
+            lastLogin: Date.now(),
+            credits: { images: 3, videos: 1 },
+            totalGenerated: 0
+          };
+          setUser(mappedUser);
+          setIsCloudRestricted(false);
+        } catch (e) {
+          console.warn("Firebase token failure in isolated environment.");
+        }
       } else {
-        if (!user || (user.id !== 'maison-guest' && user.id !== 'local-mode')) {
+        // Persist local-mode user if already set
+        if (!user || (user.id !== 'local-mode')) {
           setSession(null);
           setUser(null);
         }
@@ -62,8 +75,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const handleAuthError = (error: any) => {
-    if (error.code === 'auth/unauthorized-domain') {
+    const code = error.code || '';
+    const message = error.message || '';
+    if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain')) {
       setIsCloudRestricted(true);
+      // We don't throw here if we want the UI to handle it gracefully
     }
     throw error;
   };
@@ -72,9 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        throw new Error('Email or password is incorrect');
-      }
       handleAuthError(error);
     }
   };
@@ -93,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: 'guest@amrah.ai',
       name: 'Maison Guest',
       role: 'User',
-      tier: 'Pro',
+      tier: 'Maison', // High-fidelity testing tier
       registrationDate: Date.now(),
       lastLogin: Date.now(),
       credits: { images: 999, videos: 999 },
@@ -108,15 +121,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        throw new Error('User already exists. Please sign in');
-      }
       handleAuthError(error);
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {}
     setUser(null);
     setSession(null);
     setIsCloudRestricted(false);

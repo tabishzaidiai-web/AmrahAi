@@ -70,11 +70,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
                 transform: activeSlide === index ? 'scale(1.1)' : 'scale(1.0)'
               }}
             />
-            {/* 
-              VISUAL SUGGESTION: 
-              Replace static image with a before/after split screen showing a raw product photo 
-              transitioning into a high-end cinematic campaign render.
-            */}
             <div className="absolute inset-0 bg-emerald-950/40" />
             <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/30 via-transparent to-white/10" />
           </div>
@@ -117,12 +112,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
             </button>
             <button 
               onClick={() => {
-                const el = document.getElementById('categories');
+                const el = document.getElementById('maison-experience');
                 el?.scrollIntoView({ behavior: 'smooth' });
               }}
               className="w-full sm:w-auto px-12 py-6 md:py-7 bg-transparent border border-white/30 text-white font-bold rounded-full text-[11px] md:text-[12px] uppercase tracking-[0.6em] backdrop-blur-sm hover:bg-white/10 transition-all active:scale-95"
             >
-              Browse Maison Sectors
+              Watch the Premiere
             </button>
           </div>
 
@@ -141,6 +136,48 @@ const Dashboard: React.FC<DashboardProps> = ({ onEnterApp }) => {
           </div>
         </div>
       </header>
+
+      {/* Intro Video Section */}
+      <section id="maison-experience" className="py-24 md:py-32 bg-maison-bg relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6 space-y-16">
+          <div className="text-center space-y-4">
+            <span className="text-gold text-[10px] font-bold uppercase tracking-[0.6em]">The Maison Experience</span>
+            <h2 className="text-4xl md:text-5xl font-serif text-emerald-950 italic">Where Vision Meets Velocity</h2>
+            <p className="text-emerald-950/60 text-sm md:text-base font-serif italic max-w-2xl mx-auto">
+              Witness the power of AMRAH as it orchestrates 100% brand-faithful assets in real-time.
+            </p>
+          </div>
+
+          <div className="relative group max-w-5xl mx-auto">
+            {/* Decorative Gold Frame */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-gold/20 via-gold/40 to-gold/20 rounded-[2.5rem] blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            
+            <div className="relative aspect-video rounded-[2rem] overflow-hidden bg-emerald-950 shadow-2xl border border-emerald-50">
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/iD3ulMki7mU?si=vlUBSlVSUnWMRprm&rel=0&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+                title="AMRAH by Arabian AI - Demo"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              ></iframe>
+            </div>
+            
+            {/* Call to Action below Video */}
+            <div className="pt-12 text-center">
+              <button 
+                onClick={() => onEnterApp('shoot')}
+                className="text-[11px] font-bold uppercase tracking-[0.4em] text-emerald-950 hover:text-gold transition-colors flex items-center gap-4 mx-auto group"
+              >
+                <div className="w-8 h-[1px] bg-gold group-hover:w-12 transition-all" />
+                Experience the studio yourself
+                <div className="w-8 h-[1px] bg-gold group-hover:w-12 transition-all" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Categories Grid */}
       <section id="categories" className="bg-emerald-950 flex flex-col lg:flex-row min-h-[700px] relative z-20">
