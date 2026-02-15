@@ -27,6 +27,8 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
   const [output, setOutput] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [suggestions, setSuggestions] = useState<{label: string, prompt: string}[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   
   const [productDetails, setProductDetails] = useState<ProductDetails>({
     category: initialCategory || 'jewelry',
@@ -45,6 +47,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
   const productTypes: ProductType[] = ['Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'];
   const placements: ProductPlacement[] = ['On ear', 'On neck', 'On wrist', 'On finger', 'On chest', 'On shoulder', 'Full body', 'Handheld', 'On table'];
   const lightingPresets = ['Soft Ambient', 'Dramatic Spotlight', 'Golden Hour Glow', 'Studio Noir', 'Natural Daylight'];
+  const cameraAngles: CameraAngle[] = ['Standard', 'Low Angle', 'High Angle', 'Bird\'s Eye', 'Side', 'Close-up'];
   
   const steps = [
     { id: 1, label: 'Upload product', active: !!sourceImage },
@@ -75,6 +78,20 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleSuggestPrompts = async () => {
+    if (!sourceImage) return;
+    setIsSuggesting(true);
+    try {
+      const base64 = sourceImage.split(',')[1];
+      const res = await GeminiService.suggestPhotoshootPrompts(base64, brandKit);
+      setSuggestions(res);
+    } catch (err) {
+      console.error("Neural suggestion failure:", err);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!sourceImage || !prompt) return;
     if (userCredits.images !== -1 && userCredits.images <= 0) return onInsufficientCredits();
@@ -82,7 +99,7 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
     setLoadingMsg("Orchestrating...");
     try {
       const base64 = sourceImage.split(',')[1];
-      const finalPrompt = `Lighting: ${lighting}. Environment: ${prompt}`;
+      const finalPrompt = `Lighting: ${lighting}. Environment: ${prompt}. Camera Angle: ${productDetails.cameraAngle}.`;
       let url = await GeminiService.generateProductImage(base64, analysis!, finalPrompt, brandKit, productDetails);
       setOutput(url);
       addToHistory({ id: Math.random().toString(36).substr(2, 9), type: 'image', url, prompt: finalPrompt, timestamp: Date.now() });
@@ -189,12 +206,45 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
                 </div>
               </div>
 
-              <textarea 
-                value={prompt} 
-                onChange={(e) => setPrompt(e.target.value)} 
-                placeholder="Describe the environment and background atmosphere..." 
-                className="w-full bg-maison-bg border-none rounded-[2.5rem] p-10 text-sm font-serif italic min-h-[200px] focus:ring-1 focus:ring-gold outline-none shadow-inner"
-              />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between ml-3">
+                  <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.4em] block">Atmosphere Blueprint</span>
+                  <button 
+                    onClick={handleSuggestPrompts}
+                    disabled={isSuggesting || !sourceImage}
+                    className="text-[9px] font-bold text-gold uppercase tracking-widest hover:text-gold/80 transition-colors disabled:opacity-30 flex items-center gap-2"
+                  >
+                    {isSuggesting ? (
+                      <>
+                        <div className="w-2 h-2 border border-gold border-t-transparent rounded-full animate-spin" />
+                        Orchestrating...
+                      </>
+                    ) : (
+                      'Suggest Luxury Prompts'
+                    )}
+                  </button>
+                </div>
+                <textarea 
+                  value={prompt} 
+                  onChange={(e) => setPrompt(e.target.value)} 
+                  placeholder="Describe the environment and background atmosphere..." 
+                  className="w-full bg-maison-bg border-none rounded-[2.5rem] p-10 text-sm font-serif italic min-h-[200px] focus:ring-1 focus:ring-gold outline-none shadow-inner"
+                />
+                
+                {suggestions.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 ml-3">
+                    {suggestions.map((s, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setPrompt(s.prompt)}
+                        className={`px-4 py-2 bg-emerald-50/50 border border-emerald-50 rounded-full text-[8px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold hover:bg-white transition-all active:scale-95 text-center leading-tight ${prompt === s.prompt ? 'border-gold text-gold bg-white' : ''}`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="border-t border-emerald-50 pt-10">
                 <button 
@@ -210,6 +260,14 @@ const PhotoStudio: React.FC<PhotoStudioProps> = ({
                        <label className="text-[9px] font-bold text-black/30 uppercase tracking-widest block ml-3">Type</label>
                        <select value={productDetails.type} onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} className="w-full bg-maison-bg rounded-2xl px-8 py-5 text-[10px] font-bold uppercase outline-none border border-emerald-50/50">
                           {productTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                       </select>
+                    </div>
+                    <div className="space-y-3">
+                       <label className="text-[9px] font-bold text-black/30 uppercase tracking-widest block ml-3">Camera Angle</label>
+                       <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-maison-bg rounded-2xl px-8 py-5 text-[10px] font-bold uppercase outline-none border border-emerald-50/50">
+                          {cameraAngles.map(angle => (
+                            <option key={angle} value={angle}>{angle}</option>
+                          ))}
                        </select>
                     </div>
                     <div className="space-y-3">

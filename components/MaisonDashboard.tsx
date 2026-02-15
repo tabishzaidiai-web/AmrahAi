@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { MaisonFolder, MaisonFile, MaisonNote, MaisonTeamMember } from '../types';
 import MaisonModal from './MaisonModal';
 
 const MaisonDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isCloudRestricted } = useAuth();
   const [activeTab, setActiveTab] = useState<'assets' | 'notes' | 'team'>('assets');
   
   // Data States
@@ -15,46 +15,115 @@ const MaisonDashboard: React.FC = () => {
   const [notes, setNotes] = useState<MaisonNote[]>([]);
   const [team, setTeam] = useState<MaisonTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal States
   const [modalType, setModalType] = useState<'folder' | 'file' | 'note' | 'member' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
+  // Local Storage Keys
+  const LOCAL_STORAGE_KEY = `amrah_local_hub_${user?.id || 'guest'}`;
+
+  const loadLocalData = () => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      setFolders(data.folders || []);
+      setFiles(data.files || []);
+      setNotes(data.notes || []);
+      setTeam(data.team || []);
+    }
+    setLoading(false);
+  };
+
+  const saveToLocal = (type: string, newData: any) => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const data = saved ? JSON.parse(saved) : { folders: [], files: [], notes: [], team: [] };
+    
+    const item = { id: Math.random().toString(36).substr(2, 9), ...newData, createdAt: Date.now() };
+    
+    if (type === 'folder') data.folders = [item, ...data.folders];
+    if (type === 'file') data.files = [item, ...data.files];
+    if (type === 'note') data.notes = [item, ...data.notes];
+    if (type === 'member') data.team = [item, ...data.team];
+
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    loadLocalData();
+  };
+
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    if (isCloudRestricted) {
+      loadLocalData();
+      return;
+    }
 
     const basePath = `users/${user.id}`;
-    
-    const unsubFolders = onSnapshot(query(collection(db, `${basePath}/folders`), orderBy('createdAt', 'desc')), (snap) => {
-      setFolders(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonFolder)));
-    });
+    const handleError = (err: any) => {
+      if (err.code === 'permission-denied' || err.message?.includes('auth')) {
+        console.warn("Cloud Restricted. Switching to Local Persistence.");
+        loadLocalData();
+      } else {
+        console.error("Maison Sync Error:", err);
+      }
+    };
 
-    const unsubFiles = onSnapshot(query(collection(db, `${basePath}/files`), orderBy('createdAt', 'desc')), (snap) => {
-      setFiles(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonFile)));
-    });
+    let unsubscribes: (() => void)[] = [];
 
-    const unsubNotes = onSnapshot(query(collection(db, `${basePath}/notes`), orderBy('createdAt', 'desc')), (snap) => {
-      setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonNote)));
-    });
+    try {
+      unsubscribes.push(onSnapshot(
+        query(collection(db, `${basePath}/folders`), orderBy('createdAt', 'desc')), 
+        (snap) => setFolders(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonFolder))),
+        handleError
+      ));
 
-    const unsubTeam = onSnapshot(query(collection(db, `${basePath}/teamMembers`), orderBy('createdAt', 'desc')), (snap) => {
-      setTeam(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonTeamMember)));
+      unsubscribes.push(onSnapshot(
+        query(collection(db, `${basePath}/files`), orderBy('createdAt', 'desc')), 
+        (snap) => setFiles(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonFile))),
+        handleError
+      ));
+
+      unsubscribes.push(onSnapshot(
+        query(collection(db, `${basePath}/notes`), orderBy('createdAt', 'desc')), 
+        (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonNote))),
+        handleError
+      ));
+
+      unsubscribes.push(onSnapshot(
+        query(collection(db, `${basePath}/teamMembers`), orderBy('createdAt', 'desc')), 
+        (snap) => {
+          setTeam(snap.docs.map(d => ({ id: d.id, ...d.data() } as MaisonTeamMember)));
+          setLoading(false);
+        },
+        handleError
+      ));
+    } catch (e) {
+      handleError(e);
       setLoading(false);
-    });
+    }
 
     return () => {
-      unsubFolders();
-      unsubFiles();
-      unsubNotes();
-      unsubTeam();
+      unsubscribes.forEach(unsub => unsub());
     };
-  }, [user]);
+  }, [user?.id, isCloudRestricted]);
 
   const handleCreate = async () => {
-    if (!user || !modalType) return;
+    if (!user?.id || !modalType) return;
     setIsSubmitting(true);
     
+    if (isCloudRestricted) {
+      saveToLocal(modalType, formData);
+      setModalType(null);
+      setFormData({});
+      setIsSubmitting(false);
+      return;
+    }
+
     const collectionMap = {
       folder: 'folders',
       file: 'files',
@@ -65,19 +134,24 @@ const MaisonDashboard: React.FC = () => {
     try {
       await addDoc(collection(db, `users/${user.id}/${collectionMap[modalType]}`), {
         ...formData,
-        createdAt: Date.now(), // Simplified timestamp for this build
+        createdAt: Date.now(),
       });
       setModalType(null);
       setFormData({});
     } catch (e) {
       console.error(e);
+      // If cloud fails during an active session, fallback to local and notify
+      saveToLocal(modalType, formData);
+      setModalType(null);
+      setFormData({});
+      alert("Note: Cloud sync failed. Prompt secured to local memory instead.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const renderEmpty = (msg: string) => (
-    <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+    <div className="flex flex-col items-center justify-center py-24 text-center space-y-6">
       <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-gold/20">
         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-8 8-8-8" /></svg>
       </div>
@@ -87,10 +161,17 @@ const MaisonDashboard: React.FC = () => {
 
   return (
     <div className="space-y-12 pb-20 animate-lux-in">
-      {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-gray-50 pb-8 gap-8">
         <div className="space-y-4">
-          <h2 className="text-4xl font-serif text-emerald-950 italic">Maison Dashboard</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-4xl font-serif text-emerald-950 italic">Maison Hub</h2>
+            {isCloudRestricted && (
+              <span className="px-4 py-1.5 bg-amber-50 text-amber-600 rounded-full text-[8px] font-bold uppercase tracking-widest border border-amber-100 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Local Mode Active
+              </span>
+            )}
+          </div>
           <div className="flex gap-8">
             {['assets', 'notes', 'team'].map(tab => (
               <button 
@@ -113,15 +194,14 @@ const MaisonDashboard: React.FC = () => {
             </>
           )}
           {activeTab === 'notes' && (
-            <button onClick={() => setModalType('note')} className="px-6 py-2.5 bg-emerald-950 text-emerald-950 rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">New Note</button>
+            <button onClick={() => setModalType('note')} className="px-6 py-2.5 bg-emerald-50 text-emerald-950 rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">New Prompt / Note</button>
           )}
           {activeTab === 'team' && (
-            <button onClick={() => setModalType('member')} className="px-6 py-2.5 bg-emerald-950 text-emerald-950 rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">Add Member</button>
+            <button onClick={() => setModalType('member')} className="px-6 py-2.5 bg-emerald-50 text-emerald-950 rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">Add Member</button>
           )}
         </div>
       </div>
 
-      {/* Content Area */}
       <div className="min-h-[400px]">
         {loading ? (
           <div className="flex items-center justify-center h-40">
@@ -136,7 +216,7 @@ const MaisonDashboard: React.FC = () => {
                     {folders.map(f => (
                       <div key={f.id} className="bg-white p-8 rounded-[2rem] border border-gray-50 soft-shadow flex items-center gap-6 group hover:border-gold transition-all">
                         <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-white transition-all">
-                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                         </div>
                         <span className="text-xs font-serif italic text-emerald-950">{f.name}</span>
                       </div>
@@ -163,7 +243,7 @@ const MaisonDashboard: React.FC = () => {
                   <div key={n.id} className="bg-white p-10 rounded-[2.5rem] border border-gray-50 soft-shadow space-y-6 flex flex-col hover:border-gold transition-all">
                     <h4 className="text-xl font-serif text-emerald-950 italic">{n.title}</h4>
                     <p className="text-xs text-emerald-950/40 font-serif italic line-clamp-3 leading-relaxed">{n.content}</p>
-                    <span className="mt-auto pt-6 text-[8px] font-bold text-gold uppercase tracking-[0.2em]">Created {new Date(n.createdAt).toLocaleDateString()}</span>
+                    <span className="mt-auto pt-6 text-[8px] font-bold text-gold uppercase tracking-[0.2em]">Secured {new Date(n.createdAt).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
@@ -182,9 +262,6 @@ const MaisonDashboard: React.FC = () => {
                         <p className="text-[9px] text-gold font-bold uppercase tracking-[0.2em]">{m.role}</p>
                       </div>
                     </div>
-                    <button className="text-emerald-950/10 hover:text-red-400 transition-colors">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
                   </div>
                 ))}
               </div>
@@ -193,13 +270,12 @@ const MaisonDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Modals */}
       <MaisonModal 
         isOpen={!!modalType} 
         onClose={() => setModalType(null)} 
         title={modalType === 'folder' ? 'Create New Folder' : modalType === 'file' ? 'Deposit Product Asset' : modalType === 'note' ? 'New Creative Note' : 'Add Team Member'}
         primaryAction={{
-          label: `Create ${modalType}`,
+          label: `Save ${modalType === 'note' ? 'Prompt' : modalType}`,
           onClick: handleCreate,
           disabled: !formData.name && !formData.title,
           loading: isSubmitting
@@ -227,8 +303,8 @@ const MaisonDashboard: React.FC = () => {
         )}
         {modalType === 'note' && (
           <>
-            <input type="text" placeholder="Note Title" className="w-full bg-emerald-50/20 px-8 py-5 rounded-2xl text-sm font-serif italic outline-none" onChange={e => setFormData({ ...formData, title: e.target.value })} />
-            <textarea placeholder="Creative notes and ideas..." className="w-full bg-emerald-50/20 px-8 py-5 rounded-2xl text-sm font-serif italic outline-none min-h-[150px]" onChange={e => setFormData({ ...formData, content: e.target.value })} />
+            <input type="text" placeholder="Note / Prompt Title" className="w-full bg-emerald-50/20 px-8 py-5 rounded-2xl text-sm font-serif italic outline-none" onChange={e => setFormData({ ...formData, title: e.target.value })} />
+            <textarea placeholder="Creative notes, AI prompts, and ideas..." className="w-full bg-emerald-50/20 px-8 py-5 rounded-2xl text-sm font-serif italic outline-none min-h-[150px]" onChange={e => setFormData({ ...formData, content: e.target.value })} />
           </>
         )}
         {modalType === 'member' && (

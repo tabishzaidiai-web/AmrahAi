@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, ProductCategory, ProductType, CameraAngle, ModelPersona, ProductPlacement, CameraMotion } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -46,6 +45,8 @@ const VideoStudio: React.FC<VideoStudioProps> = ({
 
   /* Fix: Removed 'as any' from 'Orbit' preset */
   const motionPresets: CameraMotion[] = ['Static', 'Pan Left', 'Pan Right', 'Tilt Up', 'Tilt Down', 'Zoom In', 'Zoom Out', 'Orbit'];
+  const cameraAngles: CameraAngle[] = ['Standard', 'Low Angle', 'High Angle', 'Bird\'s Eye', 'Side', 'Close-up'];
+  
   const steps = [
     { id: 1, label: 'Upload Asset', active: !!sourceImage },
     { id: 2, label: 'Cast Mode', active: !!sourceImage && (productDetails.renderMode === 'product-only' || !!selectedModel) },
@@ -88,7 +89,7 @@ const VideoStudio: React.FC<VideoStudioProps> = ({
     try {
       const base64 = sourceImage.split(',')[1];
       const identityLock = selectedModel && productDetails.renderMode === 'on-model' ? `Model Identity: ${selectedModel.name}, ${selectedModel.nationality}. Features: ${selectedModel.features}. ` : "";
-      const finalPrompt = `${identityLock}${prompt}. Camera Motion: ${productDetails.cameraMotion}. High-fidelity textures.`;
+      const finalPrompt = `${identityLock}${prompt}. Camera Angle: ${productDetails.cameraAngle}. Camera Motion: ${productDetails.cameraMotion}. High-fidelity textures.`;
       
       let url = await GeminiService.generateProductVideo(base64, analysis!, finalPrompt, brandKit, productDetails, setLoadingMsg);
       setOutput(url);
@@ -223,6 +224,14 @@ const VideoStudio: React.FC<VideoStudioProps> = ({
                 </button>
                 {showAdvanced && (
                   <div className="pt-6 grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="space-y-2">
+                       <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Camera Angle</label>
+                       <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                          {cameraAngles.map(angle => (
+                            <option key={angle} value={angle}>{angle}</option>
+                          ))}
+                       </select>
+                    </div>
                     <div className="space-y-2">
                        <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Resolution</label>
                        <select value={productDetails.videoResolution} onChange={(e) => setProductDetails({...productDetails, videoResolution: e.target.value as any})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">

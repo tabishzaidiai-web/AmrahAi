@@ -20,9 +20,9 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
   const [currentHero, setCurrentHero] = useState(0);
 
   const heroImages = [
-    'Amrah banner.png',
-    'Amrah.png',
-    'Amrah1.png'
+    'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=1200',
+    'https://images.unsplash.com/photo-1589156229687-496a31ad1d1f?auto=format&fit=crop&q=80&w=1200',
+    'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=1200'
   ];
 
   const steps = [
@@ -123,50 +123,57 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
         </>
       )}
 
-      <div className={`grid grid-cols-1 ${compact ? 'md:grid-cols-2 gap-8' : 'md:grid-cols-2 lg:grid-cols-3 gap-16'}`}>
+      <div className={`grid grid-cols-1 ${compact ? 'md:grid-cols-2 gap-8' : 'md:grid-cols-2 lg:grid-cols-3 gap-12'}`}>
         {filteredModels.map((model) => (
           <div 
             key={model.id} 
             onClick={() => onModelSelect?.(model)}
-            className={`group bg-white rounded-[4rem] overflow-hidden soft-shadow transition-all border relative flex flex-col h-full ${
-              selectedModelId === model.id ? 'border-gold shadow-2xl scale-[0.98]' : 'border-emerald-50 hover:border-gold/20'
-            } cursor-pointer`}
+            className={`group bg-white rounded-[3.5rem] overflow-hidden soft-shadow transition-all border relative flex flex-col h-full ${
+              selectedModelId === model.id ? 'border-gold shadow-2xl scale-[0.98]' : 'border-emerald-50 hover:border-gold/30'
+            } cursor-pointer hover:shadow-2xl transition-all duration-500`}
           >
-            <div className="aspect-[3/4] overflow-hidden relative bg-emerald-50/30">
-              <MediaAsset src={model.mainUrl} className="w-full h-full object-cover transition-transform duration-[6s] group-hover:scale-110" />
+            <div className="aspect-[3/4] overflow-hidden relative bg-emerald-50/10">
+              <MediaAsset 
+                src={model.mainUrl} 
+                className="w-full h-full object-cover transition-transform duration-[4s] group-hover:scale-105" 
+                alt={model.name}
+              />
               {selectedModelId === model.id && (
-                <div className="absolute top-8 left-8 bg-gold text-white px-6 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-2xl animate-pulse">
-                  Active Persona
+                <div className="absolute top-8 left-8 bg-gold text-white px-6 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-2xl animate-pulse z-10">
+                  Identity Locked
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-emerald-950/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
-              <div className="absolute bottom-12 left-12 right-12 text-white">
-                 <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-gold mb-3 block">{model.nationality}</span>
-                 <h3 className="text-4xl font-serif italic tracking-tight">{model.name}</h3>
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
+              <div className="absolute bottom-10 left-10 right-10 text-white">
+                 <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-gold/90 mb-2 block">{model.nationality}</span>
+                 <h3 className="text-3xl font-serif italic tracking-tight">{model.name}</h3>
               </div>
             </div>
 
-            <div className="p-12 space-y-8 flex-1 flex flex-col">
-                <p className="text-[14px] text-emerald-950/50 leading-relaxed font-serif italic">
-                  "{model.features}"
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {model.style.map(s => (
-                    <span key={s} className="text-[8px] text-emerald-950/60 font-bold uppercase tracking-widest bg-emerald-50/50 px-4 py-2 rounded-full border border-emerald-50">
-                      {s}
-                    </span>
-                  ))}
+            <div className="p-10 space-y-6 flex-1 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <p className="text-[13px] text-emerald-950/60 leading-relaxed font-serif italic line-clamp-2">
+                    "{model.features}"
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {model.style.slice(0, 3).map(s => (
+                      <span key={s} className="text-[7px] text-emerald-950/50 font-bold uppercase tracking-widest bg-emerald-50/50 px-3 py-1.5 rounded-full border border-emerald-50/50">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
                 </div>
+                
                 {!compact && (
-                  <div className="pt-8 mt-auto">
+                  <div className="pt-6 border-t border-emerald-50/50 mt-4">
                     <button 
                       onClick={(e) => { e.stopPropagation(); onModelSelect?.(model); }}
-                      className={`w-full py-6 rounded-full text-[11px] font-bold uppercase tracking-[0.4em] transition-all shadow-xl active:scale-95 ${
+                      className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] transition-all active:scale-95 ${
                       selectedModelId === model.id 
                         ? 'bg-gold text-white' 
-                        : 'bg-emerald-950 text-white hover:bg-gold shadow-emerald-950/20'
+                        : 'bg-emerald-950 text-white hover:bg-gold shadow-emerald-950/10'
                     }`}>
-                        {selectedModelId === model.id ? 'Identity Confirmed' : 'Cast for Shoot'}
+                        {selectedModelId === model.id ? 'Identity Confirmed' : 'Cast Persona'}
                     </button>
                   </div>
                 )}
@@ -176,7 +183,7 @@ const ModelShowcase: React.FC<ModelShowcaseProps> = ({
       </div>
       
       {!compact && filteredModels.length === 0 && (
-        <div className="text-center py-40 border border-dashed border-emerald-50 rounded-[4rem]">
+        <div className="text-center py-40 border border-dashed border-emerald-50/30 rounded-[4rem]">
            <p className="text-lg font-serif text-emerald-950/20 italic">No identities match your current filter criteria in the Maison Registry.</p>
         </div>
       )}

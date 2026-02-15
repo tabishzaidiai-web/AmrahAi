@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { AppState, ProductAnalysis, BrandKit, GenerationResult, ProductDetails, LogoPlacement, ProductType, ProductPlacement, CameraAngle } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -17,9 +16,11 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
   const [genType, setGenType] = useState<'image' | 'video'>('image');
   const [loadingMsg, setLoadingMsg] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [layers, setLayers] = useState<GenerationResult[]>([]);
   const [suggestions, setSuggestions] = useState<{label: string, prompt: string}[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [productDetails, setProductDetails] = useState<ProductDetails>({
@@ -29,8 +30,19 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     placement: 'On table',
     addLogo: false,
     logoPlacement: 'Top-right corner',
+    cameraAngle: 'Standard',
     renderMode: 'product-only', 
   });
+
+  const cameraAngles: CameraAngle[] = ['Standard', 'Low Angle', 'High Angle', 'Bird\'s Eye', 'Side', 'Close-up'];
+  
+  const productTypes: ProductType[] = [
+    'Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'
+  ];
+
+  const placementOptions: ProductPlacement[] = [
+    'On ear', 'On neck', 'On wrist', 'On finger', 'On chest', 'On shoulder', 'Full body', 'Handheld', 'On table'
+  ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,17 +58,21 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
 
       try {
         const base64 = dataUrl.split(',')[1];
-        const [prodAnalysis, aiSuggestions] = await Promise.all([
-          GeminiService.analyzeProduct(base64, file.type, brandKit),
-          GeminiService.suggestPhotoshootPrompts(base64, brandKit)
-        ]);
+        
+        // 1. Analyze product first to get context
+        const prodAnalysis = await GeminiService.analyzeProduct(base64, file.type, brandKit);
         setAnalysis(prodAnalysis);
+        
+        // 2. Then get context-aware suggestions
+        setIsSuggesting(true);
+        const aiSuggestions = await GeminiService.suggestPhotoshootPrompts(base64, brandKit, prodAnalysis);
         setSuggestions(aiSuggestions);
       } catch (err) {
-        console.warn("Analysis failed, using defaults.");
+        console.warn("Analysis or suggestions failed, using defaults.");
         setAnalysis({ type: 'Product', brand: brandKit.name, material: 'Premium', colorPalette: [], features: [], visualFidelityKeys: [] });
       } finally {
         setIsAnalyzing(false);
+        setIsSuggesting(false);
         setState(AppState.READY);
       }
     };
@@ -69,14 +85,16 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
     setLoadingMsg("Synthesizing...");
     try {
       const base64 = sourceImage.split(',')[1];
+      const finalPrompt = `${prompt}. Camera Angle: ${productDetails.cameraAngle}. Size: ${productDetails.approxSize}. Placement: ${productDetails.placement}.`;
+      
       let url = genType === 'image' 
-        ? await GeminiService.generateProductImage(base64, analysis!, prompt, brandKit, productDetails)
-        : await GeminiService.generateProductVideo(base64, analysis!, prompt, brandKit, productDetails, setLoadingMsg);
+        ? await GeminiService.generateProductImage(base64, analysis!, finalPrompt, brandKit, productDetails)
+        : await GeminiService.generateProductVideo(base64, analysis!, finalPrompt, brandKit, productDetails, setLoadingMsg);
 
-      const newLayer: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: genType, url, prompt, timestamp: Date.now() };
-      setLayers(prev => [newLayer, ...prev]);
-      setActiveLayerId(newLayer.id);
-      addToHistory(newLayer);
+      const newResult: GenerationResult = { id: Math.random().toString(36).substr(2, 9), type: genType, url, prompt: finalPrompt, timestamp: Date.now() };
+      setLayers(prev => [newResult, ...prev]);
+      setActiveLayerId(newResult.id);
+      addToHistory(newResult);
       setState(AppState.READY);
     } catch (err: any) {
       alert(`Render failed: ${err.message}`);
@@ -116,7 +134,7 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
             </div>
 
             <div className="space-y-6 pt-10 border-t border-gray-50">
-               <div className="space-y-4">
+               <div className="space-y-6">
                   <div className="flex items-center justify-between ml-2">
                     <label className="text-[9px] font-bold text-black/40 uppercase tracking-widest block">Atmosphere Blueprint</label>
                     {analysis && <span className="text-[8px] font-bold text-gold uppercase tracking-widest">{analysis.type} Identified</span>}
@@ -129,19 +147,74 @@ const Studio: React.FC<StudioProps> = ({ brandKit, addToHistory, initialCategory
                   />
                   
                   {/* Dynamic Suggestion Chips */}
-                  {suggestions.length > 0 && (
-                    <div className="space-y-3">
-                      <span className="text-[8px] font-bold text-black/20 uppercase tracking-widest block ml-2">Maison Recommendations</span>
-                      <div className="flex flex-wrap gap-2">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center ml-2">
+                      <span className="text-[8px] font-bold text-black/20 uppercase tracking-widest block">Maison Aesthetic Cues</span>
+                      {isSuggesting && <div className="w-3 h-3 border border-gold/30 border-t-gold rounded-full animate-spin" />}
+                    </div>
+                    {suggestions.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
                         {suggestions.map((item, idx) => (
                           <button 
                             key={idx}
                             onClick={() => setPrompt(item.prompt)}
-                            className="px-4 py-2 bg-emerald-50/50 border border-emerald-50 rounded-full text-[8px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold hover:bg-white transition-all active:scale-95"
+                            className={`px-3 py-2.5 bg-emerald-50/50 border border-emerald-50/50 rounded-xl text-[8px] font-bold text-emerald-950/60 uppercase tracking-widest hover:border-gold hover:text-gold hover:bg-white transition-all active:scale-95 text-center truncate ${prompt === item.prompt ? 'border-gold text-gold bg-white ring-1 ring-gold/20' : ''}`}
+                            title={item.label}
                           >
                             {item.label}
                           </button>
                         ))}
+                      </div>
+                    ) : sourceImage && !isAnalyzing && !isSuggesting && (
+                       <button onClick={() => handleFileChange({ target: { files: [] } } as any)} className="w-full py-2 border border-dashed border-emerald-100 rounded-xl text-[7px] font-bold text-emerald-950/20 uppercase tracking-widest">Reload AI Blueprinting</button>
+                    )}
+                  </div>
+               </div>
+
+               {/* Advanced Options Accordion */}
+               <div className="border-t border-gray-50 pt-8">
+                  <button 
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="w-full flex items-center justify-between py-2 group"
+                  >
+                    <span className="text-[9px] font-bold text-black/30 uppercase tracking-[0.4em] group-hover:text-gold transition-colors">Product Details</span>
+                    <svg className={`w-5 h-5 text-black/20 transition-transform duration-500 ${showAdvanced ? 'rotate-180 text-gold' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {showAdvanced && (
+                    <div className="pt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
+                      <div className="space-y-2">
+                         <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Product Type</label>
+                         <select value={productDetails.type} onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                            {productTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                         </select>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Approximate Size</label>
+                         <input 
+                            type="text" 
+                            value={productDetails.approxSize} 
+                            onChange={(e) => setProductDetails({...productDetails, approxSize: e.target.value})} 
+                            placeholder="e.g. 15cm height, 2.5 carats"
+                            className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none"
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Placement</label>
+                         <select value={productDetails.placement} onChange={(e) => setProductDetails({...productDetails, placement: e.target.value as ProductPlacement})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                            {placementOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                         </select>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[8px] font-bold text-black/30 uppercase tracking-widest block ml-2">Camera Angle</label>
+                         <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-maison-bg rounded-2xl px-6 py-4 text-[9px] font-bold uppercase outline-none">
+                            {cameraAngles.map(angle => (
+                              <option key={angle} value={angle}>{angle}</option>
+                            ))}
+                         </select>
                       </div>
                     </div>
                   )}

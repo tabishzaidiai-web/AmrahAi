@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 import { ProductAnalysis, BrandKit, ShootConfig, ModelPersona, ProductDetails, LuxuryStyle, CameraAngle, CameraMotion, ProductCategory, AmazonListingSuite } from "../types";
 
@@ -62,6 +61,7 @@ export class GeminiService {
   private static buildFidelityPrompt(userPrompt: string, analysis: ProductAnalysis, productDetails: ProductDetails, brandKit: BrandKit, modelContext: string = ""): string {
     const isProductOnly = productDetails.renderMode === 'product-only';
     const analysisKeys = `PRESERVE KEYS: Type: ${analysis.type}, Material: ${analysis.material}, Color Palette: ${analysis.colorPalette.join(', ')}, Key Features: ${analysis.features.join(', ')}.`;
+    const cameraContext = productDetails.cameraAngle ? `Camera Perspective: ${productDetails.cameraAngle}.` : "";
 
     return `
 ${PRODUCT_LOCK_PROTOCOL}
@@ -69,6 +69,7 @@ ${isProductOnly ? 'MODE: PRODUCT ONLY. NO HUMANS.' : MODESTY_SYSTEM_INSTRUCTION}
 
 [SCENE PROMPT]:
 ${userPrompt}. 
+${cameraContext}
 Adjust only environment and lighting. 
 ${modelContext}
 Maison Visual Tone: ${brandKit.tone}.
@@ -114,10 +115,39 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
     return JSON.parse(response.text || '{}');
   }
 
-  static async suggestPhotoshootPrompts(imageBase64: string, brandKit: BrandKit): Promise<{label: string, prompt: string}[]> {
+  static async suggestPhotoshootPrompts(imageBase64: string, brandKit: BrandKit, analysis?: ProductAnalysis): Promise<{label: string, prompt: string}[]> {
     const ai = this.getAi();
     const cleanB64 = this.cleanBase64(imageBase64);
-    const prompt = `SYSTEM: LUXURY CREATIVE DIRECTOR AI. Analyze the product. Maison Tone: ${brandKit.tone}. Generate 4 photoshoot concepts. Output JSON array.`;
+    
+    const contextStr = analysis ? `
+      PRODUCT CONTEXT:
+      Type: ${analysis.type}
+      Material: ${analysis.material}
+      Colors: ${analysis.colorPalette.join(', ')}
+      Features: ${analysis.features.join(', ')}
+    ` : "";
+
+    const prompt = `
+      SYSTEM: LUXURY CREATIVE DIRECTOR AI. 
+      Analyze the product DNA (texture, material, shape) and any provided product analysis.
+      ${contextStr}
+      Generate 10 distinct photoshoot concepts in a JSON array. 
+      Ensure coverage of these specific aesthetics:
+      1. Minimalist (Clean, white-space, high-key)
+      2. Opulent Arabian (Rich textures, heritage patterns, warm gold lighting)
+      3. Desert Cinematic (Golden hour, soft dunes, orange/purple sky)
+      4. Modern GCC Urban (Sleek architecture, Dubai skyline, glass/steel)
+      5. Heritage Atelier (Dark wood, oil paintings, vintage luxury)
+      6. Soft Editorial (Pastel tones, natural window light, floral hints)
+      7. High Jewelry Macro (Black velvet, dramatic spotlight, precision focus)
+      8. Evening Noir (High contrast, deep shadows, cinematic spotlights)
+      9. Coastal Breezy (Soft blue tones, sea salt lighting, Mediterranean vibe)
+      10. Royal Portrait (Regal posture, silk backdrops, museum lighting)
+      
+      Maison Brand Tone: ${brandKit.tone}. 
+      Each concept must focus on highlighting the product's specific materials and colors.
+      Ensure the prompt specifically mentions how the background lighting interacts with the ${analysis?.material || 'product materials'}.
+    `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -134,8 +164,8 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
           items: {
             type: Type.OBJECT,
             properties: {
-              label: { type: Type.STRING },
-              prompt: { type: Type.STRING }
+              label: { type: Type.STRING, description: "The aesthetic name (e.g., 'Opulent Arabian')" },
+              prompt: { type: Type.STRING, description: "The full technical AI generation prompt" }
             },
             required: ["label", "prompt"]
           }
@@ -383,18 +413,33 @@ Branding: ${productDetails.addLogo ? `Apply Maison logo exactly at ${productDeta
   static async editProductImage(imageSource: string, analysis: ProductAnalysis, prompt: string, brandKit: BrandKit): Promise<string> {
     const ai = this.getAi();
     let cleanB64 = "";
-    if (imageSource.startsWith('http')) {
+    if (imageSource.startsWith('data:')) {
+      cleanB64 = this.cleanBase64(imageSource);
+    } else if (imageSource.startsWith('http')) {
       cleanB64 = await this.urlToBase64(imageSource) || "";
     } else {
       cleanB64 = this.cleanBase64(imageSource);
     }
+
+    const finalStructuredPrompt = `
+${PRODUCT_LOCK_PROTOCOL}
+${MODESTY_SYSTEM_INSTRUCTION}
+
+[NEURAL REFINEMENT DIRECTIVE]:
+${prompt}.
+
+[PRODUCT FIDELITY PRESERVATION]:
+Maison Product DNA: ${analysis.type}, ${analysis.material}. 
+Visual Keys: ${analysis.visualFidelityKeys.join(', ')}.
+DO NOT change the core structure of the product. ONLY add requested embellishments or background transformations.
+`;
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
           { inlineData: { data: cleanB64, mimeType: 'image/png' } },
-          { text: prompt }
+          { text: finalStructuredPrompt }
         ]
       }
     });

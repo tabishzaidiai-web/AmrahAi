@@ -47,6 +47,16 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     videoAspectRatio: '9:16'
   });
 
+  const cameraAngles: CameraAngle[] = ['Standard', 'Low Angle', 'High Angle', 'Bird\'s Eye', 'Side', 'Close-up'];
+  
+  const productTypes: ProductType[] = [
+    'Jewelry', 'Watch', 'Clothing', 'Bag', 'Shoes', 'Accessories', 'Abaya / Modest fashion', 'Other'
+  ];
+
+  const placementOptions: ProductPlacement[] = [
+    'On ear', 'On neck', 'On wrist', 'On finger', 'On chest', 'On shoulder', 'Full body', 'Handheld', 'On table'
+  ];
+
   const steps = [
     { id: 1, label: 'Upload product', active: !!productImage },
     { id: 2, label: 'Choose model', active: !!selectedModel },
@@ -84,8 +94,8 @@ const CreateShoot: React.FC<CreateShootProps> = ({
 
   const handleGenerate = async (type: 'image' | 'video' = 'image') => {
     if (!productImage || !selectedModel) return;
-    const promptToUse = type === 'image' ? customPrompt : videoPrompt;
-    if (!promptToUse) return;
+    const basePrompt = type === 'image' ? customPrompt : videoPrompt;
+    if (!basePrompt) return;
 
     if (type === 'image' && userCredits.images !== -1 && userCredits.images <= 0) return onInsufficientCredits();
     if (type === 'video' && userCredits.videos !== -1 && userCredits.videos <= 0) return onInsufficientCredits();
@@ -95,6 +105,8 @@ const CreateShoot: React.FC<CreateShootProps> = ({
     
     try {
       const referenceAsset = type === 'video' && output ? output : productImage;
+      const promptToUse = `${basePrompt}. Camera Angle: ${productDetails.cameraAngle}. Size: ${productDetails.approxSize}. Placement: ${productDetails.placement}.`;
+      
       const resultUrl = await GeminiService.generatePhotoshoot({
         model: selectedModel, 
         productImage: referenceAsset.split(',')[1], 
@@ -212,7 +224,7 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <textarea 
                   value={activeTab === 'image' ? customPrompt : videoPrompt} 
                   onChange={(e) => activeTab === 'image' ? setCustomPrompt(e.target.value) : setVideoPrompt(e.target.value)} 
@@ -221,14 +233,17 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                 />
 
                 {suggestions.length > 0 && (
-                  <div className="space-y-4 pt-2">
-                    <span className="text-[10px] font-bold text-black/20 uppercase tracking-widest block ml-3">Maison Recommendations</span>
-                    <div className="flex flex-wrap gap-3">
+                  <div className="space-y-6 pt-2">
+                    <div className="flex items-center justify-between ml-3">
+                       <span className="text-[10px] font-bold text-black/20 uppercase tracking-widest block">Maison Aesthetic Library</span>
+                       <span className="text-[8px] font-bold text-gold uppercase tracking-widest">{suggestions.length} BLUEPRINTS</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {suggestions.map((s, idx) => (
                         <button 
                           key={idx}
                           onClick={() => activeTab === 'image' ? setCustomPrompt(s.prompt) : setVideoPrompt(s.prompt)}
-                          className="px-5 py-2.5 bg-maison-bg border border-emerald-50 rounded-full text-[9px] font-bold text-black/40 uppercase tracking-widest hover:border-gold hover:text-gold transition-all active:scale-95"
+                          className={`px-4 py-3 bg-maison-bg border border-emerald-50/50 rounded-2xl text-[9px] font-bold text-black/40 uppercase tracking-widest hover:border-gold hover:text-gold hover:bg-white hover:shadow-lg transition-all active:scale-95 text-center leading-tight ${(activeTab === 'image' ? customPrompt : videoPrompt) === s.prompt ? 'border-gold text-gold bg-white ring-1 ring-gold/20' : ''}`}
                         >
                           {s.label}
                         </button>
@@ -252,19 +267,36 @@ const CreateShoot: React.FC<CreateShootProps> = ({
                     <div className="space-y-3">
                        <label className="text-[9px] font-bold text-black/30 uppercase tracking-widest block ml-3">Product Type</label>
                        <select value={productDetails.type} onChange={(e) => setProductDetails({...productDetails, type: e.target.value as ProductType})} className="w-full bg-maison-bg rounded-2xl px-8 py-5 text-[10px] font-bold uppercase outline-none border border-emerald-50/50">
-                          <option value="Clothing">Clothing</option>
-                          <option value="Jewelry">Jewelry</option>
-                          <option value="Watch">Watch</option>
-                          <option value="Bag">Bag</option>
+                          {productTypes.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
                        </select>
                     </div>
                     <div className="space-y-3">
                        <label className="text-[9px] font-bold text-black/30 uppercase tracking-widest block ml-3">Camera Angle</label>
                        <select value={productDetails.cameraAngle} onChange={(e) => setProductDetails({...productDetails, cameraAngle: e.target.value as CameraAngle})} className="w-full bg-maison-bg rounded-2xl px-8 py-5 text-[10px] font-bold uppercase outline-none border border-emerald-50/50">
-                          <option value="Standard">Standard</option>
-                          <option value="Low Angle">Low Profile</option>
-                          <option value="Close-up">Detail Focus</option>
+                          {cameraAngles.map(angle => (
+                            <option key={angle} value={angle}>{angle}</option>
+                          ))}
                        </select>
+                    </div>
+                    <div className="space-y-3">
+                       <label className="text-[9px] font-bold text-black/30 uppercase tracking-widest block ml-3">Placement</label>
+                       <select value={productDetails.placement} onChange={(e) => setProductDetails({...productDetails, placement: e.target.value as ProductPlacement})} className="w-full bg-maison-bg rounded-2xl px-8 py-5 text-[10px] font-bold uppercase outline-none border border-emerald-50/50">
+                          {placementOptions.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                       </select>
+                    </div>
+                    <div className="space-y-3">
+                       <label className="text-[9px] font-bold text-black/30 uppercase tracking-widest block ml-3">Approximate Size</label>
+                       <input 
+                          type="text" 
+                          value={productDetails.approxSize} 
+                          onChange={(e) => setProductDetails({...productDetails, approxSize: e.target.value})} 
+                          placeholder="e.g. 20cm width"
+                          className="w-full bg-maison-bg rounded-2xl px-8 py-5 text-[10px] font-bold uppercase outline-none border border-emerald-50/50"
+                       />
                     </div>
                   </div>
                 )}
