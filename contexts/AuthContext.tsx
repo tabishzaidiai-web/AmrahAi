@@ -4,8 +4,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithPopup,
   signOut, 
-  onAuthStateChanged,
-  User as FirebaseUser
+  onAuthStateChanged
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { User } from '../types';
@@ -32,10 +31,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCloudRestricted, setIsCloudRestricted] = useState(false);
 
   useEffect(() => {
-    // Proactive domain check for restricted environments (e.g., AI Studio previews)
+    // Proactive detection for known restricted sandboxes/preview environments
     const hostname = window.location.hostname;
-    if (hostname.includes('googleusercontent.com') || hostname.includes('webcontainer.io')) {
-      console.info("AMRAH: Restricted environment detected. Cloud Sync may be limited.");
+    const isRestrictedPattern = 
+      /googleusercontent\.com$/.test(hostname) || 
+      /webcontainer\.io$/.test(hostname) || 
+      /stackblitz\.io$/.test(hostname) ||
+      hostname === 'localhost' || 
+      hostname === '127.0.0.1';
+
+    if (isRestrictedPattern) {
+      console.info("AMRAH Maison: Restricted cloud environment detected. Enabling Local Identity Mode.");
       setIsCloudRestricted(true);
     }
 
@@ -57,16 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             totalGenerated: 0
           };
           setUser(mappedUser);
-          setIsCloudRestricted(false);
         } catch (e) {
-          console.warn("Firebase token failure in isolated environment.");
+          console.warn("Maison Auth: Failed to synchronize token. Fallback to session identity.");
         }
-      } else {
-        // Persist local-mode user if already set
-        if (!user || (user.id !== 'local-mode')) {
-          setSession(null);
-          setUser(null);
-        }
+      } else if (!user || user.id !== 'local-mode') {
+        setSession(null);
+        setUser(null);
       }
       setLoading(false);
     });
@@ -75,11 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const handleAuthError = (error: any) => {
-    const code = error.code || '';
-    const message = error.message || '';
+    const code = error?.code || '';
+    const message = error?.message || '';
+    
+    // Specifically catch unauthorized-domain error to trigger the restricted UI
     if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain')) {
+      console.warn("Maison Identity Hub: This domain is not whitelisted in Firebase. Activating Environment Isolation.");
       setIsCloudRestricted(true);
-      // We don't throw here if we want the UI to handle it gracefully
     }
     throw error;
   };
@@ -106,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: 'guest@amrah.ai',
       name: 'Maison Guest',
       role: 'User',
-      tier: 'Maison', // High-fidelity testing tier
+      tier: 'Maison', 
       registrationDate: Date.now(),
       lastLogin: Date.now(),
       credits: { images: 999, videos: 999 },
@@ -114,7 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setUser(guestUser);
     setSession({ access_token: 'local-session-token' });
-    setIsCloudRestricted(true);
   };
 
   const signup = async (email: string, password: string, name: string) => {
@@ -131,13 +134,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {}
     setUser(null);
     setSession(null);
-    setIsCloudRestricted(false);
   };
 
   const refreshProfile = async () => {};
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isCloudRestricted, login, loginWithGoogle, loginAsGuest, signup, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ 
+      user, session, loading, isCloudRestricted, 
+      login, loginWithGoogle, loginAsGuest, signup, logout, refreshProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

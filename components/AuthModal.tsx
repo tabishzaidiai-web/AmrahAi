@@ -25,9 +25,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   };
 
   const errorString = getErrorMessage(error);
+  // Detect if the error is related to domain authorization
   const isUnauthorizedDomain = 
     isCloudRestricted ||
     errorString.toLowerCase().includes('unauthorized-domain') || 
+    errorString.toLowerCase().includes('unauthorized domain') ||
     errorString.toLowerCase().includes('auth/unauthorized-domain') ||
     errorString.toLowerCase().includes('environment is not authorized');
 
@@ -89,7 +91,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
               <div className="flex flex-col items-center gap-4 text-amber-800">
                 <p className="text-[11px] font-bold uppercase tracking-[0.3em]">Neural Local Sync Enabled</p>
                 <p className="text-[12px] text-amber-900/70 leading-relaxed font-serif italic">
-                  Cloud authentication is restricted in this isolated environment (<code className="bg-white/80 px-2 py-0.5 rounded text-amber-950 border border-amber-200 font-mono text-[10px]">{currentHostname}</code>).
+                  Cloud authentication is limited in this isolated environment (<code className="bg-white/80 px-2 py-0.5 rounded text-amber-950 border border-amber-200 font-mono text-[10px]">{currentHostname}</code>).
                 </p>
               </div>
               <div className="pt-4">
