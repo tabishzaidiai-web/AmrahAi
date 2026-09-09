@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { AlertCircle, BadgeCheck, Download, Film } from 'lucide-react';
 import { SKU_BUNDLE, type SlotId } from '@/lib/pipeline/bundle';
+import { AmazonListing } from './amazon-listing';
 
 export interface ResultAsset {
   slot: SlotId;
@@ -22,6 +24,8 @@ export interface ShootResult {
 const LABELS = new Map(SKU_BUNDLE.map((s) => [s.id, s.label]));
 
 export function Results({ result, onReset }: { result: ShootResult; onReset: () => void }) {
+  const [view, setView] = useState<'shoot' | 'amazon'>('shoot');
+
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -40,7 +44,37 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
         </button>
       </div>
 
-      <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-7 flex gap-2" role="tablist">
+        {(
+          [
+            ['shoot', 'All assets'],
+            ['amazon', 'Amazon listing'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={view === id}
+            onClick={() => setView(id)}
+            className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+              view === id ? 'border-accent bg-accent-soft' : 'border-line hover:border-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'amazon' && (
+        <div className="mt-8">
+          <AmazonListing assets={result.assets} />
+        </div>
+      )}
+
+      <div
+        className={`mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 ${view === 'shoot' ? '' : 'hidden'}`}
+      >
         {result.assets.map((asset) => (
           <figure
             key={asset.slot}
@@ -80,7 +114,7 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
         ))}
       </div>
 
-      {result.failures.length > 0 && (
+      {view === 'shoot' && result.failures.length > 0 && (
         <div className="mt-8 rounded-xl border border-line bg-surface p-5">
           <p className="flex items-center gap-2 text-sm font-medium">
             <AlertCircle size={15} className="text-accent" aria-hidden />

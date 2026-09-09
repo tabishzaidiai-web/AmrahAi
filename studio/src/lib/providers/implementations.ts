@@ -63,6 +63,15 @@ export const vertexImagePro: ImageProvider = {
   },
 };
 
+/** Veo accepts only these image-to-video lengths and errors on anything else. */
+const VEO_DURATIONS = [4, 6, 8];
+
+function nearestSupportedDuration(requested: number) {
+  return VEO_DURATIONS.reduce((best, d) =>
+    Math.abs(d - requested) < Math.abs(best - requested) ? d : best,
+  );
+}
+
 export const vertexVideo: VideoProvider = {
   kind: 'video',
   id: 'veo-3.1-fast',
@@ -72,6 +81,8 @@ export const vertexVideo: VideoProvider = {
   // customer plans against it.
   unitCost: 0.1,
   async run(input) {
+    const duration = nearestSupportedDuration(input.durationSeconds);
+
     const { value, latencyMs } = await timed(() =>
       generateVideo({
         instances: [
@@ -85,7 +96,7 @@ export const vertexVideo: VideoProvider = {
         ],
         parameters: {
           sampleCount: 1,
-          durationSeconds: input.durationSeconds,
+          durationSeconds: duration,
           aspectRatio: input.aspectRatio,
           generateAudio: false,
         },
@@ -94,7 +105,7 @@ export const vertexVideo: VideoProvider = {
     return {
       uri: value,
       providerId: this.id,
-      cost: this.unitCost * input.durationSeconds,
+      cost: this.unitCost * duration,
       latencyMs,
     };
   },

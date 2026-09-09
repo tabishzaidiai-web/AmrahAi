@@ -179,7 +179,9 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
         image: { data: frontImage.toString('base64'), mimeType: 'image/png' },
         prompt:
           'The model walks toward camera with a natural, confident stride. The fabric moves and drapes naturally with the walk. The garment does not change.',
-        durationSeconds: 5,
+        // Six seconds clears Amazon's minimum for product video and suits
+        // Reels and TikTok without trimming.
+        durationSeconds: 6,
         aspectRatio: '9:16',
       });
       assets.push({
