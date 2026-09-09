@@ -1,4 +1,9 @@
-import { vertexImage, vertexTryOn, vertexVideo } from './implementations';
+import {
+  vertexImage,
+  vertexImagePro,
+  vertexTryOn,
+  vertexVideo,
+} from './implementations';
 import type {
   ImageProvider,
   RoutingPolicy,
@@ -8,7 +13,7 @@ import type {
 } from './types';
 
 const TRYON: TryOnProvider[] = [vertexTryOn];
-const IMAGE: ImageProvider[] = [vertexImage];
+const IMAGE: ImageProvider[] = [vertexImage, vertexImagePro];
 const VIDEO: VideoProvider[] = [vertexVideo];
 
 /**
@@ -18,9 +23,9 @@ const VIDEO: VideoProvider[] = [vertexVideo];
 const TIER_PLAN: Record<Tier, { image: string; video: string }> = {
   free: { image: vertexImage.id, video: vertexVideo.id },
   starter: { image: vertexImage.id, video: vertexVideo.id },
-  pro: { image: vertexImage.id, video: vertexVideo.id },
-  scale: { image: vertexImage.id, video: vertexVideo.id },
-  enterprise: { image: vertexImage.id, video: vertexVideo.id },
+  pro: { image: vertexImagePro.id, video: vertexVideo.id },
+  scale: { image: vertexImagePro.id, video: vertexVideo.id },
+  enterprise: { image: vertexImagePro.id, video: vertexVideo.id },
 };
 
 function pick<T extends { id: string; region: string }>(

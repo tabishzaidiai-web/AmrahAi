@@ -1,8 +1,8 @@
 import {
   VERTEX_MODELS,
-  firstPredictionBytes,
+  generateImage,
   generateVideo,
-  predict,
+  predictTryOn,
 } from './vertex';
 import type { ImageProvider, TryOnProvider, VideoProvider } from './types';
 
@@ -24,46 +24,40 @@ export const vertexTryOn: TryOnProvider = {
   region: 'us',
   unitCost: 0.06,
   async run(input) {
-    const { value, latencyMs } = await timed(async () =>
-      firstPredictionBytes(
-        await predict(VERTEX_MODELS.tryOn, {
-          instances: [
-            {
-              personImage: { image: { bytesBase64Encoded: input.personImage } },
-              productImages: [{ image: { bytesBase64Encoded: input.garment.data } }],
-            },
-          ],
-          parameters: { sampleCount: 1 },
-        }),
-      ),
+    const { value, latencyMs } = await timed(() =>
+      predictTryOn(input.personImage, input.garment.data),
     );
     return { image: value, providerId: this.id, cost: this.unitCost, latencyMs };
   },
 };
 
-/** Used only for garment-alone packshots and scene work, never to redraw a
- *  garment already placed by try-on. */
+/** Used for garment-alone packshots and for building the pose library, never
+ *  to redraw a garment already placed by try-on. */
 export const vertexImage: ImageProvider = {
   kind: 'image',
   id: 'gemini-flash-image',
   name: 'Gemini Flash Image',
-  region: 'us',
+  region: 'global',
   unitCost: 0.067,
   async run(input) {
-    const { value, latencyMs } = await timed(async () =>
-      firstPredictionBytes(
-        await predict(VERTEX_MODELS.image, {
-          instances: [
-            {
-              prompt: input.prompt,
-              referenceImages: input.references.map((r) => ({
-                image: { bytesBase64Encoded: r.data },
-              })),
-            },
-          ],
-          parameters: { sampleCount: 1, aspectRatio: input.aspectRatio },
-        }),
-      ),
+    const { value, latencyMs } = await timed(() =>
+      generateImage(VERTEX_MODELS.image, input.prompt, input.references),
+    );
+    return { image: value, providerId: this.id, cost: this.unitCost, latencyMs };
+  },
+};
+
+/** Higher-fidelity option, notably better where a garment carries legible text
+ *  or a logo that must survive. */
+export const vertexImagePro: ImageProvider = {
+  kind: 'image',
+  id: 'gemini-pro-image',
+  name: 'Gemini Pro Image',
+  region: 'global',
+  unitCost: 0.134,
+  async run(input) {
+    const { value, latencyMs } = await timed(() =>
+      generateImage(VERTEX_MODELS.imagePro, input.prompt, input.references),
     );
     return { image: value, providerId: this.id, cost: this.unitCost, latencyMs };
   },
@@ -78,7 +72,7 @@ export const vertexVideo: VideoProvider = {
   // customer plans against it.
   unitCost: 0.1,
   async run(input) {
-    const { value, latencyMs } = await timed(async () =>
+    const { value, latencyMs } = await timed(() =>
       generateVideo({
         instances: [
           {
