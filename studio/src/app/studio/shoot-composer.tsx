@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, ImagePlus, Loader2, X } from 'lucide-react';
 import { SCENES } from '@/lib/scenes';
 import { planFor } from '@/lib/pipeline/bundle';
+import { Results, type ShootResult } from './results';
 
 type Category = 'top' | 'bottom' | 'one-piece';
 type Audience = 'adult' | 'kids';
@@ -28,6 +29,7 @@ export function ShootComposer() {
   const [includeVideo, setIncludeVideo] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ShootResult | null>(null);
 
   const slots = planFor(audience).filter((s) => s.kind === 'image' || includeVideo);
 
@@ -48,11 +50,20 @@ export function ShootComposer() {
       const response = await fetch('/api/shoot', { method: 'POST', body });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? 'The shoot could not be started.');
+      setResult(data as ShootResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setRunning(false);
     }
+  }
+
+  if (result) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-12">
+        <Results result={result} onReset={() => setResult(null)} />
+      </div>
+    );
   }
 
   return (
