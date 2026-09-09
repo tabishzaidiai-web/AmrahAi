@@ -1,10 +1,13 @@
+import sharp from 'sharp';
 import { selectImage, selectTryOn, selectVideo, type Selection } from '../providers/registry';
-import type { GarmentRef, ModelPersona } from '../providers/types';
-import { planFor, type SlotId, type SlotSpec } from './bundle';
+import type { GarmentRef, ModelPersona, PoseId } from '../providers/types';
+import { stamp } from '../compliance/provenance';
+import { planFor, type SlotId } from './bundle';
 
 export interface ShootRequest extends Selection {
+  shootId: string;
   garmentFront: GarmentRef;
-  /** Supplying the back view converts an invented back into a real try-on. */
+  /** Supplying the back view turns an invented back into a real try-on. */
   garmentBack?: GarmentRef;
   persona: ModelPersona;
   audience: 'adult' | 'kids';
@@ -14,8 +17,10 @@ export interface ShootRequest extends Selection {
 
 export interface ShootAsset {
   slot: SlotId;
-  url: string;
   kind: 'image' | 'video';
+  /** Present for images; video assets carry a uri instead. */
+  image?: Buffer;
+  uri?: string;
   providerId: string;
   cost: number;
 }
@@ -26,30 +31,24 @@ export interface ShootOutcome {
   totalCost: number;
 }
 
-/** Camera direction per slot. Kept beside the pipeline because it is generation
- *  instruction, not marketplace policy. */
-const ANGLE_PROMPTS: Partial<Record<SlotId, string>> = {
-  'on-model-back': 'the same model photographed from directly behind, full length',
-  'on-model-three-quarter': 'the same model turned to a three-quarter view, full length',
-  'detail-macro': 'a close macro study of the garment fabric, seams and closures',
-  'ghost-front': 'the garment alone as an invisible-mannequin packshot, front view, on pure white',
-  'ghost-back': 'the garment alone as an invisible-mannequin packshot, back view, on pure white',
-  cropped: 'the same model cropped from mid-thigh up',
-  lifestyle: 'the same model in a wider environmental frame',
+/** Which stored pose each on-model slot is generated against. */
+const SLOT_POSE: Partial<Record<SlotId, PoseId>> = {
+  'on-model-front': 'front',
+  'on-model-back': 'back',
+  'on-model-three-quarter': 'three-quarter',
+  lifestyle: 'lifestyle',
 };
 
-/**
- * Ghost-mannequin slots must land on pure white to clear Amazon and Zalando
- * packshot rules, so they never inherit the chosen scene.
- */
-function promptFor(slot: SlotSpec, scene: string): string {
-  const angle = ANGLE_PROMPTS[slot.id] ?? 'the same model, full length';
-  const setting = slot.id.startsWith('ghost')
-    ? 'isolated on a pure white background, no model, no mannequin, no hanger'
-    : scene;
-  return `${angle}, ${setting}. Preserve the garment exactly: colour, print scale, closures and trims must not change.`;
-}
+const PACKSHOT_PROMPT =
+  'The garment alone, presented as an invisible-mannequin packshot with natural three-dimensional shape and a visible inner neckline. No person, no mannequin, no hanger. Isolated on a pure white background. Preserve the garment exactly: colour, print scale, closures and trims must not change.';
 
+/**
+ * Runs one garment through the full bundle.
+ *
+ * Every on-model angle is an independent try-on against a stored pose, so the
+ * garment is re-anchored to the brand's original image each time instead of
+ * being propagated — and therefore degraded — from a previously generated view.
+ */
 export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   const selection: Selection = { tier: request.tier, routing: request.routing };
   const tryOn = selectTryOn(selection);
@@ -58,91 +57,114 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
 
   const assets: ShootAsset[] = [];
   const failures: { slot: SlotId; reason: string }[] = [];
+  const plan = planFor(request.audience);
+  const wanted = new Set(plan.map((s) => s.id));
 
-  // The front try-on anchors everything: later angles reference it, so if this
-  // fails there is nothing consistent to propagate and the shoot cannot proceed.
-  const front = await tryOn.run({
-    garment: request.garmentFront,
-    person: request.persona,
-  });
-  assets.push({
-    slot: 'on-model-front',
-    url: front.url,
-    kind: 'image',
-    providerId: front.providerId,
-    cost: front.cost,
-  });
+  const record = async (slot: SlotId, buffer: Buffer, providerId: string, cost: number) => {
+    // Provenance is applied here rather than at export so an asset cannot leave
+    // the system unmarked.
+    const marked = await stamp(buffer, {
+      shootId: request.shootId,
+      providerIds: [providerId],
+      generatedAt: new Date(),
+      depictsSyntheticModel: slot.startsWith('on-model') || slot === 'lifestyle' || slot === 'cropped',
+    });
+    assets.push({ slot, kind: 'image', image: marked, providerId, cost });
+  };
 
-  const plan = planFor(request.audience).filter(
-    (s) => s.id !== 'on-model-front' && s.kind === 'image',
-  );
+  // On-model angles ---------------------------------------------------------
+  let frontImage: Buffer | undefined;
 
-  for (const slot of plan) {
+  for (const [slot, pose] of Object.entries(SLOT_POSE) as [SlotId, PoseId][]) {
+    if (!wanted.has(slot)) continue;
+
+    const personImage = request.persona.poses[pose];
+    if (!personImage) {
+      failures.push({ slot, reason: `No stored ${pose} pose for this model` });
+      continue;
+    }
+
+    // The back of a garment is unobserved data. When the brand supplied a back
+    // flat-lay it is used directly; otherwise the front is the only truth we
+    // have and the back view is skipped rather than invented.
+    const garment = slot === 'on-model-back' ? request.garmentBack : request.garmentFront;
+    if (!garment) {
+      failures.push({
+        slot,
+        reason: 'Upload a back image of the garment to generate an accurate back view',
+      });
+      continue;
+    }
+
     try {
-      // Back views are genuinely unobserved data. When the brand supplied a back
-      // flat-lay we run a real try-on instead of letting the model invent one.
-      if (slot.id === 'on-model-back' && request.garmentBack) {
-        const result = await tryOn.run({
-          garment: request.garmentBack,
-          person: request.persona,
-        });
-        assets.push({
-          slot: slot.id,
-          url: result.url,
-          kind: 'image',
-          providerId: result.providerId,
-          cost: result.cost,
-        });
-        continue;
-      }
-
-      const references = [front.url, request.garmentFront.url, request.persona.referenceUrl];
-      if (request.garmentBack) references.push(request.garmentBack.url);
-
-      const result = await image.run({
-        prompt: promptFor(slot, request.scene),
-        references,
-        aspectRatio: '3:4',
+      const result = await tryOn.run({
+        garment,
+        personImage,
+        personMimeType: 'image/png',
       });
-      assets.push({
-        slot: slot.id,
-        url: result.url,
-        kind: 'image',
-        providerId: result.providerId,
-        cost: result.cost,
-      });
+      if (slot === 'on-model-front') frontImage = result.image;
+      await record(slot, result.image, result.providerId, result.cost);
     } catch (error) {
       // One weak angle should not cost the brand the whole bundle.
-      failures.push({
-        slot: slot.id,
-        reason: error instanceof Error ? error.message : 'Generation failed',
-      });
+      failures.push({ slot, reason: reasonOf(error) });
     }
   }
 
-  if (request.includeVideo && request.audience === 'adult') {
+  // Derived crops -----------------------------------------------------------
+  // Cropping the approved front render is both free and exactly consistent with
+  // it, which regenerating these slots would not be.
+  if (frontImage) {
+    for (const slot of ['cropped', 'detail-macro'] as SlotId[]) {
+      if (!wanted.has(slot)) continue;
+      try {
+        const cropped = await cropFrom(frontImage, slot);
+        await record(slot, cropped, 'derived', 0);
+      } catch (error) {
+        failures.push({ slot, reason: reasonOf(error) });
+      }
+    }
+  }
+
+  // Ghost-mannequin packshots ----------------------------------------------
+  for (const slot of ['ghost-front', 'ghost-back'] as SlotId[]) {
+    if (!wanted.has(slot)) continue;
+    const garment = slot === 'ghost-back' ? request.garmentBack : request.garmentFront;
+    if (!garment) {
+      failures.push({ slot, reason: 'Upload a back image to generate the back packshot' });
+      continue;
+    }
+
+    try {
+      const result = await image.run({
+        prompt: PACKSHOT_PROMPT,
+        references: [{ data: garment.data, mimeType: garment.mimeType }],
+        aspectRatio: '1:1',
+      });
+      await record(slot, result.image, result.providerId, result.cost);
+    } catch (error) {
+      failures.push({ slot, reason: reasonOf(error) });
+    }
+  }
+
+  // Runway walk -------------------------------------------------------------
+  if (request.includeVideo && frontImage && request.audience === 'adult') {
     try {
       const result = await video.run({
-        // Animating the approved still is what keeps the garment from drifting
-        // across frames.
-        imageUrl: front.url,
+        image: { data: frontImage.toString('base64'), mimeType: 'image/png' },
         prompt:
-          'The model walks toward camera with a natural, confident stride. The fabric moves and drapes naturally with the walk.',
+          'The model walks toward camera with a natural, confident stride. The fabric moves and drapes naturally with the walk. The garment does not change.',
         durationSeconds: 5,
         aspectRatio: '9:16',
       });
       assets.push({
         slot: 'walk-video',
-        url: result.url,
         kind: 'video',
+        uri: result.uri,
         providerId: result.providerId,
         cost: result.cost,
       });
     } catch (error) {
-      failures.push({
-        slot: 'walk-video',
-        reason: error instanceof Error ? error.message : 'Video generation failed',
-      });
+      failures.push({ slot: 'walk-video', reason: reasonOf(error) });
     }
   }
 
@@ -151,4 +173,26 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     failures,
     totalCost: assets.reduce((sum, a) => sum + a.cost, 0),
   };
+}
+
+async function cropFrom(source: Buffer, slot: SlotId): Promise<Buffer> {
+  const { width = 0, height = 0 } = await sharp(source).metadata();
+  if (!width || !height) throw new Error('Could not read the source render');
+
+  // Upper body for the styling frame; a tighter central crop for fabric detail.
+  const region =
+    slot === 'cropped'
+      ? { left: 0, top: 0, width, height: Math.round(height * 0.62) }
+      : {
+          left: Math.round(width * 0.28),
+          top: Math.round(height * 0.3),
+          width: Math.round(width * 0.44),
+          height: Math.round(height * 0.28),
+        };
+
+  return sharp(source).extract(region).toBuffer();
+}
+
+function reasonOf(error: unknown) {
+  return error instanceof Error ? error.message : 'Generation failed';
 }

@@ -2,82 +2,98 @@
  * Model-agnostic provider contracts.
  *
  * Every AI capability the product depends on is expressed here as an interface.
- * Concrete vendors (FASHN, Seedream, Kling, ...) implement these and are selected
- * at runtime by the registry, so replacing a vendor never touches pipeline code.
+ * Concrete vendors implement these and are chosen at runtime by the registry,
+ * so replacing a vendor never reaches pipeline code.
  */
 
 export type Tier = 'free' | 'starter' | 'pro' | 'scale' | 'enterprise';
 
-/** Where a job is allowed to run. Enterprise buyers can forbid CN-region routing. */
+/** Where a job may run. Brands with unreleased collections can require that
+ *  their designs never leave US/EU processing. */
 export type RoutingPolicy = 'any' | 'western-only';
 
 export interface ProviderMeta {
   id: string;
   name: string;
-  /** Vendor's region of processing, used to honour RoutingPolicy. */
   region: 'us' | 'eu' | 'cn' | 'global';
-  /** USD. Per image for image/try-on providers, per second for video providers. */
+  /** USD. Per image for image and try-on providers, per second for video. */
   unitCost: number;
 }
 
+/** Fixed camera positions the house model is held in. */
+export type PoseId = 'front' | 'back' | 'three-quarter' | 'lifestyle';
+
 export interface GarmentRef {
-  /** Publicly readable URL of the garment image. */
-  url: string;
+  /** Base64-encoded garment image. */
+  data: string;
+  mimeType: string;
   view: 'front' | 'back';
   category: 'top' | 'bottom' | 'one-piece';
 }
 
 export interface ModelPersona {
-  /** Stable reference image locking the model's identity across a collection. */
-  referenceUrl: string;
+  /**
+   * The same person captured once per pose. Try-on runs separately against each,
+   * so every angle anchors to the original garment rather than inheriting drift
+   * from a previously generated angle.
+   */
+  poses: Partial<Record<PoseId, string>>;
   bodyProfile: string;
-  skinTone?: string;
 }
 
 export interface TryOnInput {
   garment: GarmentRef;
-  person: ModelPersona;
-  /** Longest-edge pixels requested from the vendor. */
-  resolution?: number;
+  /** Base64 person image for this pose. */
+  personImage: string;
+  personMimeType: string;
 }
 
 export interface ImageGenInput {
   prompt: string;
-  /** Reference images blended to hold identity and garment detail. */
-  references: string[];
+  /** Base64 reference images that hold garment and identity. */
+  references: { data: string; mimeType: string }[];
   aspectRatio: '1:1' | '3:4' | '4:5' | '9:16' | '16:9';
-  resolution?: number;
 }
 
 export interface VideoGenInput {
-  /** First frame. Always an already-validated still, so the garment cannot drift. */
-  imageUrl: string;
+  /** First frame: always an already-approved still, so the garment cannot drift
+   *  across frames. */
+  image: { data: string; mimeType: string };
   prompt: string;
   durationSeconds: number;
   aspectRatio: '9:16' | '16:9' | '1:1';
 }
 
-export interface GenerationResult {
-  url: string;
+/** Images are returned as bytes because the pipeline must inspect, crop and
+ *  stamp them before anything is stored or shown. */
+export interface ImageResult {
+  image: Buffer;
   providerId: string;
-  /** USD actually incurred, recorded per generation for margin tracking. */
+  cost: number;
+  latencyMs: number;
+}
+
+export interface VideoResult {
+  /** Storage URI produced by the provider. */
+  uri: string;
+  providerId: string;
   cost: number;
   latencyMs: number;
 }
 
 export interface TryOnProvider extends ProviderMeta {
   kind: 'tryon';
-  run(input: TryOnInput): Promise<GenerationResult>;
+  run(input: TryOnInput): Promise<ImageResult>;
 }
 
 export interface ImageProvider extends ProviderMeta {
   kind: 'image';
-  run(input: ImageGenInput): Promise<GenerationResult>;
+  run(input: ImageGenInput): Promise<ImageResult>;
 }
 
 export interface VideoProvider extends ProviderMeta {
   kind: 'video';
-  run(input: VideoGenInput): Promise<GenerationResult>;
+  run(input: VideoGenInput): Promise<VideoResult>;
 }
 
 export type Provider = TryOnProvider | ImageProvider | VideoProvider;

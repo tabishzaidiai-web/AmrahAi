@@ -1,10 +1,4 @@
-import {
-  fashnTryOn,
-  fluxImage,
-  klingVideo,
-  seedanceVideo,
-  seedreamImage,
-} from './implementations';
+import { vertexImage, vertexTryOn, vertexVideo } from './implementations';
 import type {
   ImageProvider,
   RoutingPolicy,
@@ -13,25 +7,21 @@ import type {
   VideoProvider,
 } from './types';
 
-const TRYON: TryOnProvider[] = [fashnTryOn];
-const IMAGE: ImageProvider[] = [seedreamImage, fluxImage];
-const VIDEO: VideoProvider[] = [seedanceVideo, klingVideo];
+const TRYON: TryOnProvider[] = [vertexTryOn];
+const IMAGE: ImageProvider[] = [vertexImage];
+const VIDEO: VideoProvider[] = [vertexVideo];
 
 /**
- * Which model each tier gets. Upgrading the product's quality — or reacting to
- * a vendor price change — is an edit to this table and nothing else.
+ * Which model each tier gets. Raising quality, or reacting to a vendor price
+ * change, is an edit to this table and nothing else.
  */
 const TIER_PLAN: Record<Tier, { image: string; video: string }> = {
-  free: { image: 'seedream-4.0', video: 'seedance-lite' },
-  starter: { image: 'seedream-4.0', video: 'seedance-lite' },
-  pro: { image: 'seedream-4.0', video: 'kling-2.5-turbo' },
-  scale: { image: 'seedream-4.0', video: 'kling-2.5-turbo' },
-  enterprise: { image: 'flux-pro-1.1-ultra', video: 'kling-2.5-turbo' },
+  free: { image: vertexImage.id, video: vertexVideo.id },
+  starter: { image: vertexImage.id, video: vertexVideo.id },
+  pro: { image: vertexImage.id, video: vertexVideo.id },
+  scale: { image: vertexImage.id, video: vertexVideo.id },
+  enterprise: { image: vertexImage.id, video: vertexVideo.id },
 };
-
-function allowed<T extends { region: string }>(list: T[], policy: RoutingPolicy) {
-  return policy === 'western-only' ? list.filter((p) => p.region !== 'cn') : list;
-}
 
 function pick<T extends { id: string; region: string }>(
   list: T[],
@@ -39,7 +29,7 @@ function pick<T extends { id: string; region: string }>(
   policy: RoutingPolicy,
   kind: string,
 ): T {
-  const pool = allowed(list, policy);
+  const pool = policy === 'western-only' ? list.filter((p) => p.region !== 'cn') : list;
   if (pool.length === 0) {
     throw new Error(`No ${kind} provider satisfies the ${policy} routing policy`);
   }
@@ -52,7 +42,7 @@ export interface Selection {
 }
 
 export function selectTryOn({ routing }: Selection): TryOnProvider {
-  return pick(TRYON, fashnTryOn.id, routing, 'try-on');
+  return pick(TRYON, vertexTryOn.id, routing, 'try-on');
 }
 
 export function selectImage({ tier, routing }: Selection): ImageProvider {

@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { fal } from '@fal-ai/client';
 import { runShoot } from '@/lib/pipeline/run';
+import { vertexConfig } from '@/lib/providers/vertex';
+import { POSE_LIBRARY, hasPoseLibrary } from '@/lib/pipeline/poses';
 import { SCENES } from '@/lib/scenes';
 
 const schema = z.object({
@@ -10,15 +12,22 @@ const schema = z.object({
   includeVideo: z.enum(['true', 'false']),
 });
 
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+async function toBase64(file: File) {
+  return Buffer.from(await file.arrayBuffer()).toString('base64');
+}
 
 export async function POST(request: Request) {
-  if (!process.env.FAL_KEY) {
+  if (!vertexConfig().configured) {
     return Response.json(
-      {
-        message:
-          'Generation is not configured yet. Add a FAL_KEY to enable shoots.',
-      },
+      { message: 'Generation is not configured yet. Set GOOGLE_CLOUD_PROJECT to enable shoots.' },
+      { status: 503 },
+    );
+  }
+  if (!(await hasPoseLibrary())) {
+    return Response.json(
+      { message: 'No model pose library is installed yet.' },
       { status: 503 },
     );
   }
@@ -41,8 +50,9 @@ export async function POST(request: Request) {
     return Response.json({ message: 'A front image is required.' }, { status: 400 });
   }
   for (const file of [front, back]) {
+    // Vertex rejects inputs above 10MB, so this is enforced before the call.
     if (file instanceof File && file.size > MAX_UPLOAD_BYTES) {
-      return Response.json({ message: 'Images must be under 15MB.' }, { status: 413 });
+      return Response.json({ message: 'Images must be under 10MB.' }, { status: 413 });
     }
   }
 
@@ -51,29 +61,48 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Unknown scene.' }, { status: 400 });
   }
 
-  try {
-    // Providers take URLs, so uploads are staged before generation begins.
-    const frontUrl = await fal.storage.upload(front);
-    const backUrl = back instanceof File ? await fal.storage.upload(back) : undefined;
+  const shootId = randomUUID();
 
+  try {
     const outcome = await runShoot({
+      shootId,
       tier: 'free',
       routing: 'any',
-      garmentFront: { url: frontUrl, view: 'front', category: parsed.data.category },
-      garmentBack: backUrl
-        ? { url: backUrl, view: 'back', category: parsed.data.category }
-        : undefined,
-      persona: {
-        // Placeholder until brand kits carry a saved house model.
-        referenceUrl: frontUrl,
-        bodyProfile: 'standard',
+      garmentFront: {
+        data: await toBase64(front),
+        mimeType: front.type || 'image/png',
+        view: 'front',
+        category: parsed.data.category,
       },
+      garmentBack:
+        back instanceof File
+          ? {
+              data: await toBase64(back),
+              mimeType: back.type || 'image/png',
+              view: 'back',
+              category: parsed.data.category,
+            }
+          : undefined,
+      persona: { poses: await POSE_LIBRARY(), bodyProfile: 'standard' },
       audience: parsed.data.audience,
       scene: scene.prompt,
       includeVideo: parsed.data.includeVideo === 'true',
     });
 
-    return Response.json(outcome);
+    // Buffers are not serialisable; assets are returned as data URLs until
+    // object storage is wired up.
+    return Response.json({
+      shootId,
+      totalCost: outcome.totalCost,
+      failures: outcome.failures,
+      assets: outcome.assets.map((a) => ({
+        slot: a.slot,
+        kind: a.kind,
+        providerId: a.providerId,
+        cost: a.cost,
+        src: a.image ? `data:image/png;base64,${a.image.toString('base64')}` : a.uri,
+      })),
+    });
   } catch (error) {
     console.error('Shoot failed', error);
     return Response.json({ message: 'The shoot could not be completed.' }, { status: 502 });
