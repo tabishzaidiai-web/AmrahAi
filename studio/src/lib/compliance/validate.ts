@@ -19,7 +19,11 @@ interface ImageFacts {
   bytes: number;
   /** True when all four corners are exactly RGB(255,255,255). */
   pureWhiteCorners: boolean;
-  /** Fraction of pixels that are not background. */
+  /**
+   * How much of the frame the product spans, measured from its bounding box.
+   * Marketplaces mean span rather than coverage: a dress never occupies 85% of
+   * the pixels even when it correctly fills the frame.
+   */
   fillRatio: number;
 }
 
@@ -47,20 +51,34 @@ async function inspect(buffer: Buffer): Promise<ImageFacts> {
   ];
   const pureWhiteCorners = corners.every(([r, g, b]) => r === 255 && g === 255 && b === 255);
 
-  let nonBackground = 0;
-  const total = info.width * info.height;
-  for (let i = 0; i < total; i++) {
-    const idx = i * channels;
-    // Anything meaningfully darker than paper-white counts as product.
-    if (data[idx] < 250 || data[idx + 1] < 250 || data[idx + 2] < 250) nonBackground++;
+  let minX = info.width;
+  let minY = info.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const idx = (y * info.width + x) * channels;
+      // Anything meaningfully darker than paper-white counts as product.
+      if (data[idx] < 246 || data[idx + 1] < 246 || data[idx + 2] < 246) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
   }
+
+  const fillRatio =
+    maxX < 0
+      ? 0
+      : Math.max((maxX - minX + 1) / info.width, (maxY - minY + 1) / info.height);
 
   return {
     width,
     height,
     bytes: buffer.byteLength,
     pureWhiteCorners,
-    fillRatio: nonBackground / total,
+    fillRatio,
   };
 }
 

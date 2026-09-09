@@ -100,6 +100,7 @@ export async function POST(request: Request) {
         kind: a.kind,
         providerId: a.providerId,
         cost: a.cost,
+        compliance: a.compliance,
         src: a.image ? `data:image/png;base64,${a.image.toString('base64')}` : a.uri,
       })),
     });

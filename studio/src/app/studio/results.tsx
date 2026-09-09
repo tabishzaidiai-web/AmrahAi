@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Download, Film } from 'lucide-react';
+import { AlertCircle, BadgeCheck, Download, Film } from 'lucide-react';
 import { SKU_BUNDLE, type SlotId } from '@/lib/pipeline/bundle';
 
 export interface ResultAsset {
@@ -9,6 +9,7 @@ export interface ResultAsset {
   src: string;
   providerId: string;
   cost: number;
+  compliance?: { passed: boolean; findings: { severity: string; message: string }[] };
 }
 
 export interface ShootResult {
@@ -56,16 +57,24 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
                 className="aspect-3/4 w-full bg-background object-contain"
               />
             )}
-            <figcaption className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
-              <span className="text-sm">{LABELS.get(asset.slot) ?? asset.slot}</span>
-              <a
-                href={asset.src}
-                download={`${result.shootId}-${asset.slot}`}
-                className="text-muted transition-colors hover:text-foreground"
-                aria-label={`Download ${LABELS.get(asset.slot) ?? asset.slot}`}
-              >
-                <Download size={15} />
-              </a>
+            <figcaption className="border-t border-line px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm">{LABELS.get(asset.slot) ?? asset.slot}</span>
+                <a
+                  href={asset.src}
+                  download={`${result.shootId}-${asset.slot}`}
+                  className="text-muted transition-colors hover:text-foreground"
+                  aria-label={`Download ${LABELS.get(asset.slot) ?? asset.slot}`}
+                >
+                  <Download size={15} />
+                </a>
+              </div>
+              {asset.compliance?.passed && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-accent">
+                  <BadgeCheck size={13} aria-hidden />
+                  Marketplace ready
+                </p>
+              )}
             </figcaption>
           </figure>
         ))}

@@ -2,6 +2,8 @@ import sharp from 'sharp';
 import { selectImage, selectTryOn, selectVideo, type Selection } from '../providers/registry';
 import type { GarmentRef, ModelPersona, PoseId } from '../providers/types';
 import { stamp } from '../compliance/provenance';
+import { normalizeForMarketplace } from '../compliance/normalize';
+import { validate, type ComplianceReport } from '../compliance/validate';
 import { planFor, type SlotId } from './bundle';
 
 export interface ShootRequest extends Selection {
@@ -23,6 +25,8 @@ export interface ShootAsset {
   uri?: string;
   providerId: string;
   cost: number;
+  /** Present on packshot slots, which are the ones a marketplace will police. */
+  compliance?: ComplianceReport;
 }
 
 export interface ShootOutcome {
@@ -39,8 +43,13 @@ const SLOT_POSE: Partial<Record<SlotId, PoseId>> = {
   lifestyle: 'lifestyle',
 };
 
-const PACKSHOT_PROMPT =
-  'The garment alone, presented as an invisible-mannequin packshot with natural three-dimensional shape and a visible inner neckline. No person, no mannequin, no hanger. Isolated on a pure white background. Preserve the garment exactly: colour, print scale, closures and trims must not change.';
+const PACKSHOT_PROMPT = [
+  'Ghost mannequin product photograph of this exact garment: presented as if worn by an invisible person, holding natural three-dimensional shape and volume, with the inner back collar visible through the neck opening.',
+  'No person, no mannequin, no hanger, no body.',
+  'Isolated on a pure white background, RGB 255 255 255, seamless. The garment fills most of the frame.',
+  'Preserve the garment exactly: identical colour, identical print at identical scale, identical hem length, identical collar, sleeves, buttons and trims.',
+  'Square 1:1 composition, e-commerce packshot, sharp focus, soft even lighting with a subtle contact shadow.',
+].join(' ');
 
 /**
  * Runs one garment through the full bundle.
@@ -61,15 +70,32 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   const wanted = new Set(plan.map((s) => s.id));
 
   const record = async (slot: SlotId, buffer: Buffer, providerId: string, cost: number) => {
+    // Packshots are the assets marketplaces police, and generated output lands
+    // near spec but rarely on it, so geometry and background are corrected
+    // deterministically rather than left to the model.
+    const isPackshot = slot.startsWith('ghost');
+    const normalized = isPackshot
+      ? await normalizeForMarketplace(buffer, { size: 2000, fill: 0.88 })
+      : buffer;
+
     // Provenance is applied here rather than at export so an asset cannot leave
     // the system unmarked.
-    const marked = await stamp(buffer, {
+    const marked = await stamp(normalized, {
       shootId: request.shootId,
       providerIds: [providerId],
       generatedAt: new Date(),
-      depictsSyntheticModel: slot.startsWith('on-model') || slot === 'lifestyle' || slot === 'cropped',
+      depictsSyntheticModel:
+        slot.startsWith('on-model') || slot === 'lifestyle' || slot === 'cropped',
     });
-    assets.push({ slot, kind: 'image', image: marked, providerId, cost });
+
+    assets.push({
+      slot,
+      kind: 'image',
+      image: marked,
+      providerId,
+      cost,
+      compliance: isPackshot ? await validate(marked, 'amazon') : undefined,
+    });
   };
 
   // On-model angles ---------------------------------------------------------
