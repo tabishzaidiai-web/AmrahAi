@@ -25,7 +25,18 @@ export const VERTEX_MODELS = {
 
 export function vertexConfig() {
   const project = process.env.GOOGLE_CLOUD_PROJECT;
-  return { project, configured: Boolean(project) };
+  // Credentials arrive either inline (serverless) or as a key-file path
+  // (local). Checking both here means a half-configured deployment says which
+  // half is missing, rather than failing later inside a provider call.
+  const hasCredentials = Boolean(
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  );
+
+  const missing: string[] = [];
+  if (!project) missing.push('GOOGLE_CLOUD_PROJECT');
+  if (!hasCredentials) missing.push('GOOGLE_SERVICE_ACCOUNT_JSON');
+
+  return { project, configured: missing.length === 0, missing };
 }
 
 let auth: GoogleAuth | undefined;

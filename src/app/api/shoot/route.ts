@@ -23,9 +23,12 @@ async function toBase64(file: File) {
 }
 
 export async function POST(request: Request) {
-  if (!vertexConfig().configured) {
+  const vertex = vertexConfig();
+  if (!vertex.configured) {
     return Response.json(
-      { message: 'Generation is not configured yet. Set GOOGLE_CLOUD_PROJECT to enable shoots.' },
+      {
+        message: `Generation is not configured yet. Missing: ${vertex.missing.join(' and ')}.`,
+      },
       { status: 503 },
     );
   }
