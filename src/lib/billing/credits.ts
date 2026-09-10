@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '../supabase/server';
 import { PLANS } from './plans';
 import type { Tier } from '../providers/types';
@@ -8,7 +9,18 @@ import type { Tier } from '../providers/types';
  * Every shoot costs real money the moment it starts, so the balance is checked
  * and decremented before generation rather than after. A brand who cancels
  * mid-shoot has still incurred the provider spend.
+ *
+ * The client is passed in because these run in two places: a request, where the
+ * signed-in brand's own session applies, and a queue worker, which acts on a
+ * brand's behalf long after that session has gone and so must be given an
+ * elevated client explicitly rather than silently falling back to one.
  */
+
+type Db = SupabaseClient;
+
+async function clientFor(given?: Db): Promise<Db> {
+  return given ?? ((await createClient()) as unknown as Db);
+}
 
 export interface Account {
   tier: Tier;
@@ -16,8 +28,8 @@ export interface Account {
   routingPolicy: 'any' | 'western-only';
 }
 
-export async function loadAccount(userId: string): Promise<Account | null> {
-  const supabase = await createClient();
+export async function loadAccount(userId: string, db?: Db): Promise<Account | null> {
+  const supabase = await clientFor(db);
   const { data, error } = await supabase
     .from('profiles')
     .select('tier, credits_remaining, routing_policy')
@@ -45,8 +57,8 @@ export interface CreditCheck {
  * The decrement is conditional on the balance still being positive, so two
  * shoots started at once cannot both spend the last credit.
  */
-export async function reserveShoot(userId: string): Promise<CreditCheck> {
-  const account = await loadAccount(userId);
+export async function reserveShoot(userId: string, db?: Db): Promise<CreditCheck> {
+  const account = await loadAccount(userId, db);
   if (!account) return { allowed: false, reason: 'No account found.' };
 
   if (account.creditsRemaining <= 0) {
@@ -61,7 +73,7 @@ export async function reserveShoot(userId: string): Promise<CreditCheck> {
     };
   }
 
-  const supabase = await createClient();
+  const supabase = await clientFor(db);
   const { data, error } = await supabase
     .from('profiles')
     .update({ credits_remaining: account.creditsRemaining - 1 })
@@ -81,9 +93,9 @@ export async function reserveShoot(userId: string): Promise<CreditCheck> {
 }
 
 /** Returns a credit when a shoot produced nothing usable. */
-export async function refundShoot(userId: string): Promise<void> {
-  const supabase = await createClient();
-  const account = await loadAccount(userId);
+export async function refundShoot(userId: string, db?: Db): Promise<void> {
+  const supabase = await clientFor(db);
+  const account = await loadAccount(userId, db);
   if (!account) return;
 
   await supabase

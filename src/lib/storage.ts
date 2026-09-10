@@ -1,5 +1,8 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from './supabase/server';
 import type { ShootAsset } from './pipeline/run';
+
+type Db = SupabaseClient;
 
 /**
  * Persists a shoot and its assets.
@@ -49,8 +52,10 @@ export async function persistShoot(params: {
   totalCost: number;
   /** Recorded so a shoot that came back short can be diagnosed later. */
   failures?: { slot: string; reason: string }[];
+  /** Supplied by the queue worker, which has no session of its own. */
+  db?: Db;
 }): Promise<PersistedAsset[]> {
-  const supabase = await createClient();
+  const supabase = params.db ?? ((await createClient()) as unknown as Db);
 
   await supabase.from('shoots').insert({
     id: params.shootId,
