@@ -48,7 +48,10 @@ export async function signUp(_prev: AuthState, form: FormData): Promise<AuthStat
 }
 
 export async function signInWithGoogle() {
-  if (!isSupabaseConfigured) return;
+  // The provider returns a redirect URL even when it is disabled, and following
+  // it lands the visitor on a raw provider error, so this refuses to start the
+  // flow unless Google has actually been configured.
+  if (!isSupabaseConfigured || process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH !== 'true') return;
 
   const origin = (await headers()).get('origin');
   const supabase = await createClient();

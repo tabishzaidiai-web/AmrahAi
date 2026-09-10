@@ -9,22 +9,31 @@ export function AuthForm({ next }: { next: string }) {
   const action = mode === 'sign-in' ? signIn : signUp;
   const [state, formAction] = useActionState<AuthState, FormData>(action, {});
 
+  // Google sign-in needs OAuth credentials configured on the auth provider.
+  // Offering the button before that is done sends people to a raw provider
+  // error, so it stays hidden until it is switched on deliberately.
+  const googleEnabled = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true';
+
   return (
     <div className="mt-8">
-      <form action={signInWithGoogle}>
-        <button
-          type="submit"
-          className="w-full rounded-full border border-line px-5 py-3 text-sm transition-colors hover:border-muted"
-        >
-          Continue with Google
-        </button>
-      </form>
+      {googleEnabled && (
+        <>
+          <form action={signInWithGoogle}>
+            <button
+              type="submit"
+              className="w-full rounded-full border border-line px-5 py-3 text-sm transition-colors hover:border-muted"
+            >
+              Continue with Google
+            </button>
+          </form>
 
-      <div className="my-6 flex items-center gap-4 text-xs text-muted">
-        <span className="h-px flex-1 bg-line" />
-        or
-        <span className="h-px flex-1 bg-line" />
-      </div>
+          <div className="my-6 flex items-center gap-4 text-xs text-muted">
+            <span className="h-px flex-1 bg-line" />
+            or
+            <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      )}
 
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="next" value={next} />
