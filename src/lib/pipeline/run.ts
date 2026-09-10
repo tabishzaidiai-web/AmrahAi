@@ -36,6 +36,8 @@ export interface ShootAsset {
   cost: number;
   /** Present on packshot slots, which are the ones a marketplace will police. */
   compliance?: ComplianceReport;
+  /** Something the brand should know about this shot without it being a failure. */
+  notice?: string;
 }
 
 export interface ShootOutcome {
@@ -87,7 +89,13 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   const plan = planFor(request.audience);
   const wanted = new Set(plan.map((s) => s.id));
 
-  const record = async (slot: SlotId, buffer: Buffer, providerId: string, cost: number) => {
+  const record = async (
+    slot: SlotId,
+    buffer: Buffer,
+    providerId: string,
+    cost: number,
+    notice?: string,
+  ) => {
     // Packshots are the assets marketplaces police, and generated output lands
     // near spec but rarely on it, so geometry and background are corrected
     // deterministically rather than left to the model.
@@ -113,6 +121,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       providerId,
       cost,
       compliance: isPackshot ? await validate(marked, 'amazon') : undefined,
+      notice,
     });
   };
 
@@ -153,7 +162,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
           request.length,
         );
         if (slot === 'on-model-front') frontImage = result.image;
-        await record(slot, result.image, result.providerId, result.cost);
+        await record(slot, result.image, result.providerId, result.cost, result.notice);
       } catch (error) {
         // One weak angle should not cost the brand the whole bundle.
         wastedCost += spentOn(error);
@@ -247,34 +256,47 @@ class WrongLengthError extends Error {
   }
 }
 
+/** How closely repeated measurements must agree before they are read as the
+ *  garment's true length rather than as try-on drifting between runs. */
+const AGREEMENT = 0.08;
+
 /**
- * Regenerates until the rendered hem matches what the brand declared.
+ * Regenerates until the rendered hem matches what the brand declared — unless
+ * the renders agree with each other and disagree with the declaration.
  *
- * Try-on returns a different garment length on each run from identical input,
- * so a single render is a coin toss. When no attempt lands on the declared
- * length the slot is failed rather than filled: a brand that publishes a maxi
- * render of a knee-length dress takes the return and the misleading-advertising
- * exposure, which is worse than an obviously missing shot.
+ * Try-on can return a different length on each run from identical input, which
+ * is what the retries are for. But when every attempt lands in the same place
+ * that is not drift, it is the garment: a Lamhey kurta declared as "hip / top
+ * length" rendered at 1.00 of body height three times running, because it is a
+ * floor-length kurta. Retrying could never have fixed that, and the only
+ * renders that could have satisfied the declaration were ones where try-on had
+ * wrongly shortened the piece. So a consistent disagreement is resolved in
+ * favour of the measurement, the paid render is kept, and the brand is told
+ * what length the garment actually appears to be. An inconsistent one still
+ * fails the slot: publishing a maxi render of a knee-length dress earns the
+ * return and the misleading-advertising exposure.
  */
 async function tryOnAtDeclaredLength(
   attempt: () => Promise<{ image: Buffer; providerId: string; cost: number }>,
   person: Buffer,
   declared: GarmentLength,
-) {
+): Promise<{ image: Buffer; providerId: string; cost: number; notice?: string }> {
   let spent = 0;
-  let measured = 0;
+  const readings: number[] = [];
+  let last: { image: Buffer; providerId: string; cost: number } | undefined;
 
   for (let i = 0; i < LENGTH_ATTEMPTS; i++) {
     const result = await attempt();
     spent += result.cost;
+    last = result;
 
     try {
       const hem = await measureHem(result.image, person, declared);
-      measured = hem.position;
       // A garment close in tone to the wearer's skin cannot be measured, and
       // discarding good work on an unreadable instrument is worse than letting
       // a borderline length through.
       if (!hem.confident || hem.matches) return { ...result, cost: spent };
+      readings.push(hem.position);
     } catch {
       // Measurement needs a clear silhouette. If it cannot read one, accept the
       // render rather than burn attempts on an unmeasurable pose.
@@ -282,7 +304,27 @@ async function tryOnAtDeclaredLength(
     }
   }
 
+  const measured = readings[readings.length - 1] ?? 0;
+  const spread = Math.max(...readings) - Math.min(...readings);
+
+  if (last && readings.length === LENGTH_ATTEMPTS && spread <= AGREEMENT) {
+    return {
+      ...last,
+      cost: spent,
+      notice: `Shot at ${describeLength(measured)}, not the ${declared} length selected — every render put the hem in the same place, which is the garment's own length. Change the setting if these should be shorter.`,
+    };
+  }
+
   throw new WrongLengthError(declared, measured, spent);
+}
+
+/** The length band a measured hem position falls in, in the brand's words. */
+function describeLength(position: number): GarmentLength {
+  if (position >= 0.86) return 'maxi';
+  if (position >= 0.76) return 'midi';
+  if (position >= 0.65) return 'knee';
+  if (position >= 0.54) return 'mini';
+  return 'top';
 }
 
 async function cropFrom(source: Buffer, slot: SlotId): Promise<Buffer> {

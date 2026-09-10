@@ -5,16 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ImagePlus, Loader2, X } from 'lucide-react';
 import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
 import { SCENES } from '@/lib/scenes';
-
-type Length = 'top' | 'mini' | 'knee' | 'midi' | 'maxi';
-
-const LENGTHS: { id: Length; label: string }[] = [
-  { id: 'mini', label: 'Mini' },
-  { id: 'knee', label: 'Knee' },
-  { id: 'midi', label: 'Midi' },
-  { id: 'maxi', label: 'Maxi' },
-  { id: 'top', label: 'Hip / top length' },
-];
+import { LENGTHS, type GarmentLength as Length } from '@/lib/garment-lengths';
 
 export function NewCollection() {
   const router = useRouter();
@@ -147,14 +138,13 @@ export function NewCollection() {
                 length === l.id ? 'border-accent bg-accent-soft' : 'border-line hover:border-muted'
               }`}
             >
-              {l.label}
+              {l.label} <span className="opacity-60">· {l.hint}</span>
             </button>
           ))}
         </div>
         <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">
           One length for the whole drop. Shoot pieces of different lengths as
-          separate collections, or the checks will judge them against the wrong
-          one.
+          separate collections, so each is checked against the right one.
         </p>
 
         <p className="mt-6 text-sm text-muted">Setting</p>

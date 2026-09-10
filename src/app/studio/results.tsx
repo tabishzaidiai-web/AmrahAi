@@ -13,6 +13,8 @@ export interface ResultAsset {
   providerId: string;
   cost: number;
   compliance?: { passed: boolean; findings: { severity: string; message: string }[] };
+  /** Worth telling the brand, without the shot being a failure. */
+  notice?: string;
 }
 
 export interface ShootResult {
@@ -111,6 +113,9 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
                   <BadgeCheck size={13} aria-hidden />
                   Marketplace ready
                 </p>
+              )}
+              {asset.notice && (
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">{asset.notice}</p>
               )}
               {asset.kind === 'image' && <SocialDownloads src={asset.src} />}
             </figcaption>

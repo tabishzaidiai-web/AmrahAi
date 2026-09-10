@@ -24,7 +24,10 @@ import sharp from 'sharp';
  * length through.
  */
 
-export type GarmentLength = 'top' | 'mini' | 'knee' | 'midi' | 'maxi';
+// One definition, shared with the picker the brand actually chooses from, so
+// the bands here and the labels there cannot drift apart.
+export type { GarmentLength } from '../garment-lengths';
+import type { GarmentLength } from '../garment-lengths';
 
 /**
  * Where the hem should fall, as a fraction of the distance from the top of the

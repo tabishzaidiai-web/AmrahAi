@@ -22,6 +22,7 @@ export default async function ShootPage(props: PageProps<'/library/[shootId]'>) 
     providerId: a.providerId,
     cost: a.cost,
     compliance: a.compliance as ResultAsset['compliance'],
+    notice: a.notice,
   }));
 
   return (

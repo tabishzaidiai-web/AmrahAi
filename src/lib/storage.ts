@@ -26,6 +26,7 @@ export interface PersistedAsset {
   providerId: string;
   cost: number;
   compliance?: unknown;
+  notice?: string;
 }
 
 export interface ShootRecord {
@@ -152,6 +153,7 @@ export async function persistShoot(params: {
       provider_id: asset.providerId,
       cost_usd: asset.cost,
       compliance: asset.compliance ?? null,
+      notice: asset.notice ?? null,
     });
 
     const { data: signed } = await supabase.storage
@@ -165,6 +167,7 @@ export async function persistShoot(params: {
       providerId: asset.providerId,
       cost: asset.cost,
       compliance: asset.compliance,
+      notice: asset.notice,
     });
   }
 
@@ -197,7 +200,7 @@ export async function loadShoot(shootId: string): Promise<PersistedAsset[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from('assets')
-    .select('slot, storage_path, kind, provider_id, cost_usd, compliance')
+    .select('slot, storage_path, kind, provider_id, cost_usd, compliance, notice')
     .eq('shoot_id', shootId);
 
   const rows = data ?? [];
@@ -222,6 +225,7 @@ export async function loadShoot(shootId: string): Promise<PersistedAsset[]> {
         providerId: (row.provider_id as string) ?? '',
         cost: Number(row.cost_usd ?? 0),
         compliance: row.compliance,
+        notice: (row.notice as string) ?? undefined,
       };
     }),
   );

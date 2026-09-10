@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { Check, ImagePlus, Loader2, Sparkles, X } from 'lucide-react';
 import { SCENES } from '@/lib/scenes';
+import { LENGTHS, type GarmentLength as Length } from '@/lib/garment-lengths';
 import { planFor } from '@/lib/pipeline/bundle';
 import { Results, type ShootResult } from './results';
 import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
 
 type Category = 'top' | 'bottom' | 'one-piece';
 type Audience = 'adult' | 'kids';
-type Length = 'top' | 'mini' | 'knee' | 'midi' | 'maxi';
 type Source = 'photo' | 'sketch';
 
 interface Upload {
@@ -21,16 +21,6 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'one-piece', label: 'Dress / one-piece' },
   { id: 'top', label: 'Top' },
   { id: 'bottom', label: 'Bottom' },
-];
-
-/** A flat lay carries no scale reference, so length is declared rather than
- *  inferred, then checked against every render. */
-const LENGTHS: { id: Length; label: string }[] = [
-  { id: 'mini', label: 'Mini' },
-  { id: 'knee', label: 'Knee' },
-  { id: 'midi', label: 'Midi' },
-  { id: 'maxi', label: 'Maxi' },
-  { id: 'top', label: 'Hip / top length' },
 ];
 
 export function ShootComposer() {
@@ -218,14 +208,15 @@ export function ShootComposer() {
         <div className="mt-2.5 flex flex-wrap gap-2">
           {LENGTHS.map((l) => (
             <Chip key={l.id} selected={length === l.id} onClick={() => setLength(l.id)}>
-              {l.label}
+              {l.label} <span className="opacity-60">· {l.hint}</span>
             </Chip>
           ))}
         </div>
         <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">
           A flat photo has nothing to judge scale against, so we check every render
-          against the length you pick and reshoot any that come out wrong. Pick the
-          wrong one and the on-model shots will be rejected.
+          against the length you pick and reshoot any that come out wrong. If the
+          garment turns out to be a different length than you picked, we keep the
+          shot and tell you rather than throwing it away.
         </p>
 
         {audience === 'kids' && (

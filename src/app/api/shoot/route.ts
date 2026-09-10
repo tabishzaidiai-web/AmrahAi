@@ -195,6 +195,7 @@ export async function POST(request: Request) {
         providerId: a.providerId,
         cost: a.cost,
         compliance: a.compliance,
+        notice: a.notice,
         src: a.image ? `data:image/png;base64,${a.image.toString('base64')}` : a.uri,
       })),
     });
