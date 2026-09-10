@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AlertCircle, BadgeCheck, Download, Film } from 'lucide-react';
+import { SOCIAL_FORMATS } from '@/lib/pipeline/social-formats';
 import { SKU_BUNDLE, type SlotId } from '@/lib/pipeline/bundle';
 import { AmazonListing } from './amazon-listing';
 
@@ -109,6 +110,7 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
                   Marketplace ready
                 </p>
               )}
+              {asset.kind === 'image' && <SocialDownloads src={asset.src} />}
             </figcaption>
           </figure>
         ))}
@@ -150,4 +152,49 @@ function VideoAsset({ src }: { src: string }) {
   }
 
   return <video src={src} controls loop muted playsInline className="aspect-3/4 w-full bg-background object-contain" />;
+}
+
+/** Instagram is where these collections sell, so every frame is offered in the
+ *  shapes the platform renders rather than one generic export. */
+function SocialDownloads({ src }: { src: string }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function download(format: string, label: string) {
+    setBusy(format);
+    try {
+      const response = await fetch('/api/crop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ src, format }),
+      });
+      if (!response.ok) return;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${label.toLowerCase().replace(/[^a-z]+/g, '-')}.jpg`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-1.5">
+      {SOCIAL_FORMATS.map((f) => (
+        <button
+          key={f.id}
+          type="button"
+          onClick={() => download(f.id, f.label)}
+          disabled={busy !== null}
+          title={f.where}
+          className="rounded-full border border-line px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-muted hover:text-foreground disabled:opacity-50"
+        >
+          {busy === f.id ? '…' : f.label}
+        </button>
+      ))}
+    </div>
+  );
 }
