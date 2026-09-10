@@ -23,18 +23,36 @@ export const VERTEX_MODELS = {
   video: { id: 'veo-3.1-fast-generate-001', location: 'us-central1' },
 } as const satisfies Record<string, ModelRef>;
 
+/** A service-account key already names its own project, so deployments need
+ *  only supply the key rather than repeating the project id beside it. */
+function projectFromServiceAccount(): string | undefined {
+  const inline = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!inline) return undefined;
+  try {
+    return (JSON.parse(inline) as { project_id?: string }).project_id;
+  } catch {
+    return undefined;
+  }
+}
+
 export function vertexConfig() {
-  const project = process.env.GOOGLE_CLOUD_PROJECT;
+  const inlineCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const project = process.env.GOOGLE_CLOUD_PROJECT || projectFromServiceAccount();
+
   // Credentials arrive either inline (serverless) or as a key-file path
   // (local). Checking both here means a half-configured deployment says which
   // half is missing, rather than failing later inside a provider call.
   const hasCredentials = Boolean(
-    process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    inlineCredentials || process.env.GOOGLE_APPLICATION_CREDENTIALS,
   );
 
   const missing: string[] = [];
-  if (!project) missing.push('GOOGLE_CLOUD_PROJECT');
-  if (!hasCredentials) missing.push('GOOGLE_SERVICE_ACCOUNT_JSON');
+  if (!hasCredentials) {
+    missing.push('GOOGLE_SERVICE_ACCOUNT_JSON');
+  } else if (!project) {
+    // The key was supplied but unreadable, or carried no project id.
+    missing.push('GOOGLE_CLOUD_PROJECT (the service account key did not contain one)');
+  }
 
   return { project, configured: missing.length === 0, missing };
 }
