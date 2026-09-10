@@ -5,7 +5,8 @@ import { vertexConfig } from '@/lib/providers/vertex';
 import { POSE_LIBRARY, hasPoseLibrary } from '@/lib/pipeline/poses';
 import { SCENES } from '@/lib/scenes';
 import { persistShoot } from '@/lib/storage';
-import { getUser } from '@/lib/supabase/server';
+import { getUser, isSupabaseConfigured } from '@/lib/supabase/server';
+import { refundShoot, reserveShoot, type Account } from '@/lib/billing/credits';
 
 const schema = z.object({
   category: z.enum(['top', 'bottom', 'one-piece']),
@@ -68,11 +69,23 @@ export async function POST(request: Request) {
   const shootId = randomUUID();
   const user = await getUser();
 
+  // Generation spends real money the moment it starts, so the credit is taken
+  // before any provider is called rather than after.
+  let account: Account | undefined;
+  if (user && isSupabaseConfigured) {
+    const check = await reserveShoot(user.id);
+    if (!check.allowed) {
+      return Response.json({ message: check.reason }, { status: 402 });
+    }
+    account = check.account;
+  }
+
   try {
     const outcome = await runShoot({
       shootId,
-      tier: 'free',
-      routing: 'any',
+      // A paying brand must not be served the free tier's engine.
+      tier: account?.tier ?? 'free',
+      routing: account?.routingPolicy ?? 'any',
       garmentFront: {
         data: await toBase64(front),
         mimeType: front.type || 'image/png',
@@ -94,6 +107,15 @@ export async function POST(request: Request) {
       scene: scene.prompt,
       includeVideo: parsed.data.includeVideo === 'true',
     });
+
+    // A shoot that produced nothing usable should not cost the brand a credit.
+    if (user && isSupabaseConfigured && outcome.assets.length === 0) {
+      await refundShoot(user.id);
+      return Response.json(
+        { message: 'Nothing could be generated for this garment.', failures: outcome.failures },
+        { status: 502 },
+      );
+    }
 
     // Signed-in brands get their shoot stored and returned as links. Without a
     // session there is nowhere to put it, so the images come back inline and
@@ -132,6 +154,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Shoot failed', error);
+    if (user && isSupabaseConfigured) await refundShoot(user.id);
     return Response.json({ message: 'The shoot could not be completed.' }, { status: 502 });
   }
 }
