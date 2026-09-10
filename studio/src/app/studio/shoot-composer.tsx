@@ -8,6 +8,7 @@ import { Results, type ShootResult } from './results';
 
 type Category = 'top' | 'bottom' | 'one-piece';
 type Audience = 'adult' | 'kids';
+type Length = 'top' | 'mini' | 'knee' | 'midi' | 'maxi';
 
 interface Upload {
   file: File;
@@ -20,10 +21,21 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'bottom', label: 'Bottom' },
 ];
 
+/** A flat lay carries no scale reference, so length is declared rather than
+ *  inferred, then checked against every render. */
+const LENGTHS: { id: Length; label: string }[] = [
+  { id: 'mini', label: 'Mini' },
+  { id: 'knee', label: 'Knee' },
+  { id: 'midi', label: 'Midi' },
+  { id: 'maxi', label: 'Maxi' },
+  { id: 'top', label: 'Hip / top length' },
+];
+
 export function ShootComposer() {
   const [front, setFront] = useState<Upload | null>(null);
   const [back, setBack] = useState<Upload | null>(null);
   const [category, setCategory] = useState<Category>('one-piece');
+  const [length, setLength] = useState<Length>('knee');
   const [audience, setAudience] = useState<Audience>('adult');
   const [scene, setScene] = useState(SCENES[0].id);
   const [includeVideo, setIncludeVideo] = useState(true);
@@ -42,6 +54,7 @@ export function ShootComposer() {
     body.append('front', front.file);
     if (back) body.append('back', back.file);
     body.append('category', category);
+    body.append('length', length);
     body.append('audience', audience);
     body.append('scene', scene);
     body.append('includeVideo', String(includeVideo));
@@ -112,6 +125,19 @@ export function ShootComposer() {
             Kids
           </Chip>
         </div>
+        <p className="mt-6 text-sm text-muted">How long is it?</p>
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {LENGTHS.map((l) => (
+            <Chip key={l.id} selected={length === l.id} onClick={() => setLength(l.id)}>
+              {l.label}
+            </Chip>
+          ))}
+        </div>
+        <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">
+          A flat photo has nothing to judge scale against, so we check every render
+          against the length you pick and reshoot any that come out wrong.
+        </p>
+
         {audience === 'kids' && (
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
             Kids&rsquo; apparel is generated flat and off-model, because marketplaces
@@ -155,7 +181,7 @@ export function ShootComposer() {
               onChange={(e) => setIncludeVideo(e.target.checked)}
               className="h-4 w-4 accent-[var(--accent)]"
             />
-            Include a 5-second runway walk
+            Include a 6-second runway walk
           </label>
         )}
       </section>

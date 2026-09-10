@@ -4,6 +4,7 @@ import type { GarmentRef, ModelPersona, PoseId } from '../providers/types';
 import { stamp } from '../compliance/provenance';
 import { normalizeForMarketplace } from '../compliance/normalize';
 import { validate, type ComplianceReport } from '../compliance/validate';
+import { measureHem, type GarmentLength } from './hem';
 import { planFor, type SlotId } from './bundle';
 
 export interface ShootRequest extends Selection {
@@ -15,7 +16,15 @@ export interface ShootRequest extends Selection {
   audience: 'adult' | 'kids';
   scene: string;
   includeVideo: boolean;
+  /**
+   * Declared by the brand, because a flat lay carries no scale reference and
+   * try-on will otherwise return a different length on every run.
+   */
+  length: GarmentLength;
 }
+
+/** How many times a wrong-length render is regenerated before giving up. */
+const LENGTH_ATTEMPTS = 3;
 
 export interface ShootAsset {
   slot: SlotId;
@@ -123,11 +132,10 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     }
 
     try {
-      const result = await tryOn.run({
-        garment,
-        personImage,
-        personMimeType: 'image/png',
-      });
+      const result = await tryOnAtDeclaredLength(
+        () => tryOn.run({ garment, personImage, personMimeType: 'image/png' }),
+        request.length,
+      );
       if (slot === 'on-model-front') frontImage = result.image;
       await record(slot, result.image, result.providerId, result.cost);
     } catch (error) {
@@ -201,6 +209,48 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     failures,
     totalCost: assets.reduce((sum, a) => sum + a.cost, 0),
   };
+}
+
+class WrongLengthError extends Error {
+  constructor(readonly declared: GarmentLength, readonly measured: number, readonly spent: number) {
+    super(
+      `Could not hold the declared ${declared} length after ${LENGTH_ATTEMPTS} attempts; the garment kept rendering at ${measured.toFixed(2)} of body height.`,
+    );
+  }
+}
+
+/**
+ * Regenerates until the rendered hem matches what the brand declared.
+ *
+ * Try-on returns a different garment length on each run from identical input,
+ * so a single render is a coin toss. When no attempt lands on the declared
+ * length the slot is failed rather than filled: a brand that publishes a maxi
+ * render of a knee-length dress takes the return and the misleading-advertising
+ * exposure, which is worse than an obviously missing shot.
+ */
+async function tryOnAtDeclaredLength(
+  attempt: () => Promise<{ image: Buffer; providerId: string; cost: number }>,
+  declared: GarmentLength,
+) {
+  let spent = 0;
+  let measured = 0;
+
+  for (let i = 0; i < LENGTH_ATTEMPTS; i++) {
+    const result = await attempt();
+    spent += result.cost;
+
+    try {
+      const hem = await measureHem(result.image, declared);
+      measured = hem.position;
+      if (hem.matches) return { ...result, cost: spent };
+    } catch {
+      // Measurement needs a clear silhouette. If it cannot read one, accept the
+      // render rather than burn attempts on an unmeasurable pose.
+      return { ...result, cost: spent };
+    }
+  }
+
+  throw new WrongLengthError(declared, measured, spent);
 }
 
 async function cropFrom(source: Buffer, slot: SlotId): Promise<Buffer> {

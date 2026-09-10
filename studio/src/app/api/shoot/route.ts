@@ -10,6 +10,7 @@ const schema = z.object({
   audience: z.enum(['adult', 'kids']),
   scene: z.string(),
   includeVideo: z.enum(['true', 'false']),
+  length: z.enum(['top', 'mini', 'knee', 'midi', 'maxi']),
 });
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     audience: form.get('audience'),
     scene: form.get('scene'),
     includeVideo: form.get('includeVideo'),
+    length: form.get('length'),
   });
   if (!parsed.success) {
     return Response.json({ message: 'Invalid shoot options.' }, { status: 400 });
@@ -85,6 +87,7 @@ export async function POST(request: Request) {
           : undefined,
       persona: { poses: await POSE_LIBRARY(), bodyProfile: 'standard' },
       audience: parsed.data.audience,
+      length: parsed.data.length,
       scene: scene.prompt,
       includeVideo: parsed.data.includeVideo === 'true',
     });
