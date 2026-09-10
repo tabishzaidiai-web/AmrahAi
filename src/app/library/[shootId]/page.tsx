@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Nav } from '@/app/nav';
 import { notFound } from 'next/navigation';
 import { loadShoot } from '@/lib/storage';
 import { isSupabaseConfigured } from '@/lib/supabase/server';
@@ -26,16 +26,7 @@ export default async function ShootPage(props: PageProps<'/library/[shootId]'>) 
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-line">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <Link href="/library" className="font-display text-lg tracking-tight">
-            Amrah Studio
-          </Link>
-          <Link href="/library" className="text-sm text-muted hover:text-foreground">
-            Back to library
-          </Link>
-        </nav>
-      </header>
+      <Nav current="library" />
 
       <div className="mx-auto max-w-5xl px-6 py-12">
         <ShootView shootId={shootId} assets={assets} />

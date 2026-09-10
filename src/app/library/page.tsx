@@ -1,3 +1,4 @@
+import { Nav } from '@/app/nav';
 import Link from 'next/link';
 import { listShoots } from '@/lib/storage';
 import { isSupabaseConfigured } from '@/lib/supabase/server';
@@ -12,19 +13,7 @@ export default async function LibraryPage() {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-line">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <Link href="/" className="font-display text-lg tracking-tight">
-            Amrah Studio
-          </Link>
-          <Link
-            href="/studio"
-            className="rounded-full bg-ink px-4 py-2 text-sm text-background transition-opacity hover:opacity-90"
-          >
-            New shoot
-          </Link>
-        </nav>
-      </header>
+      <Nav current="library" />
 
       <div className="mx-auto max-w-5xl px-6 py-12">
         <h1 className="font-display text-3xl tracking-tight">Library</h1>

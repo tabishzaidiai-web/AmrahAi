@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Nav } from '@/app/nav';
 import { notFound } from 'next/navigation';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { CollectionProgress, type PieceState } from './progress';
@@ -35,16 +35,7 @@ export default async function CollectionPage(props: PageProps<'/collections/[col
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-line">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <Link href="/library" className="font-display text-lg tracking-tight">
-            Amrah Studio
-          </Link>
-          <Link href="/library" className="text-sm text-muted hover:text-foreground">
-            Library
-          </Link>
-        </nav>
-      </header>
+      <Nav current="collections" />
 
       <div className="mx-auto max-w-5xl px-6 py-12">
         <h1 className="font-display text-3xl tracking-tight">{collection.name as string}</h1>
