@@ -21,6 +21,7 @@ export const VERTEX_MODELS = {
   image: { id: 'gemini-3.1-flash-image', location: 'global' },
   imagePro: { id: 'gemini-3-pro-image', location: 'global' },
   video: { id: 'veo-3.1-fast-generate-001', location: 'us-central1' },
+  reader: { id: 'gemini-2.5-flash', location: 'us-central1' },
 } as const satisfies Record<string, ModelRef>;
 
 /** A service-account key already names its own project, so deployments need

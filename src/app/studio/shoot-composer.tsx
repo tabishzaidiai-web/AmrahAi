@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, ImagePlus, Loader2, X } from 'lucide-react';
+import { Check, ImagePlus, Loader2, Sparkles, X } from 'lucide-react';
 import { SCENES } from '@/lib/scenes';
 import { planFor } from '@/lib/pipeline/bundle';
 import { Results, type ShootResult } from './results';
@@ -43,6 +43,7 @@ export function ShootComposer() {
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
   const [customModel, setCustomModel] = useState<Upload | null>(null);
   const [source, setSource] = useState<Source>('photo');
+  const [reading, setReading] = useState<{ description: string } | null>(null);
   const [material, setMaterial] = useState('');
   const [audience, setAudience] = useState<Audience>('adult');
   const [scene, setScene] = useState(SCENES[0].id);
@@ -52,6 +53,30 @@ export function ShootComposer() {
   const [result, setResult] = useState<ShootResult | null>(null);
 
   const slots = planFor(audience).filter((s) => s.kind === 'image' || includeVideo);
+
+  async function inspect(upload: Upload) {
+    setFront(upload);
+    // A photograph can be read; a line drawing has no fabric or scale to judge.
+    if (source === 'sketch') return;
+
+    try {
+      const body = new FormData();
+      body.append('image', upload.file);
+      const response = await fetch('/api/inspect', { method: 'POST', body });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      // Pre-filled as a visible suggestion, not applied behind the scenes: the
+      // reading is often right and occasionally confuses a long shirt-dress
+      // with a top, and a wrong length gets every render discarded.
+      setCategory(data.category);
+      setLength(data.length);
+      setAudience(data.audience);
+      setReading({ description: data.description });
+    } catch {
+      // Reading is a convenience; the studio still asks for everything.
+    }
+  }
 
   async function start() {
     if (!front || !length) return;
@@ -141,7 +166,11 @@ export function ShootComposer() {
             }
             required
             upload={front}
-            onChange={setFront}
+            onChange={(u) => {
+              setReading(null);
+              if (u) void inspect(u);
+              else setFront(null);
+            }}
           />
           <Dropzone
             label="Back"
@@ -155,6 +184,21 @@ export function ShootComposer() {
       {/* Step 2 — garment type */}
       <section className="mt-12">
         <StepHeading n={2} title="What is it?" />
+        {reading && (
+          <div className="mt-4 rounded-xl border border-line bg-surface p-4">
+            <p className="flex items-start gap-2.5 text-sm leading-relaxed">
+              <Sparkles size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+              <span>
+                <span className="text-muted">We read this as:</span>{' '}
+                {reading.description}
+              </span>
+            </p>
+            <p className="mt-2 pl-6 text-xs leading-relaxed text-muted">
+              We have filled in the answers below from that. Check them —
+              especially the length, which decides whether a render is kept.
+            </p>
+          </div>
+        )}
         <div className="mt-5 flex flex-wrap gap-2">
           {CATEGORIES.map((c) => (
             <Chip key={c.id} selected={category === c.id} onClick={() => setCategory(c.id)}>
