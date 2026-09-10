@@ -4,6 +4,8 @@ import { runShoot } from '@/lib/pipeline/run';
 import { vertexConfig } from '@/lib/providers/vertex';
 import { POSE_LIBRARY, hasPoseLibrary } from '@/lib/pipeline/poses';
 import { SCENES } from '@/lib/scenes';
+import { persistShoot } from '@/lib/storage';
+import { getUser } from '@/lib/supabase/server';
 
 const schema = z.object({
   category: z.enum(['top', 'bottom', 'one-piece']),
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
   }
 
   const shootId = randomUUID();
+  const user = await getUser();
 
   try {
     const outcome = await runShoot({
@@ -92,8 +95,28 @@ export async function POST(request: Request) {
       includeVideo: parsed.data.includeVideo === 'true',
     });
 
-    // Buffers are not serialisable; assets are returned as data URLs until
-    // object storage is wired up.
+    // Signed-in brands get their shoot stored and returned as links. Without a
+    // session there is nowhere to put it, so the images come back inline and
+    // the shoot is not retained.
+    if (user) {
+      const assets = await persistShoot({
+        shootId,
+        userId: user.id,
+        category: parsed.data.category,
+        length: parsed.data.length,
+        audience: parsed.data.audience,
+        assets: outcome.assets,
+        totalCost: outcome.totalCost,
+      });
+
+      return Response.json({
+        shootId,
+        totalCost: outcome.totalCost,
+        failures: outcome.failures,
+        assets,
+      });
+    }
+
     return Response.json({
       shootId,
       totalCost: outcome.totalCost,

@@ -5,7 +5,7 @@ import { stamp } from '../compliance/provenance';
 import { normalizeForMarketplace } from '../compliance/normalize';
 import { validate, type ComplianceReport } from '../compliance/validate';
 import { measureHem, type GarmentLength } from './hem';
-import { planFor, type SlotId } from './bundle';
+import { SKU_BUNDLE, planFor, type SlotId } from './bundle';
 
 export interface ShootRequest extends Selection {
   shootId: string;
@@ -107,42 +107,69 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     });
   };
 
-  // On-model angles ---------------------------------------------------------
+  // Generation --------------------------------------------------------------
+  // On-model angles and packshots are independent of each other, so they all
+  // run together rather than in sequence. Only the derived crops and the video
+  // need the front render, and they wait for it.
   let frontImage: Buffer | undefined;
 
-  for (const [slot, pose] of Object.entries(SLOT_POSE) as [SlotId, PoseId][]) {
-    if (!wanted.has(slot)) continue;
+  const onModel = (Object.entries(SLOT_POSE) as [SlotId, PoseId][]).map(
+    async ([slot, pose]) => {
+      if (!wanted.has(slot)) return;
 
-    const personImage = request.persona.poses[pose];
-    if (!personImage) {
-      failures.push({ slot, reason: `No stored ${pose} pose for this model` });
-      continue;
-    }
+      const personImage = request.persona.poses[pose];
+      if (!personImage) {
+        failures.push({ slot, reason: `No stored ${pose} pose for this model` });
+        return;
+      }
 
-    // The back of a garment is unobserved data. When the brand supplied a back
-    // flat-lay it is used directly; otherwise the front is the only truth we
-    // have and the back view is skipped rather than invented.
-    const garment = slot === 'on-model-back' ? request.garmentBack : request.garmentFront;
+      // The back of a garment is unobserved data. When the brand supplied a
+      // back flat-lay it is used directly; otherwise the front is the only
+      // truth we have and the back view is skipped rather than invented.
+      const garment = slot === 'on-model-back' ? request.garmentBack : request.garmentFront;
+      if (!garment) {
+        failures.push({
+          slot,
+          reason: 'Upload a back image of the garment to generate an accurate back view',
+        });
+        return;
+      }
+
+      try {
+        const result = await tryOnAtDeclaredLength(
+          () => tryOn.run({ garment, personImage, personMimeType: 'image/png' }),
+          request.length,
+        );
+        if (slot === 'on-model-front') frontImage = result.image;
+        await record(slot, result.image, result.providerId, result.cost);
+      } catch (error) {
+        // One weak angle should not cost the brand the whole bundle.
+        failures.push({ slot, reason: reasonOf(error) });
+      }
+    },
+  );
+
+  const packshots = (['ghost-front', 'ghost-back'] as SlotId[]).map(async (slot) => {
+    if (!wanted.has(slot)) return;
+    const garment = slot === 'ghost-back' ? request.garmentBack : request.garmentFront;
     if (!garment) {
-      failures.push({
-        slot,
-        reason: 'Upload a back image of the garment to generate an accurate back view',
-      });
-      continue;
+      failures.push({ slot, reason: 'Upload a back image to generate the back packshot' });
+      return;
     }
 
     try {
-      const result = await tryOnAtDeclaredLength(
-        () => tryOn.run({ garment, personImage, personMimeType: 'image/png' }),
-        request.length,
-      );
-      if (slot === 'on-model-front') frontImage = result.image;
+      const result = await image.run({
+        prompt: PACKSHOT_PROMPT,
+        references: [{ data: garment.data, mimeType: garment.mimeType }],
+        aspectRatio: '1:1',
+      });
       await record(slot, result.image, result.providerId, result.cost);
     } catch (error) {
-      // One weak angle should not cost the brand the whole bundle.
       failures.push({ slot, reason: reasonOf(error) });
     }
-  }
+  });
+
+  await Promise.all([...onModel, ...packshots]);
 
   // Derived crops -----------------------------------------------------------
   // Cropping the approved front render is both free and exactly consistent with
@@ -159,26 +186,6 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     }
   }
 
-  // Ghost-mannequin packshots ----------------------------------------------
-  for (const slot of ['ghost-front', 'ghost-back'] as SlotId[]) {
-    if (!wanted.has(slot)) continue;
-    const garment = slot === 'ghost-back' ? request.garmentBack : request.garmentFront;
-    if (!garment) {
-      failures.push({ slot, reason: 'Upload a back image to generate the back packshot' });
-      continue;
-    }
-
-    try {
-      const result = await image.run({
-        prompt: PACKSHOT_PROMPT,
-        references: [{ data: garment.data, mimeType: garment.mimeType }],
-        aspectRatio: '1:1',
-      });
-      await record(slot, result.image, result.providerId, result.cost);
-    } catch (error) {
-      failures.push({ slot, reason: reasonOf(error) });
-    }
-  }
 
   // Runway walk -------------------------------------------------------------
   if (request.includeVideo && frontImage && request.audience === 'adult') {
@@ -203,6 +210,12 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       failures.push({ slot: 'walk-video', reason: reasonOf(error) });
     }
   }
+
+  // Parallel generation completes out of order, so the bundle is returned in
+  // its documented slot order and the gallery stays stable between shoots.
+  const order = new Map(SKU_BUNDLE.map((s, i) => [s.id, i]));
+  assets.sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0));
+  failures.sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0));
 
   return {
     assets,
