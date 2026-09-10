@@ -68,14 +68,49 @@ export async function persistShoot(params: {
   for (const asset of params.assets) {
     const path = `${params.userId}/${params.shootId}/${asset.slot}.${extensionFor(asset)}`;
 
-    // Video comes back as a provider URI rather than bytes, so it is recorded
-    // by reference until a fetch-and-store step exists for it.
     if (asset.kind === 'video') {
+      const uri = asset.uri ?? '';
+
+      // Veo returns the clip inline as base64. Left as-is that lands several
+      // megabytes of string in a database column, so it is decoded and stored
+      // as a file like every other asset.
+      if (uri.startsWith('data:')) {
+        const bytes = Buffer.from(uri.slice(uri.indexOf(',') + 1), 'base64');
+        const { error } = await supabase.storage
+          .from(BUCKET)
+          .upload(path, bytes, { contentType: 'video/mp4', upsert: true });
+        if (error) throw new Error(`Could not store ${asset.slot}: ${error.message}`);
+
+        await supabase.from('assets').insert({
+          shoot_id: params.shootId,
+          user_id: params.userId,
+          slot: asset.slot,
+          storage_path: path,
+          kind: 'video',
+          provider_id: asset.providerId,
+          cost_usd: asset.cost,
+        });
+
+        const { data: signed } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+
+        persisted.push({
+          slot: asset.slot,
+          kind: 'video',
+          src: signed?.signedUrl ?? '',
+          providerId: asset.providerId,
+          cost: asset.cost,
+        });
+        continue;
+      }
+
+      // A provider-hosted URI is recorded by reference.
       await supabase.from('assets').insert({
         shoot_id: params.shootId,
         user_id: params.userId,
         slot: asset.slot,
-        storage_path: asset.uri ?? '',
+        storage_path: uri,
         kind: 'video',
         provider_id: asset.providerId,
         cost_usd: asset.cost,
@@ -83,7 +118,7 @@ export async function persistShoot(params: {
       persisted.push({
         slot: asset.slot,
         kind: 'video',
-        src: asset.uri ?? '',
+        src: uri,
         providerId: asset.providerId,
         cost: asset.cost,
       });
@@ -160,7 +195,9 @@ export async function loadShoot(shootId: string): Promise<PersistedAsset[]> {
       const path = row.storage_path as string;
       let src = path;
 
-      if (row.kind === 'image') {
+      // Provider-hosted media is recorded by absolute URI; everything stored in
+      // the bucket needs a fresh signed link on each read.
+      if (!/^https?:|^gs:/.test(path)) {
         const { data: signed } = await supabase.storage
           .from(BUCKET)
           .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);

@@ -30,8 +30,21 @@ export function vertexConfig() {
 
 let auth: GoogleAuth | undefined;
 
+/**
+ * Serverless hosts have no filesystem to hold a key file, so the service
+ * account is read from the environment when present and falls back to
+ * application default credentials locally.
+ */
+function googleAuth(): GoogleAuth {
+  const inline = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (inline) {
+    return new GoogleAuth({ scopes: [SCOPE], credentials: JSON.parse(inline) });
+  }
+  return new GoogleAuth({ scopes: [SCOPE] });
+}
+
 async function token(): Promise<string> {
-  auth ??= new GoogleAuth({ scopes: [SCOPE] });
+  auth ??= googleAuth();
   const client = await auth.getClient();
   const { token } = await client.getAccessToken();
   if (!token) throw new Error('Could not obtain a Google Cloud access token');
