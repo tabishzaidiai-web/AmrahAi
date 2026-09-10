@@ -10,6 +10,7 @@ import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
 type Category = 'top' | 'bottom' | 'one-piece';
 type Audience = 'adult' | 'kids';
 type Length = 'top' | 'mini' | 'knee' | 'midi' | 'maxi';
+type Source = 'photo' | 'sketch';
 
 interface Upload {
   file: File;
@@ -41,6 +42,8 @@ export function ShootComposer() {
   const [length, setLength] = useState<Length | null>(null);
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
   const [customModel, setCustomModel] = useState<Upload | null>(null);
+  const [source, setSource] = useState<Source>('photo');
+  const [material, setMaterial] = useState('');
   const [audience, setAudience] = useState<Audience>('adult');
   const [scene, setScene] = useState(SCENES[0].id);
   const [includeVideo, setIncludeVideo] = useState(true);
@@ -52,6 +55,7 @@ export function ShootComposer() {
 
   async function start() {
     if (!front || !length) return;
+    if (source === 'sketch' && !material.trim()) return;
     setRunning(true);
     setError(null);
 
@@ -61,6 +65,8 @@ export function ShootComposer() {
     body.append('category', category);
     body.append('length', length);
     body.append('modelId', modelId);
+    body.append('source', source);
+    if (source === 'sketch') body.append('material', material);
     if (customModel) body.append('modelImage', customModel.file);
     body.append('audience', audience);
     body.append('scene', scene);
@@ -97,10 +103,42 @@ export function ShootComposer() {
       {/* Step 1 — garment */}
       <section className="mt-12">
         <StepHeading n={1} title="Upload the garment" />
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Chip selected={source === 'photo'} onClick={() => setSource('photo')}>
+            I have a photo
+          </Chip>
+          <Chip selected={source === 'sketch'} onClick={() => setSource('sketch')}>
+            I have a technical flat
+          </Chip>
+        </div>
+
+        {source === 'sketch' && (
+          <div className="mt-4 max-w-xl">
+            <label className="block">
+              <span className="mb-1.5 block text-sm">What is it made of?</span>
+              <input
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+                placeholder="mid-weight rust linen, soft matte finish"
+                className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 outline-none transition-colors focus:border-accent"
+              />
+            </label>
+            <p className="mt-2.5 text-sm leading-relaxed text-muted">
+              A drawing shows construction but not cloth, so the fabric has to be
+              described. Silhouette and construction follow your flat closely;
+              exact closure counts can drift, so check them before a buyer does.
+            </p>
+          </div>
+        )}
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Dropzone
             label="Front"
-            hint="Flat lay, hanger or mannequin"
+            hint={
+              source === 'sketch'
+                ? 'A front technical flat, line art on white'
+                : 'Flat lay, hanger or mannequin'
+            }
             required
             upload={front}
             onChange={setFront}
@@ -272,7 +310,7 @@ export function ShootComposer() {
         <button
           type="button"
           onClick={start}
-          disabled={!front || !length || running}
+          disabled={!front || !length || running || (source === 'sketch' && !material.trim())}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3.5 text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
         >
           {running && <Loader2 size={16} className="animate-spin" aria-hidden />}

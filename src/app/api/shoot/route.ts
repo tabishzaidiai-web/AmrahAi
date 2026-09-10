@@ -9,6 +9,7 @@ import {
   loadModelPoses,
 } from '@/lib/pipeline/models';
 import { SCENES } from '@/lib/scenes';
+import { renderFromSketch } from '@/lib/pipeline/sketch';
 import { persistShoot } from '@/lib/storage';
 import { getUser, isSupabaseConfigured } from '@/lib/supabase/server';
 import { refundShoot, reserveShoot, type Account } from '@/lib/billing/credits';
@@ -20,6 +21,10 @@ const schema = z.object({
   includeVideo: z.enum(['true', 'false']),
   length: z.enum(['top', 'mini', 'knee', 'midi', 'maxi']),
   modelId: z.string().optional(),
+  // A studio's input is a technical flat long before it is a photograph.
+  source: z.enum(['photo', 'sketch']).default('photo'),
+  material: z.string().optional(),
+  colour: z.string().optional(),
 });
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -54,6 +59,9 @@ export async function POST(request: Request) {
     includeVideo: form.get('includeVideo'),
     length: form.get('length'),
     modelId: form.get('modelId') ?? undefined,
+    source: form.get('source') ?? 'photo',
+    material: form.get('material') ?? undefined,
+    colour: form.get('colour') ?? undefined,
   });
   if (!parsed.success) {
     return Response.json({ message: 'Invalid shoot options.' }, { status: 400 });
@@ -90,13 +98,39 @@ export async function POST(request: Request) {
     account = check.account;
   }
 
+  const selection = {
+    // A paying brand must not be served the free tier's engine.
+    tier: account?.tier ?? ('free' as const),
+    routing: account?.routingPolicy ?? ('any' as const),
+  };
+
   try {
+    // A technical flat is rendered into a photographable garment first; the
+    // rest of the shoot then treats it exactly like an uploaded photograph.
+    let sketchCost = 0;
+    let garmentFront: Awaited<ReturnType<typeof renderFromSketch>>['garment'] | undefined;
+
+    if (parsed.data.source === 'sketch') {
+      if (!parsed.data.material) {
+        return Response.json(
+          { message: 'Describe the fabric so the sketch can be rendered.' },
+          { status: 400 },
+        );
+      }
+      const rendered = await renderFromSketch(
+        { data: await toBase64(front), mimeType: front.type || 'image/png' },
+        { material: parsed.data.material, colour: parsed.data.colour },
+        parsed.data.category,
+        selection,
+      );
+      garmentFront = rendered.garment;
+      sketchCost = rendered.cost;
+    }
+
     const outcome = await runShoot({
       shootId,
-      // A paying brand must not be served the free tier's engine.
-      tier: account?.tier ?? 'free',
-      routing: account?.routingPolicy ?? 'any',
-      garmentFront: {
+      ...selection,
+      garmentFront: garmentFront ?? {
         data: await toBase64(front),
         mimeType: front.type || 'image/png',
         view: 'front',
@@ -138,7 +172,7 @@ export async function POST(request: Request) {
         length: parsed.data.length,
         audience: parsed.data.audience,
         assets: outcome.assets,
-        totalCost: outcome.totalCost,
+        totalCost: outcome.totalCost + sketchCost,
         failures: outcome.failures,
       });
 
