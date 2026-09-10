@@ -132,6 +132,7 @@ export async function POST(request: Request) {
         audience: parsed.data.audience,
         assets: outcome.assets,
         totalCost: outcome.totalCost,
+        failures: outcome.failures,
       });
 
       return Response.json({

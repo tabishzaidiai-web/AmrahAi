@@ -47,6 +47,8 @@ export async function persistShoot(params: {
   audience: string;
   assets: ShootAsset[];
   totalCost: number;
+  /** Recorded so a shoot that came back short can be diagnosed later. */
+  failures?: { slot: string; reason: string }[];
 }): Promise<PersistedAsset[]> {
   const supabase = await createClient();
 
@@ -61,6 +63,10 @@ export async function persistShoot(params: {
     audience: params.audience,
     status: 'complete',
     cost_usd: params.totalCost,
+    error:
+      params.failures && params.failures.length > 0
+        ? params.failures.map((f) => `${f.slot}: ${f.reason}`).join(' | ')
+        : null,
   });
 
   const persisted: PersistedAsset[] = [];

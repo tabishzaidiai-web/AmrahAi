@@ -75,6 +75,10 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
 
   const assets: ShootAsset[] = [];
   const failures: { slot: SlotId; reason: string }[] = [];
+  // A slot that fails has usually still called a provider, and that spend is
+  // real. Counting only successful assets under-reports what a shoot cost and
+  // hides exactly the failures worth knowing about.
+  let wastedCost = 0;
   const plan = planFor(request.audience);
   const wanted = new Set(plan.map((s) => s.id));
 
@@ -144,6 +148,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
         await record(slot, result.image, result.providerId, result.cost);
       } catch (error) {
         // One weak angle should not cost the brand the whole bundle.
+        wastedCost += spentOn(error);
         failures.push({ slot, reason: reasonOf(error) });
       }
     },
@@ -220,7 +225,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   return {
     assets,
     failures,
-    totalCost: assets.reduce((sum, a) => sum + a.cost, 0),
+    totalCost: assets.reduce((sum, a) => sum + a.cost, 0) + wastedCost,
   };
 }
 
@@ -286,4 +291,9 @@ async function cropFrom(source: Buffer, slot: SlotId): Promise<Buffer> {
 
 function reasonOf(error: unknown) {
   return error instanceof Error ? error.message : 'Generation failed';
+}
+
+/** Provider spend already incurred by an attempt that then failed. */
+function spentOn(error: unknown) {
+  return error instanceof WrongLengthError ? error.spent : 0;
 }
