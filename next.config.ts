@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/shoot': ['./assets/poses/**'],
   },
+  // Sharp is a native module; bundling it breaks the binary it loads.
+  serverExternalPackages: ['sharp'],
 };
 
 export default nextConfig;

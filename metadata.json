@@ -1,7 +1,0 @@
-{
-  "name": "AMRAH by Arabian AI",
-  "description": "Enterprise-ready AI engine for generating e-commerce product images and videos with 100% visual fidelity and brand safety.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
