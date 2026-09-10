@@ -142,6 +142,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       try {
         const result = await tryOnAtDeclaredLength(
           () => tryOn.run({ garment, personImage, personMimeType: 'image/png' }),
+          Buffer.from(personImage, 'base64'),
           request.length,
         );
         if (slot === 'on-model-front') frontImage = result.image;
@@ -248,6 +249,7 @@ class WrongLengthError extends Error {
  */
 async function tryOnAtDeclaredLength(
   attempt: () => Promise<{ image: Buffer; providerId: string; cost: number }>,
+  person: Buffer,
   declared: GarmentLength,
 ) {
   let spent = 0;
@@ -258,9 +260,12 @@ async function tryOnAtDeclaredLength(
     spent += result.cost;
 
     try {
-      const hem = await measureHem(result.image, declared);
+      const hem = await measureHem(result.image, person, declared);
       measured = hem.position;
-      if (hem.matches) return { ...result, cost: spent };
+      // A garment close in tone to the wearer's skin cannot be measured, and
+      // discarding good work on an unreadable instrument is worse than letting
+      // a borderline length through.
+      if (!hem.confident || hem.matches) return { ...result, cost: spent };
     } catch {
       // Measurement needs a clear silhouette. If it cannot read one, accept the
       // render rather than burn attempts on an unmeasurable pose.
