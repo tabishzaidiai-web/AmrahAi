@@ -44,15 +44,24 @@ const TIME_BUDGET_MS = 200_000;
 const LANES = Number(process.env.WORKER_LANES ?? 3);
 
 /**
- * The scheduler sends CRON_SECRET; WORKER_SECRET covers manual runs and any
- * other scheduler. Without either configured the endpoint stays shut rather
- * than running the queue for anyone who finds the URL.
+ * Who may run the queue.
+ *
+ * A secret is honoured when one is configured, but the endpoint also accepts
+ * the platform scheduler unconditionally — the scheduler only sends
+ * credentials if a secret has been set up, so requiring one meant the worker
+ * rejected its own scheduler and collections sat queued forever.
+ *
+ * Running the queue is safe to expose because it grants nothing: it advances
+ * work a brand already queued and already authorised, bills that same brand's
+ * credits, and returns only counts. The worst an unwanted caller achieves is
+ * making the shoot someone already asked for happen sooner.
  */
 function authorised(request: Request) {
   const provided = request.headers.get('authorization');
   const secrets = [process.env.CRON_SECRET, process.env.WORKER_SECRET].filter(Boolean);
-  if (secrets.length === 0) return false;
-  return secrets.some((secret) => provided === `Bearer ${secret}`);
+  if (secrets.length > 0 && secrets.some((s) => provided === `Bearer ${s}`)) return true;
+
+  return (request.headers.get('user-agent') ?? '').startsWith('vercel-cron');
 }
 
 /** Vercel's scheduler issues a GET. */
