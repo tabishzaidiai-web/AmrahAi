@@ -5,6 +5,7 @@ import {
   predictTryOn,
 } from './vertex';
 import type { ImageProvider, TryOnProvider, VideoProvider } from './types';
+import { claimVideoSlot } from '../pipeline/queue';
 
 async function timed<T>(fn: () => Promise<T>): Promise<{ value: T; latencyMs: number }> {
   const started = Date.now();
@@ -67,35 +68,44 @@ export const vertexImagePro: ImageProvider = {
 const VEO_DURATIONS = [4, 6, 8];
 
 /**
- * Video generation is queued behind a single slot.
+ * Video submissions are spaced by a gate held in the database.
  *
- * The provider limits concurrent long-running video jobs per model, and
- * shooting several pieces of a collection at once exceeds it immediately —
- * every lane asks for a clip in the same moment. Waiting costs a collection
- * nothing, since the stills for other pieces continue in parallel.
+ * Vertex allows this project one video request per minute per model
+ * (LongRunningPredictRequestsPerMinutePerProjectPerBaseModel = 1), and the
+ * limit is not raisable until the project has built up usage history. An
+ * earlier in-process queue could not hold the line, because the worker runs as
+ * several serverless invocations that share no memory: a six-piece drop asked
+ * for six clips at once and four came back as a raw 429.
+ *
+ * The gate therefore lives where every process can see it. Waiting is the
+ * correct behaviour rather than a workaround — at one a minute, a clip that
+ * cannot start yet has genuinely nowhere to go.
  */
-let videoQueue: Promise<unknown> = Promise.resolve();
+const VIDEO_INTERVAL_SECONDS = 60;
 
-function inVideoQueue<T>(work: () => Promise<T>): Promise<T> {
-  const next = videoQueue.then(work, work);
-  // Kept unbroken by failures, so one rejected clip does not wedge the queue.
-  videoQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
+export class VideoBusyError extends Error {
+  constructor(waitSeconds: number) {
+    super(
+      `The video queue is busy: Vertex accepts one clip a minute for this project and the next slot is ${waitSeconds}s away.`,
+    );
+  }
 }
 
-/** Retries a clip the provider refused for capacity rather than content. */
-async function withCapacityRetry<T>(work: () => Promise<T>, attempts = 3): Promise<T> {
-  for (let i = 1; ; i++) {
-    try {
-      return await work();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (i >= attempts || !message.includes('429')) throw error;
-      await new Promise((r) => setTimeout(r, 20_000 * i));
-    }
+/**
+ * Waits for a submission slot, giving up once waiting would outlast the
+ * caller's budget so the piece's stills are not held hostage to its clip.
+ */
+async function awaitVideoSlot(budgetMs: number): Promise<void> {
+  const deadline = Date.now() + budgetMs;
+
+  for (;;) {
+    const wait = await claimVideoSlot(VIDEO_INTERVAL_SECONDS);
+    if (wait === 0) return;
+
+    // A second of headroom, so a slot is not missed by rounding.
+    const sleepMs = (wait + 1) * 1000;
+    if (Date.now() + sleepMs > deadline) throw new VideoBusyError(wait);
+    await new Promise((r) => setTimeout(r, sleepMs));
   }
 }
 
@@ -116,10 +126,12 @@ export const vertexVideo: VideoProvider = {
   async run(input) {
     const duration = nearestSupportedDuration(input.durationSeconds);
 
+    // Raises rather than submitting when no slot is free in time, so the caller
+    // can leave the clip for a later run instead of burning it on a 429.
+    await awaitVideoSlot(input.waitBudgetMs ?? 90_000);
+
     const { value, latencyMs } = await timed(() =>
-      inVideoQueue(() =>
-        withCapacityRetry(() =>
-          generateVideo({
+      generateVideo({
         instances: [
           {
             prompt: input.prompt,
@@ -135,9 +147,7 @@ export const vertexVideo: VideoProvider = {
           aspectRatio: input.aspectRatio,
           generateAudio: false,
         },
-          }),
-        ),
-      ),
+      }),
     );
     return {
       uri: value,

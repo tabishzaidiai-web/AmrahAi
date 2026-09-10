@@ -13,8 +13,13 @@ import {
   markComplete,
   markFailed,
   readGarment,
+  claimNextVideo,
+  enqueueVideo,
+  markVideoDone,
+  markVideoFailed,
   type QueuedItem,
 } from '@/lib/pipeline/queue';
+import { runQueuedVideo } from '@/lib/pipeline/video';
 
 /**
  * Processes queued collection pieces.
@@ -117,7 +122,34 @@ async function drain(request: Request) {
 
   await Promise.all(Array.from({ length: Math.max(1, LANES) }, lane));
 
-  return Response.json({ processed, failed, lanes: LANES });
+  // Clips left behind by this or an earlier run, made one at a time because
+  // that is all the provider allows. Done after the pieces so a drop's stills
+  // are never delayed behind its videos.
+  const videos = await drainVideos(started);
+
+  return Response.json({ processed, failed, videos, lanes: LANES });
+}
+
+/** Makes queued clips until the run is out of time. */
+async function drainVideos(started: number) {
+  let made = 0;
+
+  // One clip a minute plus the time it takes to render means a single run gets
+  // through a handful; the schedule picks the rest up.
+  while (Date.now() - started < TIME_BUDGET_MS) {
+    const job = await claimNextVideo();
+    if (!job) break;
+
+    try {
+      await runQueuedVideo(job);
+      await markVideoDone(job.id);
+      made++;
+    } catch (error) {
+      await markVideoFailed(job, error instanceof Error ? error.message : 'Video failed');
+    }
+  }
+
+  return made;
 }
 
 async function processItem(item: QueuedItem) {
@@ -152,6 +184,9 @@ async function processItem(item: QueuedItem) {
       length: item.garment_length,
       scene: scene.prompt,
       includeVideo: settings.include_video,
+      // A piece must not sit holding a lane while it waits its turn for a clip.
+      // One interval is enough to catch a free slot; anything longer is queued.
+      videoWaitBudgetMs: 70_000,
     });
 
     if (outcome.assets.length === 0) {
@@ -170,6 +205,16 @@ async function processItem(item: QueuedItem) {
       failures: outcome.failures,
       db,
     });
+
+    // Vertex takes one clip a minute, so a drop's videos are made across
+    // several worker runs rather than being lost to a rate limit.
+    if (outcome.deferredVideo) {
+      await enqueueVideo({
+        shootId,
+        userId: item.user_id,
+        prompt: outcome.deferredVideo.prompt,
+      });
+    }
 
     await markComplete(item.id, shootId);
   } catch (error) {

@@ -91,3 +91,65 @@ export async function markFailed(item: QueuedItem, reason: string, maxAttempts =
     })
     .eq('id', item.id);
 }
+
+/**
+ * The video submission gate.
+ *
+ * Returns the seconds to wait before a clip may be submitted; 0 means now.
+ * Held in the database rather than in memory because the worker runs as
+ * several serverless invocations that share no state, and Vertex counts their
+ * requests together.
+ */
+export async function claimVideoSlot(minIntervalSeconds = 60): Promise<number> {
+  const { data, error } = await admin().rpc('claim_video_slot', {
+    min_interval_seconds: minIntervalSeconds,
+  });
+  if (error) throw new Error(`Could not reach the video queue: ${error.message}`);
+  return Number(data ?? 0);
+}
+
+export interface VideoJob {
+  id: string;
+  shoot_id: string;
+  user_id: string;
+  prompt: string;
+  attempts: number;
+}
+
+/** Leaves a clip for a later worker run, since at one a minute a drop's videos
+ *  cannot all be made inside a single invocation. */
+export async function enqueueVideo(job: {
+  shootId: string;
+  userId: string;
+  prompt: string;
+}): Promise<void> {
+  const { error } = await admin().from('video_jobs').insert({
+    shoot_id: job.shootId,
+    user_id: job.userId,
+    prompt: job.prompt,
+  });
+  if (error) throw new Error(`Could not queue the video: ${error.message}`);
+}
+
+export async function claimNextVideo(): Promise<VideoJob | null> {
+  const { data, error } = await admin().rpc('claim_video_job');
+  if (error) throw new Error(`Could not claim a video: ${error.message}`);
+  const row = (data as VideoJob[] | null)?.[0];
+  return row ?? null;
+}
+
+export async function markVideoDone(id: string): Promise<void> {
+  await admin().from('video_jobs').update({ status: 'complete' }).eq('id', id);
+}
+
+/** Three attempts, then the clip is left alone rather than retried forever. */
+export async function markVideoFailed(job: VideoJob, reason: string): Promise<void> {
+  await admin()
+    .from('video_jobs')
+    .update({
+      status: job.attempts >= 3 ? 'failed' : 'pending',
+      claimed_at: null,
+      error: reason,
+    })
+    .eq('id', job.id);
+}

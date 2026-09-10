@@ -62,6 +62,9 @@ export interface VideoGenInput {
   prompt: string;
   durationSeconds: number;
   aspectRatio: '9:16' | '16:9' | '1:1';
+  /** How long the caller can afford to wait for a submission slot before the
+   *  clip should be left for a later run. */
+  waitBudgetMs?: number;
 }
 
 /** Images are returned as bytes because the pipeline must inspect, crop and

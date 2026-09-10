@@ -23,6 +23,8 @@ export interface ShootResult {
   failures: { slot: SlotId; reason: string }[];
   /** Slots no input was supplied for, kept apart from things that went wrong. */
   skipped?: { slot: SlotId; reason: string }[];
+  /** The runway clip is being made, and will appear in the library. */
+  videoQueued?: boolean;
   totalCost: number;
 }
 
@@ -122,6 +124,17 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
           </figure>
         ))}
       </div>
+
+      {view === 'shoot' && result.videoQueued && (
+        <div className="mt-8 flex items-start gap-2.5 rounded-xl border border-line bg-surface p-5">
+          <Film size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          <p className="text-sm leading-relaxed text-muted">
+            Your runway clip is queued. Video is made one at a time, so it takes a
+            few minutes longer than the stills — it will appear with this shoot in
+            your library.
+          </p>
+        </div>
+      )}
 
       {view === 'shoot' && (result.skipped?.length ?? 0) > 0 && (
         <div className="mt-8 rounded-xl border border-line bg-surface p-5">

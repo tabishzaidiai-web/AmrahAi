@@ -198,10 +198,14 @@ export async function listShoots(): Promise<ShootRecord[]> {
 
 export async function loadShoot(shootId: string): Promise<PersistedAsset[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('assets')
     .select('slot, storage_path, kind, provider_id, cost_usd, compliance, notice')
     .eq('shoot_id', shootId);
+
+  // Same reasoning as listShoots: a shoot that cannot be read must not render
+  // as a shoot with nothing in it.
+  if (error) throw new Error(`Could not load this shoot: ${error.message}`);
 
   const rows = data ?? [];
   return Promise.all(
