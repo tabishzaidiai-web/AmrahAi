@@ -5,6 +5,7 @@ import { Check, ImagePlus, Loader2, X } from 'lucide-react';
 import { SCENES } from '@/lib/scenes';
 import { planFor } from '@/lib/pipeline/bundle';
 import { Results, type ShootResult } from './results';
+import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
 
 type Category = 'top' | 'bottom' | 'one-piece';
 type Audience = 'adult' | 'kids';
@@ -35,7 +36,11 @@ export function ShootComposer() {
   const [front, setFront] = useState<Upload | null>(null);
   const [back, setBack] = useState<Upload | null>(null);
   const [category, setCategory] = useState<Category>('one-piece');
-  const [length, setLength] = useState<Length>('knee');
+  // No default: a silently-assumed length gets every render rejected for not
+  // matching it, which reads as the app failing rather than a wrong setting.
+  const [length, setLength] = useState<Length | null>(null);
+  const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
+  const [customModel, setCustomModel] = useState<Upload | null>(null);
   const [audience, setAudience] = useState<Audience>('adult');
   const [scene, setScene] = useState(SCENES[0].id);
   const [includeVideo, setIncludeVideo] = useState(true);
@@ -46,7 +51,7 @@ export function ShootComposer() {
   const slots = planFor(audience).filter((s) => s.kind === 'image' || includeVideo);
 
   async function start() {
-    if (!front) return;
+    if (!front || !length) return;
     setRunning(true);
     setError(null);
 
@@ -55,6 +60,8 @@ export function ShootComposer() {
     if (back) body.append('back', back.file);
     body.append('category', category);
     body.append('length', length);
+    body.append('modelId', modelId);
+    if (customModel) body.append('modelImage', customModel.file);
     body.append('audience', audience);
     body.append('scene', scene);
     body.append('includeVideo', String(includeVideo));
@@ -135,7 +142,8 @@ export function ShootComposer() {
         </div>
         <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-muted">
           A flat photo has nothing to judge scale against, so we check every render
-          against the length you pick and reshoot any that come out wrong.
+          against the length you pick and reshoot any that come out wrong. Pick the
+          wrong one and the on-model shots will be rejected.
         </p>
 
         {audience === 'kids' && (
@@ -146,9 +154,66 @@ export function ShootComposer() {
         )}
       </section>
 
-      {/* Step 3 — scene */}
+      {/* Step 3 — model */}
       <section className="mt-12">
-        <StepHeading n={3} title="Pick a setting" />
+        <StepHeading n={3} title="Who wears it?" />
+        <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {HOUSE_MODELS.map((m) => {
+            const selected = !customModel && modelId === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setModelId(m.id);
+                  if (customModel) {
+                    URL.revokeObjectURL(customModel.previewUrl);
+                    setCustomModel(null);
+                  }
+                }}
+                aria-pressed={selected}
+                className={`overflow-hidden rounded-xl border text-left transition-colors ${
+                  selected ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-muted'
+                }`}
+              >
+                {/* Served from the app's own assets, not an optimised route. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/models/${m.id}.jpg`}
+                  alt={m.name}
+                  className="aspect-3/4 w-full bg-background object-cover"
+                />
+                <span className="block px-3 py-2.5">
+                  <span className="block text-sm">{m.name}</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                    {m.description}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 max-w-sm">
+          <Dropzone
+            label={customModel ? 'Your model' : 'Or use your own model'}
+            hint="A full-length photo of the person, head to feet. Gives the front view only."
+            upload={customModel}
+            onChange={setCustomModel}
+          />
+        </div>
+        {customModel && (
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
+            One photo shows one viewpoint, so the back and three-quarter shots
+            cannot be produced from it. Pick a house model above if you need the
+            full set.
+          </p>
+        )}
+      </section>
+
+      {/* Step 4 — scene */}
+      <section className="mt-12">
+        <StepHeading n={4} title="Pick a setting" />
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SCENES.map((s) => {
             const selected = scene === s.id;
@@ -186,7 +251,7 @@ export function ShootComposer() {
         )}
       </section>
 
-      {/* Step 4 — confirm */}
+      {/* Step 5 — confirm */}
       <section className="mt-12 rounded-2xl border border-line bg-surface p-6">
         <p className="text-sm text-muted">This shoot returns</p>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -207,14 +272,18 @@ export function ShootComposer() {
         <button
           type="button"
           onClick={start}
-          disabled={!front || running}
+          disabled={!front || !length || running}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3.5 text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
         >
           {running && <Loader2 size={16} className="animate-spin" aria-hidden />}
           {running ? 'Shooting…' : 'Generate shoot'}
         </button>
-        {!front && (
-          <p className="mt-3 text-sm text-muted">Upload a front image to continue.</p>
+        {(!front || !length) && (
+          <p className="mt-3 text-sm text-muted">
+            {!front
+              ? 'Upload a front image to continue.'
+              : 'Choose the garment length to continue.'}
+          </p>
         )}
       </section>
     </div>

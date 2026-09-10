@@ -1,11 +1,11 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // The pose library is read from disk at request time. Nothing imports these
+  // Model poses are read from disk at request time. Nothing imports these
   // files, so tracing cannot discover them and they must be named explicitly or
-  // the shoot route finds no poses once deployed.
+  // a deployed shoot finds no models to dress.
   outputFileTracingIncludes: {
-    '/api/shoot': ['./assets/poses/**'],
+    '/api/shoot': ['./assets/models/**'],
   },
   // Sharp is a native module; bundling it breaks the binary it loads.
   serverExternalPackages: ['sharp'],

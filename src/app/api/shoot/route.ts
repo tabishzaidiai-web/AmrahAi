@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { runShoot } from '@/lib/pipeline/run';
 import { vertexConfig } from '@/lib/providers/vertex';
-import { POSE_LIBRARY, hasPoseLibrary } from '@/lib/pipeline/poses';
+import {
+  DEFAULT_MODEL_ID,
+  hasModelLibrary,
+  isHouseModel,
+  loadModelPoses,
+} from '@/lib/pipeline/models';
 import { SCENES } from '@/lib/scenes';
 import { persistShoot } from '@/lib/storage';
 import { getUser, isSupabaseConfigured } from '@/lib/supabase/server';
@@ -14,6 +19,7 @@ const schema = z.object({
   scene: z.string(),
   includeVideo: z.enum(['true', 'false']),
   length: z.enum(['top', 'mini', 'knee', 'midi', 'maxi']),
+  modelId: z.string().optional(),
 });
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -32,9 +38,9 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
-  if (!(await hasPoseLibrary())) {
+  if (!(await hasModelLibrary())) {
     return Response.json(
-      { message: 'No model pose library is installed yet.' },
+      { message: 'No house models are installed yet.' },
       { status: 503 },
     );
   }
@@ -47,6 +53,7 @@ export async function POST(request: Request) {
     scene: form.get('scene'),
     includeVideo: form.get('includeVideo'),
     length: form.get('length'),
+    modelId: form.get('modelId') ?? undefined,
   });
   if (!parsed.success) {
     return Response.json({ message: 'Invalid shoot options.' }, { status: 400 });
@@ -104,7 +111,7 @@ export async function POST(request: Request) {
               category: parsed.data.category,
             }
           : undefined,
-      persona: { poses: await POSE_LIBRARY(), bodyProfile: 'standard' },
+      persona: await resolvePersona(form, parsed.data.modelId),
       audience: parsed.data.audience,
       length: parsed.data.length,
       scene: scene.prompt,
@@ -161,4 +168,26 @@ export async function POST(request: Request) {
     if (user && isSupabaseConfigured) await refundShoot(user.id);
     return Response.json({ message: 'The shoot could not be completed.' }, { status: 502 });
   }
+}
+
+/**
+ * Chooses whose body the garment is fitted to.
+ *
+ * A brand can pick a house model, or upload its own. An uploaded photo gives
+ * one viewpoint only, so it fills the front pose and the angles that need a
+ * camera position we do not have are reported as missing rather than invented
+ * from it.
+ */
+async function resolvePersona(form: FormData, modelId?: string) {
+  const custom = form.get('modelImage');
+
+  if (custom instanceof File && custom.size > 0) {
+    return {
+      poses: { front: await toBase64(custom) },
+      bodyProfile: 'custom',
+    };
+  }
+
+  const id = modelId && isHouseModel(modelId) ? modelId : DEFAULT_MODEL_ID;
+  return { poses: await loadModelPoses(id), bodyProfile: id };
 }
