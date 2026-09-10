@@ -18,7 +18,7 @@ export default async function SignInPage(props: PageProps<'/sign-in'>) {
 
       <div className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm">
-          <h1 className="font-display text-3xl tracking-tight">Sign in</h1>
+          <h1 className="font-display text-3xl tracking-tight">Get started</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted">
             Three shoots free, no card required.
           </p>

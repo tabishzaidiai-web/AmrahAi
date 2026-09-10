@@ -5,7 +5,9 @@ import { useFormStatus } from 'react-dom';
 import { signIn, signInWithGoogle, signUp, type AuthState } from '../auth/actions';
 
 export function AuthForm({ next }: { next: string }) {
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  // Opens on sign-up: nearly everyone arriving here is new, and landing them on
+  // a sign-in form hides the only action they can actually take behind a link.
+  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-up');
   const action = mode === 'sign-in' ? signIn : signUp;
   const [state, formAction] = useActionState<AuthState, FormData>(action, {});
 
