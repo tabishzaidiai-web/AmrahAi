@@ -52,6 +52,20 @@ const POSES = [
 
 const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 
+/** Image generation is slow enough that a transient network blip is likely
+ *  across a twenty-image run, and losing the whole batch to one is wasteful. */
+async function generateWithRetry(prompt, reference, attempts = 4) {
+  for (let i = 1; ; i++) {
+    try {
+      return await generate(prompt, reference);
+    } catch (error) {
+      if (i >= attempts) throw error;
+      process.stdout.write(`retry ${i}… `);
+      await new Promise((r) => setTimeout(r, 4000 * i));
+    }
+  }
+}
+
 async function generate(prompt, reference) {
   const { token } = await (await auth.getClient()).getAccessToken();
   const parts = [];
@@ -105,7 +119,7 @@ for (const id of ids) {
       : `Using the supplied photograph as the reference for the person, generate the SAME woman — identical face, hair, body proportions, skin tone and identical clothing — photographed again in the same studio with the same lighting and framing. ${pose.direction} ${BASE}`;
 
     process.stdout.write(`  ${pose.id}… `);
-    const image = await generate(prompt, isFront ? undefined : reference);
+    const image = await generateWithRetry(prompt, isFront ? undefined : reference);
     if (isFront) reference = image;
 
     await writeFile(path.join(dir, `${pose.id}.jpg`), image);
