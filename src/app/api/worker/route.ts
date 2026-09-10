@@ -33,6 +33,17 @@ export const maxDuration = 300;
 const TIME_BUDGET_MS = 200_000;
 
 /**
+ * How many pieces one worker shoots at once.
+ *
+ * A shoot spends nearly all its time waiting on the provider rather than
+ * computing, so several progress in the time one would. The ceiling is set by
+ * memory — each shoot holds several multi-megabyte renders — and by the
+ * provider's own rate limit, not by processor time. Three is conservative
+ * against both; raise it once real throughput is measured.
+ */
+const LANES = Number(process.env.WORKER_LANES ?? 3);
+
+/**
  * The scheduler sends CRON_SECRET; WORKER_SECRET covers manual runs and any
  * other scheduler. Without either configured the endpoint stays shut rather
  * than running the queue for anyone who finds the URL.
@@ -62,30 +73,42 @@ async function drain(request: Request) {
   }
 
   const started = Date.now();
-  const processed: string[] = [];
-  const failed: string[] = [];
+  let processed = 0;
+  let failed = 0;
+  // Lanes stop pulling once one of them finds the queue empty, so a nearly
+  // finished drop does not keep every lane polling for work that is not there.
+  let drained = false;
 
-  while (Date.now() - started < TIME_BUDGET_MS) {
-    let item: QueuedItem | null;
-    try {
-      item = await claimNext();
-    } catch (error) {
-      console.error('Claim failed', error);
-      break;
+  const lane = async () => {
+    while (!drained && Date.now() - started < TIME_BUDGET_MS) {
+      let item: QueuedItem | null;
+      try {
+        // Claiming is atomic, so lanes never take the same piece.
+        item = await claimNext();
+      } catch (error) {
+        console.error('Claim failed', error);
+        return;
+      }
+
+      if (!item) {
+        drained = true;
+        return;
+      }
+
+      try {
+        await processItem(item);
+        processed++;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : 'Shoot failed';
+        await markFailed(item, reason);
+        failed++;
+      }
     }
-    if (!item) break;
+  };
 
-    try {
-      await processItem(item);
-      processed.push(item.id);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : 'Shoot failed';
-      await markFailed(item, reason);
-      failed.push(item.id);
-    }
-  }
+  await Promise.all(Array.from({ length: Math.max(1, LANES) }, lane));
 
-  return Response.json({ processed: processed.length, failed: failed.length });
+  return Response.json({ processed, failed, lanes: LANES });
 }
 
 async function processItem(item: QueuedItem) {
