@@ -40,7 +40,10 @@ export interface ShootAsset {
 
 export interface ShootOutcome {
   assets: ShootAsset[];
+  /** Slots that were attempted and went wrong. */
   failures: { slot: SlotId; reason: string }[];
+  /** Slots that could not be attempted, because an input was not supplied. */
+  skipped: { slot: SlotId; reason: string }[];
   totalCost: number;
 }
 
@@ -75,6 +78,8 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
 
   const assets: ShootAsset[] = [];
   const failures: { slot: SlotId; reason: string }[] = [];
+  /** Slots that were never possible, as distinct from ones that went wrong. */
+  const skipped: { slot: SlotId; reason: string }[] = [];
   // A slot that fails has usually still called a provider, and that spend is
   // real. Counting only successful assets under-reports what a shoot cost and
   // hides exactly the failures worth knowing about.
@@ -132,9 +137,11 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       // truth we have and the back view is skipped rather than invented.
       const garment = slot === 'on-model-back' ? request.garmentBack : request.garmentFront;
       if (!garment) {
-        failures.push({
+        // No back photograph was supplied, so this view was never on offer.
+        // Reporting it as a failure buries the ones that need attention.
+        skipped.push({
           slot,
-          reason: 'Upload a back image of the garment to generate an accurate back view',
+          reason: 'Add a back photo of the garment to include back views',
         });
         return;
       }
@@ -159,7 +166,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     if (!wanted.has(slot)) return;
     const garment = slot === 'ghost-back' ? request.garmentBack : request.garmentFront;
     if (!garment) {
-      failures.push({ slot, reason: 'Upload a back image to generate the back packshot' });
+      skipped.push({ slot, reason: 'Add a back photo of the garment to include back views' });
       return;
     }
 
@@ -222,10 +229,12 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   const order = new Map(SKU_BUNDLE.map((s, i) => [s.id, i]));
   assets.sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0));
   failures.sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0));
+  skipped.sort((a, b) => (order.get(a.slot) ?? 0) - (order.get(b.slot) ?? 0));
 
   return {
     assets,
     failures,
+    skipped,
     totalCost: assets.reduce((sum, a) => sum + a.cost, 0) + wastedCost,
   };
 }

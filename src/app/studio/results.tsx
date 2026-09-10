@@ -19,6 +19,8 @@ export interface ShootResult {
   shootId: string;
   assets: ResultAsset[];
   failures: { slot: SlotId; reason: string }[];
+  /** Slots no input was supplied for, kept apart from things that went wrong. */
+  skipped?: { slot: SlotId; reason: string }[];
   totalCost: number;
 }
 
@@ -115,6 +117,21 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
           </figure>
         ))}
       </div>
+
+      {view === 'shoot' && (result.skipped?.length ?? 0) > 0 && (
+        <div className="mt-8 rounded-xl border border-line bg-surface p-5">
+          <p className="text-sm font-medium">To get more from this garment</p>
+          <ul className="mt-3 space-y-2">
+            {result.skipped!.map((s) => (
+              <li key={s.slot} className="text-sm leading-relaxed text-muted">
+                <span className="text-foreground">{LABELS.get(s.slot) ?? s.slot}</span>
+                {' — '}
+                {s.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {view === 'shoot' && result.failures.length > 0 && (
         <div className="mt-8 rounded-xl border border-line bg-surface p-5">

@@ -66,6 +66,39 @@ export const vertexImagePro: ImageProvider = {
 /** Veo accepts only these image-to-video lengths and errors on anything else. */
 const VEO_DURATIONS = [4, 6, 8];
 
+/**
+ * Video generation is queued behind a single slot.
+ *
+ * The provider limits concurrent long-running video jobs per model, and
+ * shooting several pieces of a collection at once exceeds it immediately —
+ * every lane asks for a clip in the same moment. Waiting costs a collection
+ * nothing, since the stills for other pieces continue in parallel.
+ */
+let videoQueue: Promise<unknown> = Promise.resolve();
+
+function inVideoQueue<T>(work: () => Promise<T>): Promise<T> {
+  const next = videoQueue.then(work, work);
+  // Kept unbroken by failures, so one rejected clip does not wedge the queue.
+  videoQueue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
+/** Retries a clip the provider refused for capacity rather than content. */
+async function withCapacityRetry<T>(work: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await work();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (i >= attempts || !message.includes('429')) throw error;
+      await new Promise((r) => setTimeout(r, 20_000 * i));
+    }
+  }
+}
+
 function nearestSupportedDuration(requested: number) {
   return VEO_DURATIONS.reduce((best, d) =>
     Math.abs(d - requested) < Math.abs(best - requested) ? d : best,
@@ -84,7 +117,9 @@ export const vertexVideo: VideoProvider = {
     const duration = nearestSupportedDuration(input.durationSeconds);
 
     const { value, latencyMs } = await timed(() =>
-      generateVideo({
+      inVideoQueue(() =>
+        withCapacityRetry(() =>
+          generateVideo({
         instances: [
           {
             prompt: input.prompt,
@@ -100,7 +135,9 @@ export const vertexVideo: VideoProvider = {
           aspectRatio: input.aspectRatio,
           generateAudio: false,
         },
-      }),
+          }),
+        ),
+      ),
     );
     return {
       uri: value,

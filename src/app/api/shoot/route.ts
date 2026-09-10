@@ -180,6 +180,7 @@ export async function POST(request: Request) {
         shootId,
         totalCost: outcome.totalCost,
         failures: outcome.failures,
+        skipped: outcome.skipped,
         assets,
       });
     }
