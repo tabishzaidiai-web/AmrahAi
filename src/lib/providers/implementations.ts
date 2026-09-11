@@ -53,11 +53,25 @@ export const vertexTryOn: TryOnProvider = {
  * pass over the same flat-lay reported eight peacocks where there were ten and
  * called elbow sleeves wrist-length, so a spec built from it would inject
  * errors rather than prevent them. The photograph is the specification.
+ *
+ * Framing is spelled out at the same length as the garment because it failed
+ * the same way: asked for "a full-length photograph" the model returned shots
+ * cropped at the ankles, and handed a half-body reference it copied that
+ * framing and produced an oversized head on a partial body. Both are now
+ * described rather than implied, and the result is checked afterwards.
  */
 const FIDELITY_PROMPT = [
-  'Image 1 is a photograph of a woman. Image 2 is a flat-lay of a garment.',
-  'Generate a photograph of the woman from Image 1 wearing the garment from Image 2.',
-  'Keep her face, hair, skin tone, body and the studio background exactly as in Image 1.',
+  'Image 1 is a photograph of a person. Image 2 is a flat-lay of a garment.',
+  'Generate a photograph of the person from Image 1 wearing the garment from Image 2.',
+  'Keep their face, hair, skin tone, body and the studio background exactly as in Image 1.',
+  '',
+  'FRAMING — as important as the garment:',
+  '- Full-length head-to-toe. The ENTIRE body is inside the frame: the top of the head, and the feet resting on the floor.',
+  '- Leave clear empty space above the head and visible floor below the feet. Never crop the head, the hem or the feet.',
+  '- Natural human proportions, roughly seven and a half heads tall. Do not enlarge the head relative to the body.',
+  '- Frame it wider than Image 1 if need be: the figure occupies about 80% of the frame height, standing at a distance, as in a full-length studio photograph.',
+  '- If Image 1 is cropped or shows only part of the person, extend it to a full head-to-toe photograph while keeping the face identical.',
+  '',
   'Reproduce the garment from Image 2 without redesigning it. Copy it detail for detail:',
   '- the SAME NUMBER of embroidered motifs, in the same positions and at the same size',
   '- the same hem length relative to the body: if it reaches the floor in Image 2, it reaches the floor here',
@@ -65,7 +79,6 @@ const FIDELITY_PROMPT = [
   '- the same borders, trims, cuffs, neckline, closures and colour',
   'Do not add a brand label, tag, logo or any text that is not in Image 2.',
   'Do not lengthen or shorten the garment to suit the pose. Do not stylise or improve it.',
-  'Full-length fashion photograph, the whole garment visible in frame.',
 ].join('\n');
 
 /**

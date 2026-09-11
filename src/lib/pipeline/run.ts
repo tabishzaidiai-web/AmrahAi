@@ -5,6 +5,7 @@ import { stamp } from '../compliance/provenance';
 import { normalizeForMarketplace } from '../compliance/normalize';
 import { validate, type ComplianceReport } from '../compliance/validate';
 import { measureHem, type GarmentLength } from './hem';
+import { checkFraming } from './framing';
 import { SKU_BUNDLE, planFor, type SlotId } from './bundle';
 import { packshotFromFlatLay } from './packshot';
 
@@ -341,6 +342,19 @@ async function tryOnAtDeclaredLength(
     const result = await attempt();
     spent += result.cost;
     last = result;
+
+    // A render with the feet or the head chopped off the edge is unusable
+    // whatever its length, and the model produces one often enough that asking
+    // nicely is not sufficient. Checked before the hem, because measuring a
+    // hem in a frame that has lost its feet answers the wrong question.
+    if (i < LENGTH_ATTEMPTS - 1) {
+      try {
+        const framing = await checkFraming(result.image);
+        if (!framing.ok) continue;
+      } catch {
+        // An unreadable frame is not evidence of a bad one.
+      }
+    }
 
     try {
       const hem = await measureHem(result.image, person, declared);
