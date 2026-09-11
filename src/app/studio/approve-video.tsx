@@ -57,7 +57,7 @@ export function ApproveVideo({ shootId, slot }: { shootId: string; slot: string 
       </button>
       <p className="mt-1.5 text-xs leading-relaxed text-muted">
         This 4-second clip is already usable for Reels. Approving renders the
-        same direction again as a fuller six-second cut.
+        same direction again at twice the length.
       </p>
       {state === 'error' && (
         <p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">

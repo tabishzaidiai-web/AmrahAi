@@ -23,15 +23,16 @@ const BUCKET = 'shoot-assets';
  * clip: four seconds at 720p is a perfectly good Reel, so most pieces should
  * never need the pass below it.
  *
- * Both passes are 720p. The final was 1080p, which made an approved clip cost
- * more than the automatic one it replaced — the brand's call was that a
- * finished clip should cost what it always did, so the two passes now differ
- * only in length. Veo accepts 720p and 1080p and nothing smaller: 360p and
- * 480p both come back as "Invalid resolution", measured rather than assumed.
+ * Both passes are 720p, and the final is eight seconds — twice the preview, so
+ * approving buys a visibly different clip rather than two more seconds. The
+ * final was briefly 1080p, which made an approved clip cost more than the
+ * automatic one it replaced; length turned out to be the better thing to spend
+ * the money on. Veo accepts 720p and 1080p and nothing smaller: 360p and 480p
+ * both come back as "Invalid resolution", measured rather than assumed.
  */
 const PASSES = {
   preview: { durationSeconds: 4, resolution: '720p' as const },
-  final: { durationSeconds: 6, resolution: '720p' as const },
+  final: { durationSeconds: 8, resolution: '720p' as const },
 };
 
 /** A preview and its final render are separate assets, so a designer can see
