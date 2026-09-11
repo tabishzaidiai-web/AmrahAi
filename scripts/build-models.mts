@@ -71,7 +71,7 @@ const BASICS = {
  * Who each model is. Invented people, described by look rather than by
  * resemblance to anyone: nothing here names or points at a real person.
  */
-export const MODEL_BRIEFS = {
+export const MODEL_BRIEFS: Record<string, { gender: 'women' | 'men'; brief: string }> = {
   // Women
   aditi: { gender: 'women', brief: 'A strikingly beautiful Indian woman in her late twenties with warm medium-brown skin, large expressive dark eyes, defined cheekbones and long glossy black hair drawn back.' },
   zara: { gender: 'women', brief: 'A strikingly beautiful Pakistani woman in her mid twenties with fair wheatish skin, light hazel eyes, elegant features and dark brown hair drawn back.' },
@@ -115,13 +115,19 @@ const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-pl
  * the whole batch down at the fifth model. Quotas refill on the minute, so the
  * waits are now measured in minutes too.
  */
-async function generateWithRetry(prompt, reference, attempts = 6) {
+async function generateWithRetry(
+  prompt: string,
+  reference: Buffer | undefined,
+  attempts = 6,
+): Promise<Buffer> {
   for (let i = 1; ; i++) {
     try {
       return await generate(prompt, reference);
     } catch (error) {
       if (i >= attempts) throw error;
-      const exhausted = /429|RESOURCE_EXHAUSTED/.test(String(error.message));
+      const exhausted = /429|RESOURCE_EXHAUSTED/.test(
+        error instanceof Error ? error.message : String(error),
+      );
       const waitMs = exhausted ? 45_000 * i : 4_000 * i;
       process.stdout.write(`${exhausted ? 'quota' : 'retry'} ${i} (${waitMs / 1000}s)… `);
       await new Promise((r) => setTimeout(r, waitMs));
@@ -133,7 +139,7 @@ async function generateWithRetry(prompt, reference, attempts = 6) {
  *  allowance instead of sprinting into it and then waiting out a penalty. */
 const PACE_MS = 12_000;
 
-async function generate(prompt, reference) {
+async function generate(prompt: string, reference?: Buffer): Promise<Buffer> {
   const { token } = await (await auth.getClient()).getAccessToken();
   const parts = [];
   if (reference) {
@@ -159,9 +165,11 @@ async function generate(prompt, reference) {
 
   if (!response.ok) throw new Error(`${response.status}: ${(await response.text()).slice(0, 300)}`);
 
-  const body = await response.json();
+  const body = (await response.json()) as {
+    candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[];
+  };
   const image = body.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
-  if (!image) throw new Error('No image returned');
+  if (!image?.inlineData?.data) throw new Error('No image returned');
 
   return sharp(Buffer.from(image.inlineData.data, 'base64'))
     .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })
@@ -195,7 +203,7 @@ for (const id of ids) {
     // Up to three goes at a frame that holds the whole person. The back pose is
     // exempt: with the model facing away there is no face to anchor on and the
     // check has nothing useful to say about a figure seen from behind.
-    let image;
+    let image: Buffer | undefined;
     for (let attempt = 1; attempt <= 3; attempt++) {
       image = await generateWithRetry(prompt, isFront ? undefined : reference);
       await new Promise((r) => setTimeout(r, PACE_MS));
@@ -204,6 +212,7 @@ for (const id of ids) {
       if (framing.ok) break;
       process.stdout.write('reframe… ');
     }
+    if (!image) throw new Error(`Could not generate ${id} ${pose.id}`);
     if (isFront) reference = image;
 
     await writeFile(path.join(dir, `${pose.id}.jpg`), image);
