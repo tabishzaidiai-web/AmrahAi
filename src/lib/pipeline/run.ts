@@ -15,7 +15,6 @@ export interface ShootRequest extends Selection {
   garmentBack?: GarmentRef;
   persona: ModelPersona;
   audience: 'adult' | 'kids';
-  includeVideo: boolean;
   /**
    * Declared by the brand, because a flat lay carries no scale reference and
    * try-on will otherwise return a different length on every run.

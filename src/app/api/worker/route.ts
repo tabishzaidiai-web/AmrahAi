@@ -179,7 +179,6 @@ async function processItem(item: QueuedItem) {
       },
       audience: item.audience,
       length: item.garment_length,
-      includeVideo: settings.include_video,
     });
 
     if (outcome.assets.length === 0) {

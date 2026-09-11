@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createClient, getUser, isSupabaseConfigured } from '@/lib/supabase/server';
+import { DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
 import { loadAccount } from '@/lib/billing/credits';
 
 /**
@@ -16,9 +17,7 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const settings = z.object({
   name: z.string().min(1).max(120),
-  modelId: z.string().default('amira'),
-  scene: z.string().default('studio-white'),
-  includeVideo: z.enum(['true', 'false']).default('false'),
+  modelId: z.string().default(DEFAULT_MODEL_ID),
   category: z.enum(['top', 'bottom', 'one-piece']).default('one-piece'),
   length: z.enum(['top', 'mini', 'knee', 'midi', 'maxi']),
   audience: z.enum(['adult', 'kids']).default('adult'),
@@ -36,14 +35,19 @@ export async function POST(request: Request) {
   const parsed = settings.safeParse({
     name: form.get('name'),
     modelId: form.get('modelId') ?? undefined,
-    scene: form.get('scene') ?? undefined,
-    includeVideo: form.get('includeVideo') ?? undefined,
     category: form.get('category') ?? undefined,
     length: form.get('length'),
     audience: form.get('audience') ?? undefined,
   });
   if (!parsed.success) {
-    return Response.json({ message: 'Check the collection settings.' }, { status: 400 });
+    // Naming the field matters: a required option quietly left behind by an
+    // earlier change reads as "check the settings" and is invisible to whoever
+    // has to fix it.
+    const fields = parsed.error.issues.map((i) => i.path.join('.')).join(', ');
+    return Response.json(
+      { message: `Check the collection settings: ${fields}.` },
+      { status: 400 },
+    );
   }
 
   const pieces = form.getAll('pieces').filter((f): f is File => f instanceof File);
@@ -81,8 +85,6 @@ export async function POST(request: Request) {
       user_id: user.id,
       name: parsed.data.name,
       model_id: parsed.data.modelId,
-      scene: parsed.data.scene,
-      include_video: parsed.data.includeVideo === 'true',
     })
     .select('id')
     .single();

@@ -16,7 +16,6 @@ import { refundShoot, reserveShoot, type Account } from '@/lib/billing/credits';
 const schema = z.object({
   category: z.enum(['top', 'bottom', 'one-piece']),
   audience: z.enum(['adult', 'kids']),
-  includeVideo: z.enum(['true', 'false']),
   length: z.enum(['top', 'mini', 'knee', 'midi', 'maxi']),
   modelId: z.string().optional(),
   // A studio's input is a technical flat long before it is a photograph.
@@ -53,7 +52,6 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse({
     category: form.get('category'),
     audience: form.get('audience'),
-    includeVideo: form.get('includeVideo'),
     length: form.get('length'),
     modelId: form.get('modelId') ?? undefined,
     source: form.get('source') ?? 'photo',
@@ -61,7 +59,11 @@ export async function POST(request: Request) {
     colour: form.get('colour') ?? undefined,
   });
   if (!parsed.success) {
-    return Response.json({ message: 'Invalid shoot options.' }, { status: 400 });
+    // Say which option, not just that something was wrong. A field left
+    // required in this schema after the form stopped sending it rejected every
+    // shoot, and "Invalid shoot options" gave nobody a way to see that.
+    const fields = parsed.error.issues.map((i) => i.path.join('.')).join(', ');
+    return Response.json({ message: `Invalid shoot options: ${fields}.` }, { status: 400 });
   }
 
   const front = form.get('front');
@@ -142,7 +144,6 @@ export async function POST(request: Request) {
       persona,
       audience: parsed.data.audience,
       length: parsed.data.length,
-      includeVideo: parsed.data.includeVideo === 'true',
     });
 
     // A shoot that produced nothing usable should not cost the brand a credit.
