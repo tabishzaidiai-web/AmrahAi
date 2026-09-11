@@ -11,7 +11,6 @@ import {
 import { SCENES } from '@/lib/scenes';
 import { renderFromSketch } from '@/lib/pipeline/sketch';
 import { persistShoot } from '@/lib/storage';
-import { enqueueVideo } from '@/lib/pipeline/queue';
 import { getUser, isSupabaseConfigured } from '@/lib/supabase/server';
 import { refundShoot, reserveShoot, type Account } from '@/lib/billing/credits';
 
@@ -177,23 +176,11 @@ export async function POST(request: Request) {
         failures: outcome.failures,
       });
 
-      // Vertex allows one clip a minute across the whole project, so a shoot
-      // started while a collection is running may not get a slot. The clip is
-      // queued rather than dropped, and appears in the library when it lands.
-      if (outcome.deferredVideo) {
-        await enqueueVideo({
-          shootId,
-          userId: user.id,
-          prompt: outcome.deferredVideo.prompt,
-        });
-      }
-
       return Response.json({
         shootId,
         totalCost: outcome.totalCost,
         failures: outcome.failures,
         skipped: outcome.skipped,
-        videoQueued: Boolean(outcome.deferredVideo),
         assets,
       });
     }

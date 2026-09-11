@@ -2,16 +2,15 @@ import { selectVideo } from '../providers/registry';
 import { admin, type VideoJob } from './queue';
 
 /**
- * Makes a runway clip for a shoot whose stills are already finished.
+ * Makes the clip a designer asked for, from the shot they chose.
  *
  * Vertex accepts one video request a minute for this project and will not
- * raise that until the project has usage history, so a drop of six pieces
- * cannot have its clips made alongside its stills. They are queued instead and
+ * raise that until the project has usage history, so clips are queued and
  * produced here, one per worker pass, and appended to the shoot they belong to.
  *
- * The clip is generated from the shoot's own approved front render rather than
- * from the garment photograph, so the piece cannot drift between the stills a
- * brand publishes and the video beside them.
+ * The clip is generated from a still the designer has already seen and
+ * approved, so the piece cannot drift between the images a brand publishes and
+ * the video beside them.
  */
 
 const BUCKET = 'shoot-assets';
@@ -23,11 +22,11 @@ export async function runQueuedVideo(job: VideoJob): Promise<void> {
     .from('assets')
     .select('storage_path')
     .eq('shoot_id', job.shoot_id)
-    .eq('slot', 'on-model-front')
+    .eq('slot', job.source_slot)
     .maybeSingle();
 
-  if (frontError) throw new Error(`Could not find the front render: ${frontError.message}`);
-  if (!front) throw new Error('This shoot has no front render to animate');
+  if (frontError) throw new Error(`Could not find the shot: ${frontError.message}`);
+  if (!front) throw new Error('That shot is no longer in this shoot');
 
   const { data: file, error: downloadError } = await db.storage
     .from(BUCKET)
@@ -48,7 +47,7 @@ export async function runQueuedVideo(job: VideoJob): Promise<void> {
     waitBudgetMs: 130_000,
   });
 
-  const path = `${job.user_id}/${job.shoot_id}/walk-video.mp4`;
+  const path = `${job.user_id}/${job.shoot_id}/video-${job.source_slot}.mp4`;
   const uri = result.uri ?? '';
 
   if (uri.startsWith('data:')) {
@@ -62,7 +61,7 @@ export async function runQueuedVideo(job: VideoJob): Promise<void> {
   await db.from('assets').insert({
     shoot_id: job.shoot_id,
     user_id: job.user_id,
-    slot: 'walk-video',
+    slot: `video-${job.source_slot}`,
     // Stored in the bucket when returned inline, referenced when the provider
     // hosts it — the same split the rest of the pipeline uses.
     storage_path: uri.startsWith('data:') ? path : uri,

@@ -14,7 +14,6 @@ import {
   markFailed,
   readGarment,
   claimNextVideo,
-  enqueueVideo,
   markVideoDone,
   markVideoFailed,
   type QueuedItem,
@@ -184,13 +183,6 @@ async function processItem(item: QueuedItem) {
       length: item.garment_length,
       scene: scene.prompt,
       includeVideo: settings.include_video,
-      // Long enough to take a slot that is already free, short enough that a
-      // piece never sits holding a lane waiting for one. Waiting the full
-      // minute inline pushed two pieces of a six-piece drop past the run's
-      // budget, so they were re-claimed and partly shot twice. Anything that
-      // cannot start at once goes to the queue, which is drained after the
-      // pieces with time set aside for exactly this.
-      videoWaitBudgetMs: 3_000,
     });
 
     if (outcome.assets.length === 0) {
@@ -209,16 +201,6 @@ async function processItem(item: QueuedItem) {
       failures: outcome.failures,
       db,
     });
-
-    // Vertex takes one clip a minute, so a drop's videos are made across
-    // several worker runs rather than being lost to a rate limit.
-    if (outcome.deferredVideo) {
-      await enqueueVideo({
-        shootId,
-        userId: item.user_id,
-        prompt: outcome.deferredVideo.prompt,
-      });
-    }
 
     await markComplete(item.id, shootId);
   } catch (error) {

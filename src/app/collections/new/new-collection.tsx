@@ -14,7 +14,6 @@ export function NewCollection() {
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
   const [scene, setScene] = useState(SCENES[0].id);
   const [length, setLength] = useState<Length | null>(null);
-  const [includeVideo, setIncludeVideo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +27,6 @@ export function NewCollection() {
     body.append('modelId', modelId);
     body.append('scene', scene);
     body.append('length', length);
-    body.append('includeVideo', String(includeVideo));
     pieces.forEach((p) => body.append('pieces', p));
 
     try {
@@ -164,15 +162,6 @@ export function NewCollection() {
           ))}
         </div>
 
-        <label className="mt-6 flex w-fit cursor-pointer items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={includeVideo}
-            onChange={(e) => setIncludeVideo(e.target.checked)}
-            className="h-4 w-4 accent-[var(--accent)]"
-          />
-          Add a runway walk to every piece
-        </label>
       </section>
 
       <section className="rounded-2xl border border-line bg-surface p-6">

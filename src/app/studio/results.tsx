@@ -5,6 +5,8 @@ import { AlertCircle, BadgeCheck, Download, Film } from 'lucide-react';
 import { SOCIAL_FORMATS } from '@/lib/pipeline/social-formats';
 import { SKU_BUNDLE, type SlotId } from '@/lib/pipeline/bundle';
 import { AmazonListing } from './amazon-listing';
+import { MakeVideo } from './make-video';
+import { canAnimate } from '@/lib/pipeline/directions';
 
 export interface ResultAsset {
   slot: SlotId;
@@ -23,12 +25,20 @@ export interface ShootResult {
   failures: { slot: SlotId; reason: string }[];
   /** Slots no input was supplied for, kept apart from things that went wrong. */
   skipped?: { slot: SlotId; reason: string }[];
-  /** The runway clip is being made, and will appear in the library. */
-  videoQueued?: boolean;
   totalCost: number;
 }
 
 const LABELS = new Map(SKU_BUNDLE.map((s) => [s.id, s.label]));
+
+/** Clips are named after the shot they were made from, so a shoot can hold
+ *  several and the designer can tell which is which. */
+function labelFor(slot: string): string {
+  if (slot.startsWith('video-')) {
+    const source = slot.slice('video-'.length);
+    return `Video — ${LABELS.get(source as SlotId) ?? source}`;
+  }
+  return LABELS.get(slot as SlotId) ?? slot;
+}
 
 export function Results({ result, onReset }: { result: ShootResult; onReset: () => void }) {
   const [view, setView] = useState<'shoot' | 'amazon'>('shoot');
@@ -94,18 +104,18 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={asset.src}
-                alt={LABELS.get(asset.slot) ?? asset.slot}
+                alt={labelFor(asset.slot)}
                 className="aspect-3/4 w-full bg-background object-contain"
               />
             )}
             <figcaption className="border-t border-line px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm">{LABELS.get(asset.slot) ?? asset.slot}</span>
+                <span className="text-sm">{labelFor(asset.slot)}</span>
                 <a
                   href={asset.src}
                   download={`${result.shootId}-${asset.slot}`}
                   className="text-muted transition-colors hover:text-foreground"
-                  aria-label={`Download ${LABELS.get(asset.slot) ?? asset.slot}`}
+                  aria-label={`Download ${labelFor(asset.slot)}`}
                 >
                   <Download size={15} />
                 </a>
@@ -120,21 +130,13 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
                 <p className="mt-1.5 text-xs leading-relaxed text-muted">{asset.notice}</p>
               )}
               {asset.kind === 'image' && <SocialDownloads src={asset.src} />}
+              {asset.kind === 'image' && canAnimate(asset.slot) && (
+                <MakeVideo shootId={result.shootId} slot={asset.slot} />
+              )}
             </figcaption>
           </figure>
         ))}
       </div>
-
-      {view === 'shoot' && result.videoQueued && (
-        <div className="mt-8 flex items-start gap-2.5 rounded-xl border border-line bg-surface p-5">
-          <Film size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden />
-          <p className="text-sm leading-relaxed text-muted">
-            Your runway clip is queued. Video is made one at a time, so it takes a
-            few minutes longer than the stills — it will appear with this shoot in
-            your library.
-          </p>
-        </div>
-      )}
 
       {view === 'shoot' && (result.skipped?.length ?? 0) > 0 && (
         <div className="mt-8 rounded-xl border border-line bg-surface p-5">
@@ -142,7 +144,7 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
           <ul className="mt-3 space-y-2">
             {result.skipped!.map((s) => (
               <li key={s.slot} className="text-sm leading-relaxed text-muted">
-                <span className="text-foreground">{LABELS.get(s.slot) ?? s.slot}</span>
+                <span className="text-foreground">{labelFor(s.slot)}</span>
                 {' — '}
                 {s.reason}
               </li>
@@ -160,7 +162,7 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
           <ul className="mt-3 space-y-2">
             {result.failures.map((f) => (
               <li key={f.slot} className="text-sm leading-relaxed text-muted">
-                <span className="text-foreground">{LABELS.get(f.slot) ?? f.slot}</span>
+                <span className="text-foreground">{labelFor(f.slot)}</span>
                 {' — '}
                 {f.reason}
               </li>

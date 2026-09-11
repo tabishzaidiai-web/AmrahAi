@@ -37,12 +37,14 @@ export function ShootComposer() {
   const [material, setMaterial] = useState('');
   const [audience, setAudience] = useState<Audience>('adult');
   const [scene, setScene] = useState(SCENES[0].id);
-  const [includeVideo, setIncludeVideo] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ShootResult | null>(null);
 
-  const slots = planFor(audience).filter((s) => s.kind === 'image' || includeVideo);
+  // Video is no longer part of the shoot. It is asked for afterwards, against a
+  // shot the designer has chosen, so promising one here would be a lie and
+  // charging for one nobody wanted was the app's largest avoidable cost.
+  const slots = planFor(audience).filter((s) => s.kind === 'image');
 
   async function inspect(upload: Upload) {
     setFront(upload);
@@ -85,7 +87,6 @@ export function ShootComposer() {
     if (customModel) body.append('modelImage', customModel.file);
     body.append('audience', audience);
     body.append('scene', scene);
-    body.append('includeVideo', String(includeVideo));
 
     try {
       const response = await fetch('/api/shoot', { method: 'POST', body });
@@ -311,17 +312,6 @@ export function ShootComposer() {
           })}
         </div>
 
-        {audience === 'adult' && (
-          <label className="mt-5 flex w-fit cursor-pointer items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={includeVideo}
-              onChange={(e) => setIncludeVideo(e.target.checked)}
-              className="h-4 w-4 accent-[var(--accent)]"
-            />
-            Include a 6-second runway walk
-          </label>
-        )}
       </section>
 
       {/* Step 5 — confirm */}

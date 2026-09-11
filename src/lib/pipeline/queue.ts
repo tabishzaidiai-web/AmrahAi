@@ -112,6 +112,8 @@ export interface VideoJob {
   id: string;
   shoot_id: string;
   user_id: string;
+  /** Which shot of the shoot this clip animates. */
+  source_slot: string;
   prompt: string;
   attempts: number;
 }

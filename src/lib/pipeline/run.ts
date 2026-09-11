@@ -1,11 +1,10 @@
 import sharp from 'sharp';
-import { selectImage, selectTryOn, selectVideo, type Selection } from '../providers/registry';
+import { selectImage, selectTryOn, type Selection } from '../providers/registry';
 import type { GarmentRef, ModelPersona, PoseId } from '../providers/types';
 import { stamp } from '../compliance/provenance';
 import { normalizeForMarketplace } from '../compliance/normalize';
 import { validate, type ComplianceReport } from '../compliance/validate';
 import { measureHem, type GarmentLength } from './hem';
-import { VideoBusyError } from '../providers/implementations';
 import { SKU_BUNDLE, planFor, type SlotId } from './bundle';
 import { packshotFromFlatLay } from './packshot';
 
@@ -23,14 +22,7 @@ export interface ShootRequest extends Selection {
    * try-on will otherwise return a different length on every run.
    */
   length: GarmentLength;
-  /** How long this run can wait for a video submission slot. Left unset by an
-   *  interactive shoot, which has a person watching and no queue behind it. */
-  videoWaitBudgetMs?: number;
 }
-
-/** One prompt, used whether the clip is made now or queued for later. */
-const WALK_PROMPT =
-  'The model walks toward camera with a natural, confident stride. The fabric moves and drapes naturally with the walk. The garment does not change.';
 
 /** Longest edge of the garment reference handed to the model. Enough to carry
  *  embroidery detail, small enough not to bloat every angle's request. */
@@ -59,13 +51,6 @@ export interface ShootOutcome {
   failures: { slot: SlotId; reason: string }[];
   /** Slots that could not be attempted, because an input was not supplied. */
   skipped: { slot: SlotId; reason: string }[];
-  /**
-   * Set when the runway clip could not be started before this run had to end.
-   * Vertex accepts one clip a minute for the project, so a drop's videos cannot
-   * all be made in one pass; the caller queues this for a later one instead of
-   * reporting the piece as broken.
-   */
-  deferredVideo?: { prompt: string };
   totalCost: number;
 }
 
@@ -101,7 +86,6 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   const selection: Selection = { tier: request.tier, routing: request.routing };
   const tryOn = selectTryOn(selection);
   const image = selectImage(selection);
-  const video = selectVideo(selection);
 
   const assets: ShootAsset[] = [];
   const failures: { slot: SlotId; reason: string }[] = [];
@@ -294,38 +278,14 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
   }
 
 
-  // Runway walk -------------------------------------------------------------
-  let deferredVideo: { prompt: string } | undefined;
-
-  if (request.includeVideo && frontImage && request.audience === 'adult') {
-    try {
-      const result = await video.run({
-        image: { data: frontImage.toString('base64'), mimeType: 'image/png' },
-        prompt: WALK_PROMPT,
-        // Six seconds clears Amazon's minimum for product video and suits
-        // Reels and TikTok without trimming.
-        durationSeconds: 6,
-        aspectRatio: '9:16',
-        waitBudgetMs: request.videoWaitBudgetMs,
-      });
-      assets.push({
-        slot: 'walk-video',
-        kind: 'video',
-        uri: result.uri,
-        providerId: result.providerId,
-        cost: result.cost,
-      });
-    } catch (error) {
-      // A clip that never got a submission slot has not gone wrong, it has not
-      // happened yet. Recording it as a failure sent a brand looking for a
-      // fault in a piece whose stills were all fine.
-      if (error instanceof VideoBusyError) {
-        deferredVideo = { prompt: WALK_PROMPT };
-      } else {
-        failures.push({ slot: 'walk-video', reason: reasonOf(error) });
-      }
-    }
-  }
+  // Video is no longer made here.
+  //
+  // It was produced automatically for every piece from the front render, with
+  // one hard-coded walk. That is the most expensive thing the app does — around
+  // $0.60 against roughly $0.40 for all the stills together — and for most
+  // pieces nobody had asked for it. A designer now picks a shot they have
+  // already seen and liked and directs a clip from it, which is both cheaper
+  // and how the decision is actually made.
 
   // Parallel generation completes out of order, so the bundle is returned in
   // its documented slot order and the gallery stays stable between shoots.
@@ -338,7 +298,6 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     assets,
     failures,
     skipped,
-    deferredVideo,
     totalCost: assets.reduce((sum, a) => sum + a.cost, 0) + wastedCost,
   };
 }
