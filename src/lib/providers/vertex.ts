@@ -164,6 +164,10 @@ export async function generateImage(
   model: ModelRef,
   prompt: string,
   references: ImagePart[] = [],
+  /** Shape of the output. Left unset the model returns landscape, which is the
+   *  wrong frame for a garment on a body: the piece ends up stranded in the
+   *  middle of a wide picture and every crop taken from it is a letterbox. */
+  aspectRatio?: string,
 ): Promise<Buffer> {
   const parts: Record<string, unknown>[] = references.map((r) => ({
     inlineData: { data: r.data, mimeType: r.mimeType },
@@ -172,7 +176,10 @@ export async function generateImage(
 
   const data = await call(url(model, 'generateContent'), {
     contents: [{ role: 'user', parts }],
-    generationConfig: { responseModalities: ['IMAGE'] },
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+      ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}),
+    },
   });
 
   const candidates = data.candidates as

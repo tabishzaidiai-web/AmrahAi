@@ -90,10 +90,16 @@ export const geminiTryOn: TryOnProvider = {
   unitCost: 0.134,
   async run(input) {
     const { value, latencyMs } = await timed(() =>
-      generateImage(VERTEX_MODELS.imagePro, FIDELITY_PROMPT, [
-        { data: input.personImage, mimeType: input.personMimeType },
-        { data: input.garment.data, mimeType: input.garment.mimeType },
-      ]),
+      generateImage(
+        VERTEX_MODELS.imagePro,
+        FIDELITY_PROMPT,
+        [
+          { data: input.personImage, mimeType: input.personMimeType },
+          { data: input.garment.data, mimeType: input.garment.mimeType },
+        ],
+        // Portrait, the way a garment on a body is photographed.
+        '3:4',
+      ),
     );
     return { image: value, providerId: this.id, cost: this.unitCost, latencyMs };
   },
@@ -107,7 +113,7 @@ export const vertexImage: ImageProvider = {
   unitCost: 0.067,
   async run(input) {
     const { value, latencyMs } = await timed(() =>
-      generateImage(VERTEX_MODELS.image, input.prompt, input.references),
+      generateImage(VERTEX_MODELS.image, input.prompt, input.references, input.aspectRatio),
     );
     return { image: value, providerId: this.id, cost: this.unitCost, latencyMs };
   },
@@ -123,7 +129,7 @@ export const vertexImagePro: ImageProvider = {
   unitCost: 0.134,
   async run(input) {
     const { value, latencyMs } = await timed(() =>
-      generateImage(VERTEX_MODELS.imagePro, input.prompt, input.references),
+      generateImage(VERTEX_MODELS.imagePro, input.prompt, input.references, input.aspectRatio),
     );
     return { image: value, providerId: this.id, cost: this.unitCost, latencyMs };
   },
