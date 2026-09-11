@@ -93,21 +93,47 @@ function url(model: ModelRef, method: string) {
   return `https://${host(model.location)}/v1/projects/${project}/locations/${model.location}/publishers/google/models/${model.id}:${method}`;
 }
 
-async function call(endpoint: string, body: unknown): Promise<Record<string, unknown>> {
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${await token()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+/**
+ * How often a call refused for capacity is tried again, and how long it waits.
+ *
+ * Vertex answers 429 for a burst as readily as for a genuine shortage, and
+ * several pieces of a collection are shot at once by design. Without this a
+ * packshot that was a second too eager was simply lost: two pieces of a
+ * six-piece drop came back missing their ghost-front for no reason other than
+ * their neighbours asking at the same moment.
+ *
+ * Only capacity refusals are retried. A rejection on content would return the
+ * same answer however long we wait, and repeating it would spend real money to
+ * hear it again.
+ */
+const CAPACITY_ATTEMPTS = 4;
+const CAPACITY_BACKOFF_MS = 6_000;
 
-  if (!response.ok) {
+async function call(endpoint: string, body: unknown): Promise<Record<string, unknown>> {
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${await token()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.ok) return response.json();
+
     const detail = await response.text();
-    throw new Error(`Vertex ${response.status}: ${detail.slice(0, 300)}`);
+    const retryable = response.status === 429 || response.status >= 500;
+
+    if (!retryable || attempt >= CAPACITY_ATTEMPTS) {
+      throw new Error(`Vertex ${response.status}: ${detail.slice(0, 300)}`);
+    }
+
+    // Widening waits, with a little jitter so lanes refused together do not
+    // return together and collide again.
+    const wait = CAPACITY_BACKOFF_MS * attempt + Math.random() * 2_000;
+    await new Promise((r) => setTimeout(r, wait));
   }
-  return response.json();
 }
 
 /** Try-on uses the prediction shape and returns base64 in `predictions`. */

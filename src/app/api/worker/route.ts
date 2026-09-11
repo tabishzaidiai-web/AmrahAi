@@ -184,9 +184,13 @@ async function processItem(item: QueuedItem) {
       length: item.garment_length,
       scene: scene.prompt,
       includeVideo: settings.include_video,
-      // A piece must not sit holding a lane while it waits its turn for a clip.
-      // One interval is enough to catch a free slot; anything longer is queued.
-      videoWaitBudgetMs: 70_000,
+      // Long enough to take a slot that is already free, short enough that a
+      // piece never sits holding a lane waiting for one. Waiting the full
+      // minute inline pushed two pieces of a six-piece drop past the run's
+      // budget, so they were re-claimed and partly shot twice. Anything that
+      // cannot start at once goes to the queue, which is drained after the
+      // pieces with time set aside for exactly this.
+      videoWaitBudgetMs: 3_000,
     });
 
     if (outcome.assets.length === 0) {
