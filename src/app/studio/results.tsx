@@ -7,6 +7,7 @@ import { SKU_BUNDLE, type SlotId } from '@/lib/pipeline/bundle';
 import { AmazonListing } from './amazon-listing';
 import { MakeVideo } from './make-video';
 import { ApproveVideo } from './approve-video';
+import { AddAngle } from './add-angle';
 import { canAnimate } from '@/lib/pipeline/directions';
 
 export interface ResultAsset {
@@ -26,6 +27,9 @@ export interface ShootResult {
   failures: { slot: SlotId; reason: string }[];
   /** Slots no input was supplied for, kept apart from things that went wrong. */
   skipped?: { slot: SlotId; reason: string }[];
+  /** False for a shoot on an uploaded body, which cannot be reloaded to render
+   *  a new angle against. */
+  canAddAngles?: boolean;
   totalCost: number;
 }
 
@@ -154,6 +158,29 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
           </figure>
         ))}
       </div>
+
+      {view === 'shoot' && result.canAddAngles && (
+        <div className="mt-8 rounded-xl border border-line bg-surface p-5">
+          <p className="text-sm font-medium">Want another shot?</p>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">
+            A shoot makes the angles a listing needs. These are extras, so they
+            are rendered only when you ask — from the packshot above, not a new
+            upload.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {!result.assets.some((a) => a.slot === 'lifestyle') && (
+              <AddAngle shootId={result.shootId} pose="lifestyle" label="Add a lifestyle frame" />
+            )}
+            {!result.assets.some((a) => a.slot === 'on-model-three-quarter') && (
+              <AddAngle
+                shootId={result.shootId}
+                pose="three-quarter"
+                label="Add a three-quarter view"
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {view === 'shoot' && (result.skipped?.length ?? 0) > 0 && (
         <div className="mt-8 rounded-xl border border-line bg-surface p-5">

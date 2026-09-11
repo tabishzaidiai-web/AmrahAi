@@ -30,7 +30,7 @@ export default async function ShootPage(props: PageProps<'/library/[shootId]'>) 
       <Nav current="library" />
 
       <div className="mx-auto max-w-5xl px-6 py-12">
-        <ShootView shootId={shootId} assets={assets} />
+        <ShootView shootId={shootId} assets={assets} canAddAngles />
       </div>
     </main>
   );

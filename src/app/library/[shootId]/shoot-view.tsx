@@ -8,15 +8,17 @@ import { Results, type ResultAsset } from '@/app/studio/results';
 export function ShootView({
   shootId,
   assets,
+  canAddAngles,
 }: {
   shootId: string;
   assets: ResultAsset[];
+  canAddAngles?: boolean;
 }) {
   const router = useRouter();
 
   return (
     <Results
-      result={{ shootId, assets, failures: [], totalCost: 0 }}
+      result={{ shootId, assets, failures: [], totalCost: 0, canAddAngles }}
       onReset={() => router.push('/studio')}
     />
   );

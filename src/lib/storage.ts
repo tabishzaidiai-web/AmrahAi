@@ -45,6 +45,8 @@ function extensionFor(asset: ShootAsset) {
 export async function persistShoot(params: {
   shootId: string;
   userId: string;
+  /** Which body the shoot was rendered on, so an angle added later matches. */
+  modelId?: string;
   sku?: string;
   category: string;
   length: string;
@@ -67,6 +69,7 @@ export async function persistShoot(params: {
     garment_category: params.category,
     garment_length: params.length,
     audience: params.audience,
+    model_id: params.modelId ?? null,
     status: 'complete',
     cost_usd: params.totalCost,
     error:

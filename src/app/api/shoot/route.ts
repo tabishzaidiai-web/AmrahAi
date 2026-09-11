@@ -96,6 +96,8 @@ export async function POST(request: Request) {
     routing: account?.routingPolicy ?? ('any' as const),
   };
 
+  const { persona, modelId: personaModelId } = await resolvePersona(form, parsed.data.modelId);
+
   try {
     // A technical flat is rendered into a photographable garment first; the
     // rest of the shoot then treats it exactly like an uploaded photograph.
@@ -137,7 +139,7 @@ export async function POST(request: Request) {
               category: parsed.data.category,
             }
           : undefined,
-      persona: await resolvePersona(form, parsed.data.modelId),
+      persona,
       audience: parsed.data.audience,
       length: parsed.data.length,
       includeVideo: parsed.data.includeVideo === 'true',
@@ -159,6 +161,7 @@ export async function POST(request: Request) {
       const assets = await persistShoot({
         shootId,
         userId: user.id,
+        modelId: personaModelId,
         category: parsed.data.category,
         length: parsed.data.length,
         audience: parsed.data.audience,
@@ -172,6 +175,9 @@ export async function POST(request: Request) {
         totalCost: outcome.totalCost,
         failures: outcome.failures,
         skipped: outcome.skipped,
+        // Extra angles are rendered against a stored house model; a shoot on an
+        // uploaded body has nothing to re-render against.
+        canAddAngles: Boolean(personaModelId),
         assets,
       });
     }
@@ -210,11 +216,16 @@ async function resolvePersona(form: FormData, modelId?: string) {
 
   if (custom instanceof File && custom.size > 0) {
     return {
-      poses: { front: await toBase64(custom) },
-      bodyProfile: 'custom',
+      persona: { poses: { front: await toBase64(custom) }, bodyProfile: 'custom' },
+      // An uploaded body cannot be reloaded later, so extra angles are not
+      // offered for it rather than silently rendered on someone else.
+      modelId: undefined,
     };
   }
 
   const id = modelId && isHouseModel(modelId) ? modelId : DEFAULT_MODEL_ID;
-  return { poses: await loadModelPoses(id), bodyProfile: id };
+  return {
+    persona: { poses: await loadModelPoses(id), bodyProfile: id },
+    modelId: id,
+  };
 }

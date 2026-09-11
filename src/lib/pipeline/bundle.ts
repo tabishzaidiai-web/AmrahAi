@@ -105,13 +105,25 @@ export const SKU_BUNDLE: SlotSpec[] = [
 export const REQUIRED_SLOTS = SKU_BUNDLE.filter((s) => s.required);
 
 /**
+ * Slots a shoot does not produce unless asked.
+ *
+ * Each one is a full-price render, and both are extras rather than catalogue
+ * requirements: the lifestyle frame is ad creative, the walk is social. Making
+ * them on-demand takes a piece from three paid renders to two, and a six-piece
+ * drop from about $2.40 to $1.60, without touching the angles a marketplace
+ * listing actually needs.
+ */
+export const ON_DEMAND_SLOTS: SlotId[] = ['lifestyle', 'walk-video'];
+
+/**
  * Amazon forbids live child models and requires kids' apparel to be shot flat,
  * while adult apparel main images must be on a live model. Enforced at planning
  * time so a non-compliant bundle is never generated in the first place.
  */
 export function planFor(audience: 'adult' | 'kids'): SlotSpec[] {
+  const included = SKU_BUNDLE.filter((s) => !ON_DEMAND_SLOTS.includes(s.id));
   if (audience === 'kids') {
-    return SKU_BUNDLE.filter((s) => !s.id.startsWith('on-model') && s.id !== 'walk-video');
+    return included.filter((s) => !s.id.startsWith('on-model'));
   }
-  return SKU_BUNDLE;
+  return included;
 }

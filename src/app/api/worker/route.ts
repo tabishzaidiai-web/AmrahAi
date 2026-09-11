@@ -189,6 +189,7 @@ async function processItem(item: QueuedItem) {
     await persistShoot({
       shootId,
       userId: item.user_id,
+      modelId: settings.model_id,
       sku: item.sku ?? undefined,
       category: item.category,
       length: item.garment_length,
