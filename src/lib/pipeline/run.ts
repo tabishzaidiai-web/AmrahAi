@@ -32,6 +32,10 @@ export interface ShootRequest extends Selection {
 const WALK_PROMPT =
   'The model walks toward camera with a natural, confident stride. The fabric moves and drapes naturally with the walk. The garment does not change.';
 
+/** Longest edge of the garment reference handed to the model. Enough to carry
+ *  embroidery detail, small enough not to bloat every angle's request. */
+const REFERENCE_EDGE = 1200;
+
 /** How many times a wrong-length render is regenerated before giving up. */
 const LENGTH_ATTEMPTS = 3;
 
@@ -146,6 +150,50 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     });
   };
 
+  // Cut the garment free of its backdrop once, up front.
+  //
+  // This serves two slots. It is the packshot outright, and it is also the
+  // reference the model is dressed from — which is where it earns its keep
+  // twice over. Dressed from the raw flat lay, a five-motif placket came back
+  // with six on one run in two; dressed from the cut-out it held five on three
+  // runs out of three. Isolating the garment leaves less for the model to
+  // reinterpret, which is the same reason the packshot works.
+  //
+  // Null when the photograph is not a flat lay on a plain backdrop, and every
+  // use below falls back to the brand's original image.
+  const cutFor = async (garment?: GarmentRef) => {
+    if (!garment) return null;
+    try {
+      return await packshotFromFlatLay(Buffer.from(garment.data, 'base64'));
+    } catch {
+      // A cut that cannot be made is not a failure worth reporting: the slots
+      // that wanted it carry on with the photograph as supplied.
+      return null;
+    }
+  };
+
+  const [cutFront, cutBack] = await Promise.all([
+    cutFor(request.garmentFront),
+    cutFor(request.garmentBack),
+  ]);
+
+  /**
+   * The garment as the models should see it: cut out when that was possible.
+   *
+   * Scaled down on the way in. The cut is catalogue-resolution because the
+   * packshot slot needs it to be, but a reference image does not — and sent at
+   * full size it is nearly six megabytes of base64 riding on every angle's
+   * request, for detail the model does not use.
+   */
+  const asReference = async (garment: GarmentRef, cut: Buffer | null): Promise<GarmentRef> => {
+    if (!cut) return garment;
+    const scaled = await sharp(cut)
+      .resize(REFERENCE_EDGE, REFERENCE_EDGE, { fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer();
+    return { ...garment, data: scaled.toString('base64'), mimeType: 'image/png' };
+  };
+
   // Generation --------------------------------------------------------------
   // On-model angles and packshots are independent of each other, so they all
   // run together rather than in sequence. Only the derived crops and the video
@@ -165,7 +213,8 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       // The back of a garment is unobserved data. When the brand supplied a
       // back flat-lay it is used directly; otherwise the front is the only
       // truth we have and the back view is skipped rather than invented.
-      const garment = slot === 'on-model-back' ? request.garmentBack : request.garmentFront;
+      const isBack = slot === 'on-model-back';
+      const garment = isBack ? request.garmentBack : request.garmentFront;
       if (!garment) {
         // No back photograph was supplied, so this view was never on offer.
         // Reporting it as a failure buries the ones that need attention.
@@ -177,8 +226,9 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       }
 
       try {
+        const reference = await asReference(garment, isBack ? cutBack : cutFront);
         const result = await tryOnAtDeclaredLength(
-          () => tryOn.run({ garment, personImage, personMimeType: 'image/png' }),
+          () => tryOn.run({ garment: reference, personImage, personMimeType: 'image/png' }),
           Buffer.from(personImage, 'base64'),
           request.length,
         );
@@ -194,7 +244,8 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
 
   const packshots = (['ghost-front', 'ghost-back'] as SlotId[]).map(async (slot) => {
     if (!wanted.has(slot)) return;
-    const garment = slot === 'ghost-back' ? request.garmentBack : request.garmentFront;
+    const isBack = slot === 'ghost-back';
+    const garment = isBack ? request.garmentBack : request.garmentFront;
     if (!garment) {
       skipped.push({ slot, reason: 'Add a back photo of the garment to include back views' });
       return;
@@ -205,7 +256,7 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
       // backdrop the packshot is made from their own pixels, which costs
       // nothing and cannot invent anything — the generated version of this slot
       // shortened garments and once added a brand label that did not exist.
-      const cut = await packshotFromFlatLay(Buffer.from(garment.data, 'base64'));
+      const cut = isBack ? cutBack : cutFront;
 
       if (cut) {
         await record(slot, cut, 'cut-from-photograph', 0);
