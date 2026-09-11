@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ImagePlus, Loader2, X } from 'lucide-react';
-import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
+import {
+  HOUSE_MODELS,
+  MODELS_BY_GENDER,
+  DEFAULT_MODEL_ID,
+} from '@/lib/pipeline/models-client';
 import { LENGTHS, type GarmentLength as Length } from '@/lib/garment-lengths';
 
 export function NewCollection() {
@@ -95,31 +99,40 @@ export function NewCollection() {
       <section>
         <h2 className="font-display text-xl tracking-tight">Settings for the whole drop</h2>
 
-        <p className="mt-5 text-sm text-muted">Model</p>
-        <div className="mt-2.5 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {HOUSE_MODELS.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setModelId(m.id)}
-              aria-pressed={modelId === m.id}
-              className={`overflow-hidden rounded-xl border text-left transition-colors ${
-                modelId === m.id
-                  ? 'border-accent bg-accent-soft'
-                  : 'border-line bg-surface hover:border-muted'
-              }`}
-            >
-              {/* Served from the app's own assets, not an optimised route. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/models/${m.id}.jpg`}
-                alt={m.name}
-                className="aspect-3/4 w-full bg-background object-cover"
-              />
-              <span className="block px-3 py-2 text-sm">{m.name}</span>
-            </button>
-          ))}
-        </div>
+        {MODELS_BY_GENDER.map((group) => (
+          <div key={group.gender} className="mt-5">
+            <p className="text-sm text-muted">{group.label}</p>
+            <div className="mt-2.5 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {HOUSE_MODELS.filter((m) => m.gender === group.gender).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setModelId(m.id)}
+                  aria-pressed={modelId === m.id}
+                  className={`overflow-hidden rounded-xl border text-left transition-colors ${
+                    modelId === m.id
+                      ? 'border-accent bg-accent-soft'
+                      : 'border-line bg-surface hover:border-muted'
+                  }`}
+                >
+                  {/* Served from the app's own assets, not an optimised route. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/models/${m.id}.jpg`}
+                    alt={m.name}
+                    className="aspect-3/4 w-full bg-background object-cover"
+                  />
+                  <span className="block px-3 py-2">
+                    <span className="block text-sm">{m.name}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                      {m.description}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
 
         <p className="mt-6 text-sm text-muted">Length</p>
         <div className="mt-2.5 flex flex-wrap gap-2">

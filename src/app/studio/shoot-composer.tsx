@@ -5,7 +5,11 @@ import { Check, ImagePlus, Loader2, Sparkles, X } from 'lucide-react';
 import { LENGTHS, type GarmentLength as Length } from '@/lib/garment-lengths';
 import { planFor } from '@/lib/pipeline/bundle';
 import { Results, type ShootResult } from './results';
-import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
+import {
+  HOUSE_MODELS,
+  MODELS_BY_GENDER,
+  DEFAULT_MODEL_ID,
+} from '@/lib/pipeline/models-client';
 
 type Category = 'top' | 'bottom' | 'one-piece';
 type Audience = 'adult' | 'kids';
@@ -109,8 +113,8 @@ export function ShootComposer() {
     <div className="mx-auto max-w-5xl px-6 py-12">
       <h1 className="font-display text-3xl tracking-tight sm:text-4xl">New shoot</h1>
       <p className="mt-3 max-w-xl leading-relaxed text-muted">
-        Upload the garment, pick a setting, and Amrah returns the full bundle. No prompt
-        writing.
+        Upload the garment, choose who wears it, and Amrah returns the full bundle.
+        No prompt writing.
       </p>
 
       {/* Step 1 — garment */}
@@ -228,42 +232,49 @@ export function ShootComposer() {
       {/* Step 3 — model */}
       <section className="mt-12">
         <StepHeading n={3} title="Who wears it?" />
-        <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {HOUSE_MODELS.map((m) => {
-            const selected = !customModel && modelId === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  setModelId(m.id);
-                  if (customModel) {
-                    URL.revokeObjectURL(customModel.previewUrl);
-                    setCustomModel(null);
-                  }
-                }}
-                aria-pressed={selected}
-                className={`overflow-hidden rounded-xl border text-left transition-colors ${
-                  selected ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-muted'
-                }`}
-              >
-                {/* Served from the app's own assets, not an optimised route. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/models/${m.id}.jpg`}
-                  alt={m.name}
-                  className="aspect-3/4 w-full bg-background object-cover"
-                />
-                <span className="block px-3 py-2.5">
-                  <span className="block text-sm">{m.name}</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-muted">
-                    {m.description}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {MODELS_BY_GENDER.map((group) => (
+          <div key={group.gender} className="mt-5">
+            <p className="text-sm text-muted">{group.label}</p>
+            <div className="mt-2.5 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {HOUSE_MODELS.filter((m) => m.gender === group.gender).map((m) => {
+                const selected = !customModel && modelId === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setModelId(m.id);
+                      if (customModel) {
+                        URL.revokeObjectURL(customModel.previewUrl);
+                        setCustomModel(null);
+                      }
+                    }}
+                    aria-pressed={selected}
+                    className={`overflow-hidden rounded-xl border text-left transition-colors ${
+                      selected
+                        ? 'border-accent bg-accent-soft'
+                        : 'border-line bg-surface hover:border-muted'
+                    }`}
+                  >
+                    {/* Served from the app's own assets, not an optimised route. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/models/${m.id}.jpg`}
+                      alt={m.name}
+                      className="aspect-3/4 w-full bg-background object-cover"
+                    />
+                    <span className="block px-3 py-2.5">
+                      <span className="block text-sm">{m.name}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                        {m.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
 
         <div className="mt-4 max-w-sm">
           <Dropzone

@@ -25,46 +25,96 @@ if (!PROJECT) {
   process.exit(1);
 }
 
-/** Held constant so every model is framed and lit identically. */
+/**
+ * Held constant so every model is framed and lit identically.
+ *
+ * The old version asked for a neutral expression and got exactly that: a
+ * library of people who looked like passport photographs. A garment is sold by
+ * someone who looks like they want to be wearing it, so the brief now asks for
+ * warmth and presence. Everything about the frame, the lighting and the plain
+ * basics stays fixed, because that consistency is what lets a drop read as one
+ * photoshoot.
+ */
 const BASE = [
   'Full-length fashion e-commerce photograph, head to feet fully in frame with headroom above and shoes visible.',
-  'She wears plain fitted neutral light-grey basics: a simple short-sleeve top and slim trousers, no pattern, no logo, no jewellery.',
   'Plain seamless light-grey studio background. Soft even diffused studio lighting, no harsh shadows.',
   'Natural realistic skin texture with visible pores, not airbrushed or plastic. Anatomically correct hands with exactly five fingers.',
-  'Poised, confident, editorial fashion presence. Photorealistic, sharp focus, shot on an 85mm lens.',
-  'Vertical 3:4 portrait composition.',
+  'An exceptionally good-looking, high-fashion model with genuine warmth and presence — alive and engaged, not blank or stiff.',
+  'Photorealistic, sharp focus, shot on an 85mm lens. Vertical 3:4 portrait composition.',
 ].join(' ');
 
-export const MODEL_BRIEFS = {
-  amira: 'A South Asian woman in her late twenties with warm medium-brown skin, dark brown hair drawn back, refined editorial features.',
-  leila: 'A Middle Eastern woman in her late twenties with olive skin, long dark hair drawn back, strong elegant features.',
-  mei: 'An East Asian woman in her mid twenties with fair warm skin and dark hair drawn back into a sleek low bun.',
-  nala: 'A Black woman in her late twenties with deep brown skin and short natural hair, striking editorial features.',
-  sofia: 'A White woman in her late twenties with light skin and dark blonde hair drawn back, classic editorial features.',
+/** What each model wears, so the garment being fitted later has a plain base. */
+const BASICS = {
+  women:
+    'She wears plain fitted neutral light-grey basics: a simple short-sleeve top and slim trousers, no pattern, no logo, no jewellery.',
+  men: 'He wears plain fitted neutral light-grey basics: a simple short-sleeve crew-neck t-shirt and slim trousers, no pattern, no logo, no jewellery.',
 };
 
+/**
+ * Who each model is. Invented people, described by look rather than by
+ * resemblance to anyone: nothing here names or points at a real person.
+ */
+export const MODEL_BRIEFS = {
+  // Women
+  aditi: { gender: 'women', brief: 'A strikingly beautiful Indian woman in her late twenties with warm medium-brown skin, large expressive dark eyes, defined cheekbones and long glossy black hair drawn back.' },
+  zara: { gender: 'women', brief: 'A strikingly beautiful Pakistani woman in her mid twenties with fair wheatish skin, light hazel eyes, elegant features and dark brown hair drawn back.' },
+  yuki: { gender: 'women', brief: 'A strikingly beautiful Japanese woman in her mid twenties with fair porcelain skin, delicate refined features and sleek straight black hair drawn back.' },
+  lin: { gender: 'women', brief: 'A strikingly beautiful Chinese woman in her late twenties with fair warm skin, high cheekbones, elegant almond eyes and dark hair in a sleek low bun.' },
+  anastasia: { gender: 'women', brief: 'A strikingly beautiful Russian woman in her mid twenties with pale skin, clear blue-grey eyes, sculpted cheekbones and light ash-blonde hair drawn back.' },
+  greta: { gender: 'women', brief: 'A strikingly beautiful German woman in her late twenties with fair skin, green eyes, strong clean features and dark blonde hair drawn back.' },
+  leila: { gender: 'women', brief: 'A strikingly beautiful Middle Eastern woman in her late twenties with olive skin, deep brown eyes, strong elegant features and long dark hair drawn back.' },
+  nala: { gender: 'women', brief: 'A strikingly beautiful Black woman in her late twenties with deep brown skin, luminous features, sculpted cheekbones and short natural hair.' },
+
+  // Men
+  arjun: { gender: 'men', brief: 'A strikingly handsome Indian man in his late twenties with warm medium-brown skin, a defined jawline, dark expressive eyes, short dark hair and a neat short beard. Tall and lean.' },
+  bilal: { gender: 'men', brief: 'A strikingly handsome Pakistani man in his early thirties with wheatish skin, a strong jawline, dark eyes, short dark hair and a well-groomed beard. Tall and broad-shouldered.' },
+  haruto: { gender: 'men', brief: 'A strikingly handsome Japanese man in his late twenties with fair skin, refined features, dark eyes and soft short black hair. Tall and slim.' },
+  chen: { gender: 'men', brief: 'A strikingly handsome Chinese man in his late twenties with fair warm skin, sharp cheekbones, dark eyes and short neatly cut black hair. Tall and lean.' },
+  maksim: { gender: 'men', brief: 'A strikingly handsome Russian man in his early thirties with fair skin, blue eyes, a strong jawline and short light-brown hair. Tall and athletic.' },
+  lukas: { gender: 'men', brief: 'A strikingly handsome German man in his late twenties with fair skin, grey-blue eyes, clean strong features and short dark-blond hair. Tall and athletic.' },
+};
+
+/**
+ * Written for "the model" rather than "she", because the library now has men in
+ * it, and each pose carries its own expression: a library where every shot
+ * wears the same face is the thing being fixed.
+ */
 const POSES = [
-  { id: 'front', direction: 'She stands facing the camera directly, front view, arms relaxed at her sides, weight even, neutral expression.' },
-  { id: 'back', direction: 'She stands with her back fully to the camera, rear view, head facing away, arms relaxed at her sides.' },
-  { id: 'three-quarter', direction: 'She stands turned roughly 45 degrees from the camera in a three-quarter view, head turned back toward the lens.' },
-  { id: 'lifestyle', direction: 'She stands in a relaxed natural stance, weight on one leg, one hand loose at her side, facing slightly off-camera.' },
+  { id: 'front', direction: 'The model stands facing the camera directly, front view, arms relaxed at their sides, weight even. Looking straight down the lens with a warm, confident, engaged expression and the faintest natural smile.' },
+  { id: 'back', direction: 'The model stands with their back fully to the camera, rear view, head facing away, arms relaxed at their sides.' },
+  { id: 'three-quarter', direction: 'The model stands turned roughly 45 degrees from the camera in a three-quarter view, head turned back toward the lens with a relaxed half-smile, chin slightly lifted.' },
+  { id: 'lifestyle', direction: 'The model stands in a relaxed natural stance, weight on one leg, one hand loose at their side, glancing slightly off-camera with an easy candid expression, as if caught mid-conversation.' },
 ];
 
 const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 
-/** Image generation is slow enough that a transient network blip is likely
- *  across a twenty-image run, and losing the whole batch to one is wasteful. */
-async function generateWithRetry(prompt, reference, attempts = 4) {
+/**
+ * Retries, patiently enough for a rate limit rather than just a network blip.
+ *
+ * A fourteen-model run is fifty-six generations, which is well past the image
+ * model's per-minute allowance. The first version backed off four, eight and
+ * twelve seconds, which is the right shape for a dropped connection and far too
+ * quick for a quota: it burned its three attempts inside half a minute and took
+ * the whole batch down at the fifth model. Quotas refill on the minute, so the
+ * waits are now measured in minutes too.
+ */
+async function generateWithRetry(prompt, reference, attempts = 6) {
   for (let i = 1; ; i++) {
     try {
       return await generate(prompt, reference);
     } catch (error) {
       if (i >= attempts) throw error;
-      process.stdout.write(`retry ${i}… `);
-      await new Promise((r) => setTimeout(r, 4000 * i));
+      const exhausted = /429|RESOURCE_EXHAUSTED/.test(String(error.message));
+      const waitMs = exhausted ? 45_000 * i : 4_000 * i;
+      process.stdout.write(`${exhausted ? 'quota' : 'retry'} ${i} (${waitMs / 1000}s)… `);
+      await new Promise((r) => setTimeout(r, waitMs));
     }
   }
 }
+
+/** Spacing between generations, so a long run stays under the per-minute
+ *  allowance instead of sprinting into it and then waiting out a penalty. */
+const PACE_MS = 12_000;
 
 async function generate(prompt, reference) {
   const { token } = await (await auth.getClient()).getAccessToken();
@@ -81,7 +131,11 @@ async function generate(prompt, reference) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
-        generationConfig: { responseModalities: ['IMAGE'] },
+        generationConfig: {
+          responseModalities: ['IMAGE'],
+          // Portrait, matching the shape every shoot is rendered at.
+          imageConfig: { aspectRatio: '3:4' },
+        },
       }),
     },
   );
@@ -101,11 +155,12 @@ const requested = process.argv.slice(2);
 const ids = requested.length > 0 ? requested : Object.keys(MODEL_BRIEFS);
 
 for (const id of ids) {
-  const brief = MODEL_BRIEFS[id];
-  if (!brief) {
+  const entry = MODEL_BRIEFS[id];
+  if (!entry) {
     console.error(`Unknown model "${id}"`);
     continue;
   }
+  const brief = `${entry.brief} ${BASICS[entry.gender]}`;
 
   const dir = path.join(OUT, id);
   await mkdir(dir, { recursive: true });
@@ -116,10 +171,11 @@ for (const id of ids) {
     const isFront = pose.id === 'front';
     const prompt = isFront
       ? `${BASE} ${brief} ${pose.direction}`
-      : `Using the supplied photograph as the reference for the person, generate the SAME woman — identical face, hair, body proportions, skin tone and identical clothing — photographed again in the same studio with the same lighting and framing. ${pose.direction} ${BASE}`;
+      : `Using the supplied photograph as the reference for the person, generate the SAME person — identical face, hair, body proportions, skin tone and identical clothing — photographed again in the same studio with the same lighting and framing. ${pose.direction} ${BASE}`;
 
     process.stdout.write(`  ${pose.id}… `);
     const image = await generateWithRetry(prompt, isFront ? undefined : reference);
+    await new Promise((r) => setTimeout(r, PACE_MS));
     if (isFront) reference = image;
 
     await writeFile(path.join(dir, `${pose.id}.jpg`), image);
