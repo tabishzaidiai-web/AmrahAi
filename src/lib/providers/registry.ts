@@ -1,4 +1,5 @@
 import {
+  geminiTryOn,
   vertexImage,
   vertexImagePro,
   vertexTryOn,
@@ -12,7 +13,10 @@ import type {
   VideoProvider,
 } from './types';
 
-const TRYON: TryOnProvider[] = [vertexTryOn];
+// Reference-conditioned generation leads, with Virtual Try-On kept behind it:
+// try-on reshaped garments — a floor-length kurta to the knee, elbow sleeves to
+// the wrist — which is the one failure this product cannot ship.
+const TRYON: TryOnProvider[] = [geminiTryOn, vertexTryOn];
 const IMAGE: ImageProvider[] = [vertexImage, vertexImagePro];
 const VIDEO: VideoProvider[] = [vertexVideo];
 
@@ -58,7 +62,7 @@ export interface Selection {
 }
 
 export function selectTryOn({ routing }: Selection): TryOnProvider {
-  return pick(TRYON, vertexTryOn.id, routing, 'try-on');
+  return pick(TRYON, geminiTryOn.id, routing, 'try-on');
 }
 
 export function selectImage({ tier, routing }: Selection): ImageProvider {
