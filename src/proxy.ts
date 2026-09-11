@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PROTECTED = ['/studio'];
+/**
+ * Everywhere a brand's own work lives.
+ *
+ * These pages read through row-level security, so a lapsed session returns no
+ * rows rather than an error — and the pages then report that as absence: the
+ * library said "nothing here yet" and a collection returned a flat 404, both of
+ * which read as the work having been lost. Signing in is the answer to all of
+ * them, so the session is checked before the page is ever rendered.
+ */
+const PROTECTED = ['/studio', '/collections', '/library'];
 
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
