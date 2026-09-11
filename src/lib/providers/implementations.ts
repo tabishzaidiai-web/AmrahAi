@@ -4,7 +4,12 @@ import {
   generateVideo,
   predictTryOn,
 } from './vertex';
-import type { ImageProvider, TryOnProvider, VideoProvider } from './types';
+import type {
+  ImageProvider,
+  TryOnProvider,
+  VideoProvider,
+  VideoResolution,
+} from './types';
 import { claimVideoSlot } from '../pipeline/queue';
 
 async function timed<T>(fn: () => Promise<T>): Promise<{ value: T; latencyMs: number }> {
@@ -175,22 +180,58 @@ function nearestSupportedDuration(requested: number) {
   );
 }
 
+/**
+ * What a second of video costs at each frame height, relative to 1080p.
+ *
+ * Vertex bills video by the second and charges less for smaller frames, which
+ * is the whole reason a preview is worth making: the question a preview answers
+ * — is this the right direction for this garment — is answered as well by a
+ * small clip as a large one, and a rejected direction should not cost what a
+ * published one does.
+ *
+ * These are ratios against `unitCost`, not quoted prices. Confirm them against
+ * a real bill before they are used to price customer plans.
+ */
+const RESOLUTION_COST: Record<VideoResolution, number> = {
+  '360p': 0.3,
+  '480p': 0.45,
+  '720p': 1,
+  '1080p': 1.5,
+};
+
+/**
+ * Where to go when a model refuses the requested frame height.
+ *
+ * Veo 3.1 accepts 720p and 1080p only; both 360p and 480p come back as
+ * "Invalid resolution", measured rather than assumed. The smaller sizes stay in
+ * the type because they are real elsewhere — Omni quotes a 360p tier — and a
+ * provider that supports them should be able to say so without this file
+ * changing shape. Until then anything small lands on 720p rather than failing.
+ */
+const RESOLUTION_FALLBACK: Record<VideoResolution, VideoResolution | undefined> = {
+  '360p': '720p',
+  '480p': '720p',
+  '720p': undefined,
+  '1080p': '720p',
+};
+
 export const vertexVideo: VideoProvider = {
   kind: 'video',
   id: 'veo-3.1-fast',
   name: 'Veo 3.1 Fast',
   region: 'us',
-  // Billed per second of output; confirm the unit with Google before pricing
-  // customer plans against it.
+  // Per second of output at 720p; smaller frames cost less, see RESOLUTION_COST.
+  // Confirm the unit with Google before pricing customer plans against it.
   unitCost: 0.1,
   async run(input) {
     const duration = nearestSupportedDuration(input.durationSeconds);
+    const requested = input.resolution ?? '720p';
 
     // Raises rather than submitting when no slot is free in time, so the caller
     // can leave the clip for a later run instead of burning it on a 429.
     await awaitVideoSlot(input.waitBudgetMs ?? 90_000);
 
-    const { value, latencyMs } = await timed(() =>
+    const attempt = async (resolution: VideoResolution) =>
       generateVideo({
         instances: [
           {
@@ -205,14 +246,31 @@ export const vertexVideo: VideoProvider = {
           sampleCount: 1,
           durationSeconds: duration,
           aspectRatio: input.aspectRatio,
+          resolution,
           generateAudio: false,
         },
-      }),
-    );
+      });
+
+    let used = requested;
+    const { value, latencyMs } = await timed(async () => {
+      try {
+        return await attempt(requested);
+      } catch (error) {
+        // Which frame heights a model accepts varies between them and is not
+        // worth a round trip to discover, so a refusal steps up one size rather
+        // than losing the clip. Everything else is a real failure.
+        const fallback = RESOLUTION_FALLBACK[requested];
+        const message = error instanceof Error ? error.message : '';
+        if (!fallback || !/Invalid resolution/i.test(message)) throw error;
+        used = fallback;
+        return attempt(fallback);
+      }
+    });
+
     return {
       uri: value,
       providerId: this.id,
-      cost: this.unitCost * duration,
+      cost: this.unitCost * duration * RESOLUTION_COST[used],
       latencyMs,
     };
   },

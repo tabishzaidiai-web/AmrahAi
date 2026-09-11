@@ -55,6 +55,8 @@ export interface ImageGenInput {
   aspectRatio: '1:1' | '3:4' | '4:5' | '9:16' | '16:9';
 }
 
+export type VideoResolution = '360p' | '480p' | '720p' | '1080p';
+
 export interface VideoGenInput {
   /** First frame: always an already-approved still, so the garment cannot drift
    *  across frames. */
@@ -62,6 +64,9 @@ export interface VideoGenInput {
   prompt: string;
   durationSeconds: number;
   aspectRatio: '9:16' | '16:9' | '1:1';
+  /** Frame height. A preview is judged on whether the direction works, which a
+   *  small cheap clip answers as well as a large expensive one. */
+  resolution?: VideoResolution;
   /** How long the caller can afford to wait for a submission slot before the
    *  clip should be left for a later run. */
   waitBudgetMs?: number;

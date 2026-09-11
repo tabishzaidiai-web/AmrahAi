@@ -114,6 +114,8 @@ export interface VideoJob {
   user_id: string;
   /** Which shot of the shoot this clip animates. */
   source_slot: string;
+  /** A cheap short clip to judge the direction by, or the render to publish. */
+  quality: 'preview' | 'final';
   prompt: string;
   attempts: number;
 }

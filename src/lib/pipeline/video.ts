@@ -15,6 +15,30 @@ import { admin, type VideoJob } from './queue';
 
 const BUCKET = 'shoot-assets';
 
+/**
+ * What each pass is for.
+ *
+ * The preview exists to answer one question — does this direction suit this
+ * garment — and four seconds answers it. It is deliberately still a usable
+ * clip: four seconds at 720p is a perfectly good Reel, so most pieces should
+ * never need the pass below it, and the expensive render stays something a
+ * designer opts into for a hero piece rather than the default.
+ *
+ * Veo accepts only 720p and 1080p — 360p and 480p are both rejected outright,
+ * despite the lower tiers quoted for other models — so duration and those two
+ * frame heights are the only levers there are.
+ */
+const PASSES = {
+  preview: { durationSeconds: 4, resolution: '720p' as const },
+  final: { durationSeconds: 6, resolution: '1080p' as const },
+};
+
+/** A preview and its final render are separate assets, so a designer can see
+ *  both and the preview is not silently replaced by something they may dislike. */
+export function videoSlot(sourceSlot: string, quality: 'preview' | 'final') {
+  return quality === 'final' ? `video-${sourceSlot}` : `video-${sourceSlot}-preview`;
+}
+
 export async function runQueuedVideo(job: VideoJob): Promise<void> {
   const db = admin();
 
@@ -39,15 +63,19 @@ export async function runQueuedVideo(job: VideoJob): Promise<void> {
 
   // Generous, because this job exists precisely to wait: it is not holding a
   // person or a piece's stills up, and the whole point is to catch a slot.
+  const pass = PASSES[job.quality] ?? PASSES.preview;
+
   const result = await selectVideo({ tier: 'free', routing: 'any' }).run({
     image: { data: image.toString('base64'), mimeType: 'image/png' },
     prompt: job.prompt,
-    durationSeconds: 6,
+    durationSeconds: pass.durationSeconds,
+    resolution: pass.resolution,
     aspectRatio: '9:16',
     waitBudgetMs: 130_000,
   });
 
-  const path = `${job.user_id}/${job.shoot_id}/video-${job.source_slot}.mp4`;
+  const slot = videoSlot(job.source_slot, job.quality);
+  const path = `${job.user_id}/${job.shoot_id}/${slot}.mp4`;
   const uri = result.uri ?? '';
 
   if (uri.startsWith('data:')) {
@@ -61,7 +89,7 @@ export async function runQueuedVideo(job: VideoJob): Promise<void> {
   await db.from('assets').insert({
     shoot_id: job.shoot_id,
     user_id: job.user_id,
-    slot: `video-${job.source_slot}`,
+    slot,
     // Stored in the bucket when returned inline, referenced when the provider
     // hosts it — the same split the rest of the pipeline uses.
     storage_path: uri.startsWith('data:') ? path : uri,

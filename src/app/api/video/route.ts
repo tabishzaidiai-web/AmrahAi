@@ -15,9 +15,14 @@ import { canAnimate, promptFor } from '@/lib/pipeline/directions';
 const schema = z.object({
   shootId: z.string().uuid(),
   slot: z.string().min(1),
-  direction: z.string().min(1),
+  /** Required for a preview. A final render inherits the direction of the
+   *  preview it was approved from, so it cannot silently differ from it. */
+  direction: z.string().min(1).optional(),
   /** The designer's own brief, when the built-in directions do not fit. */
   custom: z.string().max(600).optional(),
+  /** Previews are the default: nothing is rendered at full size until someone
+   *  has watched the cheap version and asked for it. */
+  quality: z.enum(['preview', 'final']).default('preview'),
 });
 
 export async function POST(request: Request) {
@@ -35,7 +40,7 @@ export async function POST(request: Request) {
     return Response.json({ message: 'Invalid video request.' }, { status: 400 });
   }
 
-  const { shootId, slot, direction, custom } = parsed.data;
+  const { shootId, slot, direction, custom, quality } = parsed.data;
 
   if (!canAnimate(slot)) {
     return Response.json(
@@ -59,13 +64,16 @@ export async function POST(request: Request) {
     return Response.json({ message: 'That shot could not be found.' }, { status: 404 });
   }
 
-  // One clip in flight per shot and angle. Asking twice is a double-click far
-  // more often than it is a genuine second request, and each one is real money.
+  // One clip in flight per shot, angle and quality. Asking twice is a
+  // double-click far more often than a genuine second request, and each one is
+  // real money — but a final render must not be mistaken for a repeat of the
+  // preview it was approved from.
   const { data: existing } = await supabase
     .from('video_jobs')
     .select('id')
     .eq('shoot_id', shootId)
     .eq('source_slot', slot)
+    .eq('quality', quality)
     .in('status', ['pending', 'running'])
     .maybeSingle();
 
@@ -73,17 +81,51 @@ export async function POST(request: Request) {
     return Response.json({ queued: true, alreadyQueued: true });
   }
 
+  // A final render is an approval of a preview the designer has watched, so it
+  // reuses that preview's own prompt. Rebuilding it from what the page happens
+  // to still be holding is how a published clip ends up being a different clip
+  // from the one that was approved.
+  let prompt: string;
+  let usedDirection = direction ?? null;
+
+  if (quality === 'final') {
+    const { data: approved } = await supabase
+      .from('video_jobs')
+      .select('prompt, direction')
+      .eq('shoot_id', shootId)
+      .eq('source_slot', slot)
+      .eq('quality', 'preview')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!approved) {
+      return Response.json(
+        { message: 'Make a preview first, so there is something to approve.' },
+        { status: 409 },
+      );
+    }
+    prompt = approved.prompt as string;
+    usedDirection = (approved.direction as string) ?? null;
+  } else {
+    if (!direction) {
+      return Response.json({ message: 'Choose what she should do.' }, { status: 400 });
+    }
+    prompt = promptFor(direction, custom);
+  }
+
   const { error } = await supabase.from('video_jobs').insert({
     shoot_id: shootId,
     user_id: user.id,
     source_slot: slot,
-    direction,
-    prompt: promptFor(direction, custom),
+    direction: usedDirection,
+    quality,
+    prompt,
   });
 
   if (error) {
     return Response.json({ message: 'Could not queue the video.' }, { status: 502 });
   }
 
-  return Response.json({ queued: true });
+  return Response.json({ queued: true, quality });
 }

@@ -6,6 +6,7 @@ import { SOCIAL_FORMATS } from '@/lib/pipeline/social-formats';
 import { SKU_BUNDLE, type SlotId } from '@/lib/pipeline/bundle';
 import { AmazonListing } from './amazon-listing';
 import { MakeVideo } from './make-video';
+import { ApproveVideo } from './approve-video';
 import { canAnimate } from '@/lib/pipeline/directions';
 
 export interface ResultAsset {
@@ -34,10 +35,23 @@ const LABELS = new Map(SKU_BUNDLE.map((s) => [s.id, s.label]));
  *  several and the designer can tell which is which. */
 function labelFor(slot: string): string {
   if (slot.startsWith('video-')) {
-    const source = slot.slice('video-'.length);
-    return `Video — ${LABELS.get(source as SlotId) ?? source}`;
+    const preview = slot.endsWith('-preview');
+    const source = slot.slice('video-'.length, preview ? -'-preview'.length : undefined);
+    const base = LABELS.get(source as SlotId) ?? source;
+    return preview ? `Preview — ${base}` : `Video — ${base}`;
   }
   return LABELS.get(slot as SlotId) ?? slot;
+}
+
+/** The rough clip a designer judges a direction by, before paying for the
+ *  full-resolution render. */
+function isPreviewClip(slot: string) {
+  return slot.startsWith('video-') && slot.endsWith('-preview');
+}
+
+/** The shot a clip was made from, so approving it can name the same one. */
+function sourceOf(slot: string) {
+  return slot.slice('video-'.length, -'-preview'.length);
 }
 
 export function Results({ result, onReset }: { result: ShootResult; onReset: () => void }) {
@@ -132,6 +146,9 @@ export function Results({ result, onReset }: { result: ShootResult; onReset: () 
               {asset.kind === 'image' && <SocialDownloads src={asset.src} />}
               {asset.kind === 'image' && canAnimate(asset.slot) && (
                 <MakeVideo shootId={result.shootId} slot={asset.slot} />
+              )}
+              {asset.kind === 'video' && isPreviewClip(asset.slot) && (
+                <ApproveVideo shootId={result.shootId} slot={sourceOf(asset.slot)} />
               )}
             </figcaption>
           </figure>
