@@ -19,10 +19,21 @@ const VIDEO: VideoProvider[] = [vertexVideo];
 /**
  * Which model each tier gets. Raising quality, or reacting to a vendor price
  * change, is an edit to this table and nothing else.
+ *
+ * Every tier gets the stronger image model, and that is deliberate. The cheaper
+ * one was given to the free and starter tiers, which made how faithfully a
+ * brand's own garment survives into a thing they had to pay more for. Fidelity
+ * is the product — a packshot whose embroidery has been reinvented is not a
+ * cheaper photograph, it is the wrong garment — so it cannot be the upsell.
+ * Volume and turnaround are what the tiers are for.
+ *
+ * The difference is $0.067 against $0.134 on one slot of a bundle that costs
+ * around $0.25 in stills, which is a small price for the only promise the
+ * product actually makes.
  */
 const TIER_PLAN: Record<Tier, { image: string; video: string }> = {
-  free: { image: vertexImage.id, video: vertexVideo.id },
-  starter: { image: vertexImage.id, video: vertexVideo.id },
+  free: { image: vertexImagePro.id, video: vertexVideo.id },
+  starter: { image: vertexImagePro.id, video: vertexVideo.id },
   pro: { image: vertexImagePro.id, video: vertexVideo.id },
   scale: { image: vertexImagePro.id, video: vertexVideo.id },
   enterprise: { image: vertexImagePro.id, video: vertexVideo.id },
