@@ -1,7 +1,12 @@
 /**
  * Generates the house-model library.
  *
- * Run: `node scripts/build-models.mjs [modelId ...]`
+ * Run: `npx tsx scripts/build-models.mts [modelId ...]`
+ *
+ * TypeScript so it can share the app's own framing check rather than keeping a
+ * second copy of it: a pose cropped at the ankles is exactly as useless here as
+ * a shoot cropped at the ankles, and the rule for deciding should not drift
+ * between the two.
  *
  * For each model the front pose is generated first and then passed as the
  * reference for every other pose, so the same person appears throughout. That
@@ -15,6 +20,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { GoogleAuth } from 'google-auth-library';
 import sharp from 'sharp';
+import { checkFraming } from '../src/lib/pipeline/framing';
 
 const PROJECT = process.env.GOOGLE_CLOUD_PROJECT;
 const MODEL = 'gemini-3-pro-image';
@@ -36,11 +42,22 @@ if (!PROJECT) {
  * photoshoot.
  */
 const BASE = [
-  'Full-length fashion e-commerce photograph, head to feet fully in frame with headroom above and shoes visible.',
-  'Plain seamless light-grey studio background. Soft even diffused studio lighting, no harsh shadows.',
-  'Natural realistic skin texture with visible pores, not airbrushed or plastic. Anatomically correct hands with exactly five fingers.',
-  'An exceptionally good-looking, high-fashion model with genuine warmth and presence — alive and engaged, not blank or stiff.',
-  'Photorealistic, sharp focus, shot on an 85mm lens. Vertical 3:4 portrait composition.',
+  // Framing first, and in these words, because the editorial language below
+  // pulls hard toward a portrait crop: asked for "a top runway model" without
+  // this, the men came back cropped at mid-thigh.
+  'FULL-LENGTH HEAD-TO-TOE PHOTOGRAPH. This is a full-body shot, not a portrait: the entire figure is in frame from the top of the head to the shoes on the floor.',
+  'Clear empty space above the head and visible floor below the feet. Never crop the head, the legs or the feet. The figure occupies about 80% of the frame height, standing at a distance.',
+  'A top international runway model signed to a major agency — the calibre of face that books magazine covers.',
+  'Exceptional bone structure: high sculpted cheekbones, a defined jawline, a strong symmetrical face, large luminous eyes, full lips.',
+  'Tall, long-limbed runway proportions, roughly seven and a half heads tall. The head is not enlarged relative to the body.',
+  'Professional hair and makeup: glossy well-styled hair, flawless natural glam, groomed brows, subtle highlighter on the cheekbones.',
+  'Skin flawless and radiant but still real — fine natural texture, not plastic or over-retouched.',
+  'Simple plain flat shoes.',
+  'Plain seamless light-grey studio cyclorama. Soft directional beauty lighting with a large key and gentle fill, giving quiet shape to the face rather than flat even light.',
+  'NOTHING else in the frame: no studio lights, softboxes, stands, reflectors, cables, furniture or props. Nobody else.',
+  'Confident, magnetic, engaged — the look of someone who knows the camera loves them.',
+  'Anatomically correct hands with exactly five fingers.',
+  'Photorealistic, tack sharp, shot on an 85mm lens. Vertical 3:4 composition. Editorial fashion quality.',
 ].join(' ');
 
 /** What each model wears, so the garment being fitted later has a plain base. */
@@ -174,8 +191,19 @@ for (const id of ids) {
       : `Using the supplied photograph as the reference for the person, generate the SAME person — identical face, hair, body proportions, skin tone and identical clothing — photographed again in the same studio with the same lighting and framing. ${pose.direction} ${BASE}`;
 
     process.stdout.write(`  ${pose.id}… `);
-    const image = await generateWithRetry(prompt, isFront ? undefined : reference);
-    await new Promise((r) => setTimeout(r, PACE_MS));
+
+    // Up to three goes at a frame that holds the whole person. The back pose is
+    // exempt: with the model facing away there is no face to anchor on and the
+    // check has nothing useful to say about a figure seen from behind.
+    let image;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      image = await generateWithRetry(prompt, isFront ? undefined : reference);
+      await new Promise((r) => setTimeout(r, PACE_MS));
+      if (pose.id === 'back' || attempt === 3) break;
+      const framing = await checkFraming(image);
+      if (framing.ok) break;
+      process.stdout.write('reframe… ');
+    }
     if (isFront) reference = image;
 
     await writeFile(path.join(dir, `${pose.id}.jpg`), image);
