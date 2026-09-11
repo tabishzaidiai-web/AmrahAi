@@ -7,6 +7,7 @@ import { validate, type ComplianceReport } from '../compliance/validate';
 import { measureHem, type GarmentLength } from './hem';
 import { VideoBusyError } from '../providers/implementations';
 import { SKU_BUNDLE, planFor, type SlotId } from './bundle';
+import { packshotFromFlatLay } from './packshot';
 
 export interface ShootRequest extends Selection {
   shootId: string;
@@ -71,6 +72,11 @@ const SLOT_POSE: Partial<Record<SlotId, PoseId>> = {
   'on-model-three-quarter': 'three-quarter',
   lifestyle: 'lifestyle',
 };
+
+/** Shown when the packshot had to be drawn instead of cut, because that is the
+ *  version whose detail is worth a second look before it is published. */
+const GENERATED_PACKSHOT_NOTICE =
+  'Drawn rather than cut, because this photograph is not a flat lay on a plain background. Check the detail before publishing — shoot the garment flat on white to get an exact packshot.';
 
 const PACKSHOT_PROMPT = [
   'Ghost mannequin product photograph of this exact garment: presented as if worn by an invisible person, holding natural three-dimensional shape and volume, with the inner back collar visible through the neck opening.',
@@ -195,12 +201,25 @@ export async function runShoot(request: ShootRequest): Promise<ShootOutcome> {
     }
 
     try {
+      // Cut before drawn. When the brand's photograph is a flat lay on a plain
+      // backdrop the packshot is made from their own pixels, which costs
+      // nothing and cannot invent anything — the generated version of this slot
+      // shortened garments and once added a brand label that did not exist.
+      const cut = await packshotFromFlatLay(Buffer.from(garment.data, 'base64'));
+
+      if (cut) {
+        await record(slot, cut, 'cut-from-photograph', 0);
+        return;
+      }
+
+      // A busy or dark backdrop cannot be cut from safely, so this falls back
+      // to generation and accepts its risks rather than shipping a torn cut-out.
       const result = await image.run({
         prompt: PACKSHOT_PROMPT,
         references: [{ data: garment.data, mimeType: garment.mimeType }],
         aspectRatio: '1:1',
       });
-      await record(slot, result.image, result.providerId, result.cost);
+      await record(slot, result.image, result.providerId, result.cost, GENERATED_PACKSHOT_NOTICE);
     } catch (error) {
       failures.push({ slot, reason: reasonOf(error) });
     }
