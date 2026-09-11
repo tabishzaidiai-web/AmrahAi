@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Check, ImagePlus, Loader2, Sparkles, X } from 'lucide-react';
-import { SCENES } from '@/lib/scenes';
 import { LENGTHS, type GarmentLength as Length } from '@/lib/garment-lengths';
 import { planFor } from '@/lib/pipeline/bundle';
 import { Results, type ShootResult } from './results';
@@ -36,7 +35,6 @@ export function ShootComposer() {
   const [reading, setReading] = useState<{ description: string } | null>(null);
   const [material, setMaterial] = useState('');
   const [audience, setAudience] = useState<Audience>('adult');
-  const [scene, setScene] = useState(SCENES[0].id);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ShootResult | null>(null);
@@ -86,7 +84,6 @@ export function ShootComposer() {
     if (source === 'sketch') body.append('material', material);
     if (customModel) body.append('modelImage', customModel.file);
     body.append('audience', audience);
-    body.append('scene', scene);
 
     try {
       const response = await fetch('/api/shoot', { method: 'POST', body });
@@ -285,34 +282,6 @@ export function ShootComposer() {
         )}
       </section>
 
-      {/* Step 4 — scene */}
-      <section className="mt-12">
-        <StepHeading n={4} title="Pick a setting" />
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {SCENES.map((s) => {
-            const selected = scene === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setScene(s.id)}
-                aria-pressed={selected}
-                className={`rounded-xl border p-4 text-left transition-colors ${
-                  selected
-                    ? 'border-accent bg-accent-soft'
-                    : 'border-line bg-surface hover:border-muted'
-                }`}
-              >
-                <span className="block font-medium">{s.label}</span>
-                <span className="mt-1 block text-sm leading-relaxed text-muted">
-                  {s.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-      </section>
 
       {/* Step 5 — confirm */}
       <section className="mt-12 rounded-2xl border border-line bg-surface p-6">

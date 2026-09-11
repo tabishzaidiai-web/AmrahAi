@@ -8,7 +8,6 @@ import {
   isHouseModel,
   loadModelPoses,
 } from '@/lib/pipeline/models';
-import { SCENES } from '@/lib/scenes';
 import { renderFromSketch } from '@/lib/pipeline/sketch';
 import { persistShoot } from '@/lib/storage';
 import { getUser, isSupabaseConfigured } from '@/lib/supabase/server';
@@ -17,7 +16,6 @@ import { refundShoot, reserveShoot, type Account } from '@/lib/billing/credits';
 const schema = z.object({
   category: z.enum(['top', 'bottom', 'one-piece']),
   audience: z.enum(['adult', 'kids']),
-  scene: z.string(),
   includeVideo: z.enum(['true', 'false']),
   length: z.enum(['top', 'mini', 'knee', 'midi', 'maxi']),
   modelId: z.string().optional(),
@@ -55,7 +53,6 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse({
     category: form.get('category'),
     audience: form.get('audience'),
-    scene: form.get('scene'),
     includeVideo: form.get('includeVideo'),
     length: form.get('length'),
     modelId: form.get('modelId') ?? undefined,
@@ -77,11 +74,6 @@ export async function POST(request: Request) {
     if (file instanceof File && file.size > MAX_UPLOAD_BYTES) {
       return Response.json({ message: 'Images must be under 10MB.' }, { status: 413 });
     }
-  }
-
-  const scene = SCENES.find((s) => s.id === parsed.data.scene);
-  if (!scene) {
-    return Response.json({ message: 'Unknown scene.' }, { status: 400 });
   }
 
   const shootId = randomUUID();
@@ -148,7 +140,6 @@ export async function POST(request: Request) {
       persona: await resolvePersona(form, parsed.data.modelId),
       audience: parsed.data.audience,
       length: parsed.data.length,
-      scene: scene.prompt,
       includeVideo: parsed.data.includeVideo === 'true',
     });
 

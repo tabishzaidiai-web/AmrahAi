@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ImagePlus, Loader2, X } from 'lucide-react';
 import { HOUSE_MODELS, DEFAULT_MODEL_ID } from '@/lib/pipeline/models-client';
-import { SCENES } from '@/lib/scenes';
 import { LENGTHS, type GarmentLength as Length } from '@/lib/garment-lengths';
 
 export function NewCollection() {
@@ -12,7 +11,6 @@ export function NewCollection() {
   const [name, setName] = useState('');
   const [pieces, setPieces] = useState<File[]>([]);
   const [modelId, setModelId] = useState(DEFAULT_MODEL_ID);
-  const [scene, setScene] = useState(SCENES[0].id);
   const [length, setLength] = useState<Length | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +23,6 @@ export function NewCollection() {
     const body = new FormData();
     body.append('name', name);
     body.append('modelId', modelId);
-    body.append('scene', scene);
     body.append('length', length);
     pieces.forEach((p) => body.append('pieces', p));
 
@@ -145,22 +142,6 @@ export function NewCollection() {
           separate collections, so each is checked against the right one.
         </p>
 
-        <p className="mt-6 text-sm text-muted">Setting</p>
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {SCENES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setScene(s.id)}
-              aria-pressed={scene === s.id}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                scene === s.id ? 'border-accent bg-accent-soft' : 'border-line hover:border-muted'
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
 
       </section>
 

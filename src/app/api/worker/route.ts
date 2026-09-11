@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { runShoot } from '@/lib/pipeline/run';
 import { loadModelPoses } from '@/lib/pipeline/models';
 import { persistShoot } from '@/lib/storage';
-import { SCENES } from '@/lib/scenes';
 import { vertexConfig } from '@/lib/providers/vertex';
 import { refundShoot, reserveShoot } from '@/lib/billing/credits';
 import {
@@ -153,7 +152,6 @@ async function drainVideos(started: number) {
 
 async function processItem(item: QueuedItem) {
   const settings = await loadSettings(item.collection_id);
-  const scene = SCENES.find((s) => s.id === settings.scene) ?? SCENES[0];
 
   // The credit is taken here rather than when the collection was queued, so a
   // brand that cancels a drop half way is not billed for pieces never shot.
@@ -181,7 +179,6 @@ async function processItem(item: QueuedItem) {
       },
       audience: item.audience,
       length: item.garment_length,
-      scene: scene.prompt,
       includeVideo: settings.include_video,
     });
 
