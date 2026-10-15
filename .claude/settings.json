@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "aws-core@claude-plugins-official": true
+    "aws-core@claude-plugins-official": true,
+    "aws-startup-advisor@claude-plugins-official": true
   }
 }
